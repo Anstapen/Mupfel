@@ -1,8 +1,11 @@
-#include "Core/Core.h"
+#include "Game.h"
 
 int main()
 {
-	Core::CreateExampleWindow();
-
+	Game game;
+	if (game.Init())
+	{
+		game.Run();
+	}
 	return 0;
 }
