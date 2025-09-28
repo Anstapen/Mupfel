@@ -2,8 +2,7 @@
 
 int main()
 {
-	Core::PrintHelloWorld();
-	//Core::CreateExampleWindow();
+	Core::CreateExampleWindow();
 
 	return 0;
 }

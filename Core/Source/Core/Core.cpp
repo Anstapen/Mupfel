@@ -6,12 +6,6 @@
 
 namespace Core {
 
-	void PrintHelloWorld()
-	{
-		std::cout << "Hello World!\n";
-		std::cin.get();
-	}
-
 	void CreateExampleWindow() {
         // Initialization
     //--------------------------------------------------------------------------------------

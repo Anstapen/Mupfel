@@ -18,7 +18,12 @@ project "Core"
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
    dependson {"raylib"}
-   links {"raylib"}
+   links {
+          "raylib.lib",
+          "winmm"
+         }
+   
+   libdirs {"../Binaries/Dependencies/%{cfg.buildcfg}"}
    
    includedirs {"../" .. raylib_dir .. "/src"}
    includedirs {"../" .. raylib_dir .."/src/external"}

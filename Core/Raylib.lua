@@ -50,9 +50,7 @@ project "raylib"
     
     location("../" .. raylib_dir)
     
-    os.chdir("../")
-    
-    print(os.getcwd())
+    os.chdir("../")  
 
     language "C"
     targetdir "Binaries/Dependencies/%{cfg.buildcfg}"
