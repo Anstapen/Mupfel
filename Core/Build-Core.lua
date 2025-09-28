@@ -20,9 +20,9 @@ project "Core"
    dependson {"raylib"}
    links {"raylib"}
    
-   includedirs {raylib_dir .. "/src"}
-   includedirs {raylib_dir .."/src/external"}
-   includedirs {raylib_dir .."/src/external/glfw/include"}
+   includedirs {"../" .. raylib_dir .. "/src"}
+   includedirs {"../" .. raylib_dir .."/src/external"}
+   includedirs {"../" .. raylib_dir .."/src/external/glfw/include"}
    
    filter "action:vs*"
        defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}

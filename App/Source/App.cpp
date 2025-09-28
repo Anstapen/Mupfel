@@ -3,4 +3,7 @@
 int main()
 {
 	Core::PrintHelloWorld();
+	//Core::CreateExampleWindow();
+
+	return 0;
 }
