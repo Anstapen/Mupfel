@@ -35,3 +35,5 @@ project "Core"
        runtime "Release"
        optimize "On"
        symbols "Off"
+       
+include "Raylib.lua"
