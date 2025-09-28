@@ -1,4 +1,7 @@
 -- premake5.lua
+
+include "Dependencies.lua"
+
 workspace "Mupfel"
    architecture "x64"
    configurations { "Debug", "Release", "Dist" }
