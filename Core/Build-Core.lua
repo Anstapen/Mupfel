@@ -1,3 +1,6 @@
+
+include "Raylib.lua"
+
 project "Core"
    kind "StaticLib"
    language "C++"
@@ -14,6 +17,12 @@ project "Core"
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
+   
+   links {"raylib"}
+   
+   includedirs {raylib_dir .. "/src"}
+   includedirs {raylib_dir .."/src/external"}
+   includedirs {raylib_dir .."/src/external/glfw/include"}
 
    filter "system:windows"
        systemversion "latest"
@@ -35,5 +44,3 @@ project "Core"
        runtime "Release"
        optimize "On"
        symbols "Off"
-       
-include "Raylib.lua"

@@ -43,18 +43,19 @@ function platform_defines()
     filter{}
 end
 
-
-
-
 project "raylib"
     kind "StaticLib"
 
     platform_defines()
-
+    
     location("../" .. raylib_dir)
+    
+    os.chdir("../")
+    
+    print(os.getcwd())
 
     language "C"
-    targetdir "../Binaries/Dependencies/%{cfg.buildcfg}"
+    targetdir "Binaries/Dependencies/%{cfg.buildcfg}"
 
     filter "action:vs*"
         defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}
