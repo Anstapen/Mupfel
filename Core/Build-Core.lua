@@ -17,12 +17,16 @@ project "Core"
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   
+   dependson {"raylib"}
    links {"raylib"}
    
    includedirs {raylib_dir .. "/src"}
    includedirs {raylib_dir .."/src/external"}
    includedirs {raylib_dir .."/src/external/glfw/include"}
+   
+   filter "action:vs*"
+       defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}
+       characterset ("Unicode")
 
    filter "system:windows"
        systemversion "latest"
