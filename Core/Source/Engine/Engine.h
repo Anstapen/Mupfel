@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/EventSystem.h"
+
 namespace Mupfel {
 	/**
 	 * @brief
@@ -24,6 +26,9 @@ namespace Mupfel {
 		 * @brief 
 		 */
 		void Run();
+
+	private:
+		EventSystem event_system;
 	};
 }
 
