@@ -1,14 +1,11 @@
 #include "Engine.h"
 #include "raylib.h"
-
 #include <iostream>
-
-#include "Core/ButtonEvent.h"
 
 
 using namespace Mupfel;
 
-Engine::Engine()
+Engine::Engine() : event_system(), input_manager(event_system, InputManager::Mode::MOUSE_KEYBOARD)
 {
 }
 
@@ -59,23 +56,8 @@ void Engine::Run()
             }
             SetTargetFPS(target_fps);
         }
-        if (IsKeyDown(KEY_W)) {
-            /* TODO: we currently cannot create instances of EventBuffer... */
-            //event_system.AddEvent<ButtonEvent>({Key::W, KeyState::PRESSED});
-            event_counter++;
-        }
-        if (IsKeyDown(KEY_A)) {
-            //event_system.AddEvent<ButtonEvent>({ Key::A, KeyState::PRESSED });
-            event_counter++;
-        }
-        if (IsKeyDown(KEY_S)) {
-            //event_system.AddEvent<ButtonEvent>({ Key::S, KeyState::PRESSED });
-            event_counter++;
-        }
-        if (IsKeyDown(KEY_D)) {
-            //event_system.AddEvent<ButtonEvent>({ Key::D, KeyState::PRESSED });
-            event_counter++;
-        }
+
+        input_manager.Update(GetTime());
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
@@ -88,17 +70,17 @@ void Engine::Run()
 
 
         /* Check for events */
-#if 0
-        uint64_t current_event_count = event_system.GetPendingEvents<ButtonEvent>();
+
+        uint64_t current_event_count = event_system.GetPendingEvents<UserInputEvent>();
 
         for (uint64_t i = 0; i < current_event_count; i++)
         {
-            if (event_system.GetEvent<ButtonEvent>(i).has_value())
+            if (event_system.GetEvent<UserInputEvent>(i).has_value())
             {
                 event_counter++;
             }
         }
-#endif
+
         /* We check the events every second */
         if ((current_time - start_time) > 1.0f)
         {

@@ -30,6 +30,7 @@ namespace Mupfel {
 		requires std::derived_from<T, IEvent>
 	inline EventBuffer<T>::EventBuffer(uint32_t initial_size) : event_buf(initial_size)
 	{
+		event_buf.clear();
 	}
 
 	template<typename T>

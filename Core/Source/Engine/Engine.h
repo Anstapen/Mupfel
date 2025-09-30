@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/EventSystem.h"
+#include "Core/InputManager.h"
 
 namespace Mupfel {
 	/**
@@ -29,6 +30,7 @@ namespace Mupfel {
 
 	private:
 		EventSystem event_system;
+		InputManager input_manager;
 	};
 }
 
