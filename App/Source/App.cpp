@@ -1,11 +1,19 @@
-#include "Game.h"
+#include "Core/Application.h"
+#include "HelloWorldLayer.h"
 
 int main()
 {
-	Game game;
-	if (game.Init())
+	Mupfel::ApplicationSpecification app_spec;
+	app_spec.name.insert(0, "My first Application");
+
+	Mupfel::Application& app = Mupfel::Application::Get();
+
+	if (app.Init(app_spec))
 	{
-		game.Run();
+		app.PushLayer<HelloWorldLayer>();
+
+		app.Run();
 	}
+
 	return 0;
 }
