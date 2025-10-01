@@ -7,6 +7,10 @@
 
 namespace Mupfel {
 
+    /**
+     * @brief All the keyboard keys that
+     * are known to the Engine.
+     */
     enum Key {
         KEY_NULL = 0,        // Key: NULL, used for no key pressed
         // Alphanumeric keys
@@ -125,7 +129,9 @@ namespace Mupfel {
     };
 
 
-// Mouse buttons
+    /**
+     * @brief The Mouse Buttons that are known to the Engine.
+     */
     enum MouseButton {
         MOUSE_BUTTON_LEFT = 0,       // Mouse button left
         MOUSE_BUTTON_RIGHT = 1,       // Mouse button right
@@ -136,7 +142,9 @@ namespace Mupfel {
         MOUSE_BUTTON_BACK = 6,       // Mouse button back (advanced mouse device)
     };
 
-    // Mouse cursor
+    /**
+     * @brief The possible Mouse Cursor shapes.
+     */
     enum MouseCursor {
         MOUSE_CURSOR_DEFAULT = 0,     // Default pointer shape
         MOUSE_CURSOR_ARROW = 1,     // Arrow shape
@@ -151,7 +159,9 @@ namespace Mupfel {
         MOUSE_CURSOR_NOT_ALLOWED = 10     // The operation-not-allowed shape
     };
 
-    // Gamepad buttons
+    /**
+     * @brief The known Gamepad buttons.
+     */
     enum GamepadButton {
         GAMEPAD_BUTTON_UNKNOWN = 0,         // Unknown button, just for error checking
         GAMEPAD_BUTTON_LEFT_FACE_UP,        // Gamepad left DPAD up button
@@ -173,7 +183,9 @@ namespace Mupfel {
         GAMEPAD_BUTTON_RIGHT_THUMB          // Gamepad joystick pressed button right
     };
 
-    // Gamepad axes
+    /**
+     * @brief The known Gamepad axies.
+     */
     enum GamepadAxis {
         GAMEPAD_AXIS_LEFT_X = 0,     // Gamepad left stick X axis
         GAMEPAD_AXIS_LEFT_Y = 1,     // Gamepad left stick Y axis
@@ -183,6 +195,9 @@ namespace Mupfel {
         GAMEPAD_AXIS_RIGHT_TRIGGER = 5      // Gamepad back trigger right, pressure level: [1..-1]
     };
 
+	/**
+	 * @brief All possible User Input.
+	 */
 	enum class UserInput {
 		NONE,
 		CURSOR_POS_CHANGED,
@@ -197,6 +212,10 @@ namespace Mupfel {
 		SCROLLWHEEL_DOWN
 	};
 
+	/**
+	 * @brief This Event class is used to propagate events that
+     * are triggered by User input (Mouse, Keyboard or Gamepad).
+	 */
 	class UserInputEvent : public Event< UserInputEvent> {
 	public:
 		UserInputEvent();
@@ -205,32 +224,81 @@ namespace Mupfel {
 
 	
 		static constexpr uint64_t c_get_guid() {
-			return hash_str("UserInputEvent");
+			return Hash::Compute("UserInputEvent");
 		}
 
 	public:
 		UserInput input;
 	};
 
+	/**
+	 * @brief The Input Manager is responsible for scanning the User
+     * Input Devices every frame and issuing UserInputEvents depending on
+     * the stored Mapping.
+	 */
 	class InputManager {
 	public:
+		/**
+		 * @brief The Input Manager either listens to Gamepad or Mouse + Keyboard events.
+		 */
 		enum class Mode {
 			MOUSE_KEYBOARD,
 			GAMEPAD
 		};
 
 	public:
+		/**
+		 * @brief Constructor.
+		 * @param evt_system The Event System to which new events shall be added.
+		 * @param in_mode The Mode of the Input Manager, default is Mouse + Keyboard.
+		 */
 		InputManager(EventSystem& evt_system, Mode in_mode = Mode::MOUSE_KEYBOARD);
+
+		/**
+		 * @brief Destructor
+		 */
 		virtual ~InputManager() = default;
 
+		/**
+		 * @brief Scans the Input devices and creates events.
+         * @note This function should be called once every frame.
+		 * @param elapsedTime Time since the last frame.
+		 */
 		void Update(float elapsedTime);
 
+		/**
+		 * @brief Maps the given key so that the given UserInputEvent is triggered
+         * when the key is pressed.
+		 * @param key The key that should trigger the event.
+		 * @param new_input The event to be triggered.
+		 */
 		void MapKeyboardButton(Key key, UserInput new_input);
+
+		/**
+		 * @brief Maps the given mouse button so that the given UserInputEvent is triggered
+         * when it is pressed.
+		 * @param button The mouse button that should trigger the event.
+		 * @param new_input The event to be triggered.
+		 */
 		void MapMouseButton(MouseButton button, UserInput new_input);
+
+		/**
+		 * @brief Maps the given gamepad button so that the given UserInputEvent is triggered
+         * when it is pressed.
+		 * @param button The gamepad button that should trigger the event.
+		 * @param new_input The event to be triggered.
+		 */
 		void MapGamepadButton(GamepadButton button, UserInput new_input);
 
 	protected:
+		/**
+		 * @brief Updates Buttons (Gamepad or Keyboard, depending on the mode).
+		 */
 		void UpdateButtons();
+
+		/**
+		 * @brief Updates the Cursor (Mouse or Gamepad joystick, depending on the mode).
+		 */
 		void UpdateCursor();
 
 	private:
