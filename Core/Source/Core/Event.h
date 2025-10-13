@@ -34,7 +34,7 @@ namespace Mupfel {
 	class Event : public IEvent {
 	public:
 		constexpr uint64_t GetGUID() const override {
-			return Derived::c_get_guid();
+			return Derived::GetGUIDStatic();
 		}
 	};
 }

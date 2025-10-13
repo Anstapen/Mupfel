@@ -36,6 +36,8 @@ namespace Mupfel {
 		requires std::derived_from<T, IEvent>
 	class EventBuffer : public IEventBuffer {
 	public:
+		using const_iterator = typename std::vector<T>::const_iterator;
+	public:
 		/**
 		 * @brief The constructor.
 		 * @param initial_size The initial size of the underlying vector.
@@ -47,6 +49,9 @@ namespace Mupfel {
 		 * @param event The event to be added.
 		 */
 		void Add(T &&event);
+
+		const_iterator begin() const { return event_buf.begin(); }
+		const_iterator end() const { return event_buf.end(); }
 
 		/**
 		 * @brief Get the event at the given index.

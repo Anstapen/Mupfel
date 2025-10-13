@@ -223,7 +223,7 @@ namespace Mupfel {
 		virtual ~UserInputEvent() = default;
 
 	
-		static constexpr uint64_t c_get_guid() {
+		static constexpr uint64_t GetGUIDStatic() {
 			return Hash::Compute("UserInputEvent");
 		}
 

@@ -13,6 +13,5 @@ void Mupfel::EventSystem::Update()
 	}
 
 	/* Update the index */
-	next = current;
-	current = (current + 1) & 0x1;
+	std::swap(current, next);
 }

@@ -3,6 +3,7 @@
 #include <memory>
 #include <cstdint>
 #include <optional>
+#include <ranges>
 #include "GUID.h"
 #include "EventBuffer.h"
 
@@ -83,6 +84,12 @@ namespace Mupfel {
 			requires std::derived_from<T, IEvent>
 		std::optional<const T*> GetLatestEvent();
 
+		template<typename T>
+			requires std::derived_from<T, IEvent>
+		auto GetEvents() const noexcept
+			-> std::ranges::subrange<typename EventBuffer<T>::const_iterator,
+			typename EventBuffer<T>::const_iterator>;
+
 	private:
 		/**
 		 * @brief Two maps that hold the eventbuffers and get swapped every frame.
@@ -106,8 +113,7 @@ namespace Mupfel {
 		requires std::derived_from<T, IEvent>
 	inline void EventSystem::AddEvent(T &&event)
 	{
-		T local_event;
-		constexpr uint64_t evt_guid = local_event.GetGUID();
+		constexpr uint64_t evt_guid = T::GetGUIDStatic();
 
 		auto [it, inserted] = event_map[next].try_emplace(evt_guid, std::make_unique<EventBuffer<T>>(16));
 		
@@ -120,8 +126,7 @@ namespace Mupfel {
 		requires std::derived_from<T, IEvent>
 	inline std::optional<const T*> EventSystem::GetEvent(uint32_t index)
 	{
-		T event;
-		constexpr uint64_t evt_guid = event.GetGUID();
+		constexpr uint64_t evt_guid = T::GetGUIDStatic();
 		auto it = event_map[current].find(evt_guid);
 
 		if (it != event_map[current].end())
@@ -138,8 +143,7 @@ namespace Mupfel {
 		requires std::derived_from<T, IEvent>
 	inline std::optional<const T*> EventSystem::GetLatestEvent()
 	{
-		T event;
-		auto it = event_map[current].find(event.GetGUID());
+		auto it = event_map[current].find(T::GetGUIDStatic());
 
 		if (it != event_map[current].end())
 		{
@@ -153,10 +157,29 @@ namespace Mupfel {
 
 	template<typename T>
 		requires std::derived_from<T, IEvent>
+	inline auto EventSystem::GetEvents() const noexcept -> std::ranges::subrange<typename EventBuffer<T>::const_iterator, typename EventBuffer<T>::const_iterator>
+	{
+		const auto it = event_map[current].find(T::GetGUIDStatic());
+
+		/*
+			If the eventbuffer of the given type is not found (because no events were added yet),
+			return the begin/end iterator of an empty buffer of that type.
+		*/
+		if (it == event_map[current].end()) [[unlikely]]
+		{
+			static const EventBuffer<T> empty_buffer(0);
+			return std::ranges::subrange(empty_buffer.begin(), empty_buffer.end());
+		}
+
+		const EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(it->second.get());
+		return std::ranges::subrange(buf->begin(), buf->end());
+	}
+
+	template<typename T>
+		requires std::derived_from<T, IEvent>
 	inline uint64_t EventSystem::GetPendingEvents()
 	{
-		T event;
-		auto it = event_map[current].find(event.GetGUID());
+		auto it = event_map[current].find(T::GetGUIDStatic());
 
 		if (it != event_map[current].end())
 		{
