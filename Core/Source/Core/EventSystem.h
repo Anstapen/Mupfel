@@ -84,6 +84,12 @@ namespace Mupfel {
 			requires std::derived_from<T, IEvent>
 		std::optional<const T*> GetLatestEvent();
 
+		/**
+		 * @brief Return a subrange of the Eventbuffer of the given type T.
+		 * @tparam T The Event type for which the subrange should be returned.
+		 * @return The range begin-end of the underlying Eventbuffer, or of an empty
+		 * Eventbuffer.
+		 */
 		template<typename T>
 			requires std::derived_from<T, IEvent>
 		auto GetEvents() const noexcept
