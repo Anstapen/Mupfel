@@ -5,6 +5,10 @@
 
 #include "Entity.h"
 
+#include <iostream>
+
+#include "Core/GUID.h"
+
 namespace Mupfel {
 
 	class IComponentArray {
@@ -17,6 +21,7 @@ namespace Mupfel {
 	template <typename T>
 	class ComponentArray : public IComponentArray
 	{
+		template<typename... Components> friend class View;
 	public:
 		void Insert(const Entity& e, const T& component);
 		void Remove(const Entity& e) override;
@@ -40,7 +45,7 @@ namespace Mupfel {
 		*/
 		if (e.Index() >= sparse.size())
 		{
-			sparse.resize(sparse.size(), invalid_entry);
+			sparse.resize((sparse.size() + 1) * 2, invalid_entry);
 		}
 
 		/*
@@ -57,6 +62,7 @@ namespace Mupfel {
 		/* The value at the index stores which entity uses the component */
 		dense.push_back(e.Index());
 		components.push_back(component);
+		std::cout << "Added component with ID " << CompUtil::GetComponentTypeID<T>() << " to Entity with ID " << e.Index() << std::endl;
 	}
 
 	template<typename T>

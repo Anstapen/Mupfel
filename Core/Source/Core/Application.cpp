@@ -56,6 +56,11 @@ InputManager& Mupfel::Application::GetCurrentInputManager()
 	return Get().input_manager;
 }
 
+Registry& Mupfel::Application::GetCurrentRegistry()
+{
+	return Get().registry;
+}
+
 void Application::Run()
 {
 	running = true;

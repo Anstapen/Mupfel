@@ -50,6 +50,24 @@ namespace Mupfel {
             return len;
         }
 
+        
+
+        
+
+    };
+
+    class CompUtil {
+    public:
+        template<typename T>
+        static inline size_t GetComponentTypeID() noexcept {
+            static const size_t typeID = GetUniqueComponentTypeID();
+            return typeID;
+        }
+    private:
+        static inline size_t GetUniqueComponentTypeID() noexcept {
+            static size_t lastID = 0U;
+            return lastID++;
+        }
     };
 
 }

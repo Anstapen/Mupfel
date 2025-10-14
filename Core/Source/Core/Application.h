@@ -7,6 +7,7 @@
 #include <vector>
 #include "EventSystem.h"
 #include "InputManager.h"
+#include "ECS/Registry.h"
 
 namespace Mupfel {
 
@@ -29,6 +30,7 @@ namespace Mupfel {
 		static float GetCurrentTime();
 		static EventSystem& GetCurrentEventSystem();
 		static InputManager& GetCurrentInputManager();
+		static Registry& GetCurrentRegistry();
 
 		template<typename TLayer>
 			requires(std::is_base_of_v<Layer, TLayer>)
@@ -46,6 +48,7 @@ namespace Mupfel {
 		std::vector<std::unique_ptr<Layer>> layerStack;
 		EventSystem evt_system;
 		InputManager input_manager;
+		Registry registry;
 	};
 }
 

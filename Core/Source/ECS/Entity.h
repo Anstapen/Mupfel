@@ -1,11 +1,14 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include <bitset>
 
 namespace Mupfel {
 
 	class Entity
 	{
+	public:
+		using Signature = std::bitset<128>;
 	public:
 		Entity(uint32_t in_index, uint32_t in_gen) : index(in_index), generation(in_gen) {}
 		uint32_t Index() const { return index; }
@@ -22,7 +25,7 @@ namespace Mupfel {
 
 	class EntityManager {
 	public:
-		EntityManager() : generations(4096), freeList(4096) {}
+		EntityManager() : generations(), freeList() { generations.reserve(4096); freeList.reserve(4096); }
 		Entity CreateEntity();
 		void DestroyEntity(Entity e);
 		bool isAlive(Entity e) const;
