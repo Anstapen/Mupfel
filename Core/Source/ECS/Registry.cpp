@@ -32,6 +32,10 @@ void Registry::DestroyEntity(Entity e) {
 	signatures[e.Index()].reset();
 }
 
+uint32_t Registry::GetCurrentEntities() const {
+	return entity_manager.GetCurrentEntities();
+}
+
 Entity::Signature Registry::GetSignature(uint32_t index) const
 {
 	assert((index < signatures.size()) && "Given Entity was not created correctly!");

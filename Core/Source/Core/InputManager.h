@@ -206,7 +206,9 @@ namespace Mupfel {
 		MOVE_RIGHT,
 		MOVE_BACKKWARDS,
 		RIGHT_MOUSE_CLICK,
+        RIGHT_MOUSE_HOLD,
 		LEFT_MOUSE_CLICK,
+        LEFT_MOUSE_HOLD,
 		MIDDLE_MOUSE_CLICK,
 		SCROLLWHEEL_UP,
 		SCROLLWHEEL_DOWN
@@ -216,7 +218,7 @@ namespace Mupfel {
 	 * @brief This Event class is used to propagate events that
      * are triggered by User input (Mouse, Keyboard or Gamepad).
 	 */
-	class UserInputEvent : public Event< UserInputEvent> {
+	class UserInputEvent : public Event<UserInputEvent> {
 	public:
 		UserInputEvent();
 		UserInputEvent(UserInput in_input);
@@ -228,7 +230,7 @@ namespace Mupfel {
 		}
 
 	public:
-		UserInput input;
+        UserInput input;
 	};
 
 	/**
@@ -266,6 +268,10 @@ namespace Mupfel {
 		 */
 		void Update(float elapsedTime);
 
+        uint32_t GetCurrentCursorX() const;
+
+        uint32_t GetCurrentCursorY() const;
+
 		/**
 		 * @brief Maps the given key so that the given UserInputEvent is triggered
          * when the key is pressed.
@@ -300,6 +306,10 @@ namespace Mupfel {
 		 * @brief Updates the Cursor (Mouse or Gamepad joystick, depending on the mode).
 		 */
 		void UpdateCursor();
+
+        void UpdateMouseButtons();
+
+        void UpdateMouseButton(MouseButton b);
 
 	private:
 		Mode current_mode;

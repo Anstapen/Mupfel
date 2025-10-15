@@ -20,6 +20,10 @@ namespace Mupfel {
 
 		void DestroyEntity(Entity e);
 
+		uint32_t GetCurrentEntities() const;
+
+		size_t GetFreeSIZE() const { return entity_manager.GetFreeListSize(); }
+
 		Entity::Signature GetSignature(uint32_t index) const;
 
 		template<typename... Components>

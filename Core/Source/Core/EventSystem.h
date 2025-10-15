@@ -45,6 +45,8 @@ namespace Mupfel {
 		 */
 		void Update();
 
+		uint64_t GetLastEventCount() const;
+
 		/**
 		 * @brief Add an Event to its Eventbuffer. If there is no EventBuffer for that
 		 * Event type yet, it creates one.
@@ -113,6 +115,16 @@ namespace Mupfel {
 		 * this frame are put in this buffer and are available in the next frame.
 		 */
 		uint32_t next;
+
+		/**
+		 * @brief The amount of events that were issued last frame.
+		 */
+		uint64_t events_last_frame = 0;
+
+		/**
+		 * @brief The amount of events that were issued this frame.
+		 */
+		uint64_t events_this_frame = 0;
 	};
 
 	template<typename T>
@@ -126,6 +138,8 @@ namespace Mupfel {
 		EventBuffer<T>* current_evt_buffer = static_cast<EventBuffer<T> *>(it->second.get());
 
 		current_evt_buffer->Add(std::move(event));
+
+		events_this_frame++;
 	}
 
 	template<typename T>

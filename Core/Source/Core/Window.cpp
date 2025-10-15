@@ -27,7 +27,7 @@ bool Window::Init(const WindowSpecification& spec)
 {
 	this->spec = spec;
 	InitWindow(spec.width, spec.height, spec.title.c_str());
-	SetTargetFPS(spec.target_fps);
+	SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
 
 	return true;
 }

@@ -12,7 +12,7 @@
 namespace Mupfel {
 
 	struct ApplicationSpecification {
-		std::string name = "Application";
+		std::string name;
 		WindowSpecification windowSpec;
 	};
 
@@ -28,6 +28,10 @@ namespace Mupfel {
 		void Stop();
 
 		static float GetCurrentTime();
+		static float GetLastFrameTime();
+		static int GetRandomNumber(int min, int max);
+		static int GetCurrentRenderWidth();
+		static int GetCurrentRenderHeight();
 		static EventSystem& GetCurrentEventSystem();
 		static InputManager& GetCurrentInputManager();
 		static Registry& GetCurrentRegistry();

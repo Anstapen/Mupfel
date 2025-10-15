@@ -62,7 +62,6 @@ namespace Mupfel {
 		/* The value at the index stores which entity uses the component */
 		dense.push_back(e.Index());
 		components.push_back(component);
-		std::cout << "Added component with ID " << CompUtil::GetComponentTypeID<T>() << " to Entity with ID " << e.Index() << std::endl;
 	}
 
 	template<typename T>

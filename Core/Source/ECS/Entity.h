@@ -10,27 +10,27 @@ namespace Mupfel {
 	public:
 		using Signature = std::bitset<128>;
 	public:
-		Entity(uint32_t in_index, uint32_t in_gen) : index(in_index), generation(in_gen) {}
+		Entity(uint32_t in_index) : index(in_index) {}
 		uint32_t Index() const { return index; }
-		uint32_t Generation() const { return generation; }
-		bool operator==(const Entity& other) const { return index == other.index && generation == other.generation; }
+		bool operator==(const Entity& other) const { return index == other.index; }
 
 	private:
 		uint32_t index;
-		uint32_t generation;
 	};
 
-	static_assert((sizeof(Entity) == 8) && "Error: Size of Entity Class is not 8 bytes!");
+	static_assert((sizeof(Entity) == 4) && "Error: Size of Entity Class is not 8 bytes!");
 
 
 	class EntityManager {
 	public:
-		EntityManager() : generations(), freeList() { generations.reserve(4096); freeList.reserve(4096); }
+		EntityManager() : freeList(), current_entities(0), next_entity_index(0) { freeList.reserve(4096); }
 		Entity CreateEntity();
 		void DestroyEntity(Entity e);
-		bool isAlive(Entity e) const;
+		uint32_t GetCurrentEntities() const;
+		size_t GetFreeListSize() const { return freeList.size(); }
 	private:
-		std::vector<uint32_t> generations;
+		uint32_t current_entities;
+		uint32_t next_entity_index;
 		std::vector<uint32_t> freeList;
 	};
 

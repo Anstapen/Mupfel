@@ -18,31 +18,28 @@ Entity EntityManager::CreateEntity()
         /*
             No recycled indices left, use a new one.
         */
-        index = generations.size();
-        generations.push_back(0);
+        index = next_entity_index;
+        next_entity_index++;
     }
+    
+    current_entities++;
 
-    return Entity(index, generations[index]);
+    return Entity(index);
 }
 
 void Mupfel::EntityManager::DestroyEntity(Entity e)
 {
-    /*
-        If the entity not alive anymore, we do not need to destroy it.
-    */
-    if (!isAlive(e))
-    {
-        return;
-    }
 
     /*
         Add the entity index to the recycled indices.
     */
     freeList.push_back(e.Index());
-    generations[e.Index()]++;
+
+    /* Update the Entities count */
+    current_entities--;
 }
 
-bool Mupfel::EntityManager::isAlive(Entity e) const
+uint32_t Mupfel::EntityManager::GetCurrentEntities() const
 {
-    return e.Index() < generations.size() && generations[e.Index()] == e.Generation();
+    return current_entities;
 }

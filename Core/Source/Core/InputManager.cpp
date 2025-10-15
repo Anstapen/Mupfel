@@ -4,6 +4,8 @@
 
 using namespace Mupfel;
 
+static Vector2 current_mouse_pos;
+
 InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system(evt_system), current_mode(in_mode)
 {
 	/* First, reset all mappings */
@@ -32,6 +34,16 @@ void InputManager::Update(float elapsedTime)
 {
 	UpdateButtons();
 	UpdateCursor();
+}
+
+uint32_t Mupfel::InputManager::GetCurrentCursorX() const
+{
+	return current_mouse_pos.x;
+}
+
+uint32_t Mupfel::InputManager::GetCurrentCursorY() const
+{
+	return current_mouse_pos.y;
 }
 
 void Mupfel::InputManager::MapKeyboardButton(Key key, UserInput new_input)
@@ -77,58 +89,7 @@ void Mupfel::InputManager::UpdateButtons()
 		key = GetKeyPressed();
 	}
 
-	/* After that the Mouse presses */
-	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_LEFT).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_LEFT).input });
-		}
-	}
-
-	if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_RIGHT).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_RIGHT).input });
-		}
-	}
-
-	if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_MIDDLE).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_MIDDLE).input });
-		}
-	}
-	if (IsMouseButtonPressed(MOUSE_BUTTON_SIDE))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_SIDE).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_SIDE).input });
-		}
-	}
-	if (IsMouseButtonPressed(MOUSE_BUTTON_EXTRA))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_EXTRA).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_EXTRA).input });
-		}
-	}
-	if (IsMouseButtonPressed(MOUSE_BUTTON_FORWARD))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_FORWARD).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_FORWARD).input });
-		}
-	}
-	if (IsMouseButtonPressed(MOUSE_BUTTON_BACK))
-	{
-		if (mouse_map.at(MOUSE_BUTTON_BACK).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(MOUSE_BUTTON_BACK).input });
-		}
-	}
+	UpdateMouseButtons();
 
 	/* Get Gamepad Buttons */
 
@@ -143,6 +104,36 @@ void Mupfel::InputManager::UpdateButtons()
 
 void Mupfel::InputManager::UpdateCursor()
 {
+	Vector2 current_pos = GetMousePosition();
+
+	if (current_pos.x != current_mouse_pos.x || current_pos.y != current_mouse_pos.y)
+	{
+		current_mouse_pos = current_pos;
+		event_system.AddEvent<UserInputEvent>({UserInput::CURSOR_POS_CHANGED});
+	}
+}
+
+void Mupfel::InputManager::UpdateMouseButtons()
+{
+	UpdateMouseButton(MOUSE_BUTTON_LEFT);
+	UpdateMouseButton(MOUSE_BUTTON_RIGHT);
+	UpdateMouseButton(MOUSE_BUTTON_MIDDLE);
+	UpdateMouseButton(MOUSE_BUTTON_SIDE);
+	UpdateMouseButton(MOUSE_BUTTON_EXTRA);
+	UpdateMouseButton(MOUSE_BUTTON_FORWARD);
+	UpdateMouseButton(MOUSE_BUTTON_BACK);
+}
+
+void Mupfel::InputManager::UpdateMouseButton(MouseButton b)
+{
+	/* After that the Mouse presses */
+	if (IsMouseButtonPressed(b) || IsMouseButtonDown(b))
+	{
+		if (mouse_map.at(b).input != UserInput::NONE)
+		{
+			event_system.AddEvent<UserInputEvent>({ mouse_map.at(b).input });
+		}
+	}
 }
 
 UserInputEvent::UserInputEvent() : input(UserInput::NONE)

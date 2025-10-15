@@ -49,7 +49,7 @@ namespace Mupfel {
 			}
 
 			auto operator*() {
-				Entity e{ entities[index], 0 };
+				Entity e{ entities[index]};
 				return std::make_tuple(e, std::ref((registry.GetComponent<Components>(e)))...);
 			}
 		};

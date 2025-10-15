@@ -28,6 +28,9 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 		app.spec.name.insert(0, "Application");
 	}
 
+	/* Init Raylib RND number generator */
+	SetRandomSeed(997478384U);
+
 	WindowSpecification window_spec;
 	window_spec.title = app.spec.name;
 
@@ -44,6 +47,26 @@ void Application::Stop()
 float Application::GetCurrentTime()
 {
 	return GetTime();
+}
+
+float Mupfel::Application::GetLastFrameTime()
+{
+	return GetFrameTime();
+}
+
+int Mupfel::Application::GetRandomNumber(int min, int max)
+{
+	return GetRandomValue(min, max);
+}
+
+int Mupfel::Application::GetCurrentRenderWidth()
+{
+	return GetRenderWidth();
+}
+
+int Mupfel::Application::GetCurrentRenderHeight()
+{
+	return GetRenderHeight();
 }
 
 EventSystem& Application::GetCurrentEventSystem()
