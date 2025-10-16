@@ -21,6 +21,10 @@ namespace Mupfel {
             return fnv1a_64(str, strlen_c(str));
         }
 
+        static constexpr uint64_t Compute_n(const char* str, std::size_t size) {
+            return fnv1a_64(str, size);
+        }
+
     private:
         /**
          * @brief Compute the FNV-1a 64-bit Hash for the given string at compile time.

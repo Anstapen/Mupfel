@@ -27,7 +27,6 @@ namespace Mupfel {
 		Entity CreateEntity();
 		void DestroyEntity(Entity e);
 		uint32_t GetCurrentEntities() const;
-		size_t GetFreeListSize() const { return freeList.size(); }
 	private:
 		uint32_t current_entities;
 		uint32_t next_entity_index;
