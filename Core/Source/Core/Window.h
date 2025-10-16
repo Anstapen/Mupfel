@@ -26,6 +26,10 @@ namespace Mupfel {
 
 		bool Init(const WindowSpecification& spec);
 
+		void resize(int width, int height);
+
+		void ToggleFS();
+
 		void StartFrame();
 
 		void EndFrame();
@@ -35,6 +39,9 @@ namespace Mupfel {
 		Window();
 	private:
 		WindowSpecification spec;
+		bool is_currently_fullscreen = false;
+		int current_width = 0;
+		int current_height = 0;
 	};
 }
 

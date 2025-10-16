@@ -36,6 +36,8 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	Window::GetInstance().Init(window_spec);
 
+
+
 	return true;
 }
 
@@ -102,6 +104,15 @@ void Application::Run()
 		float currentTime = Application::GetCurrentTime();
 		float timestep = std::clamp<float>(currentTime - lastTime, 0.001f, 0.1f);
 		lastTime = currentTime;
+
+		/* Check if the Window dimensions should change */
+		for (const auto& evt : evt_system.GetEvents<Mupfel::UserInputEvent>())
+		{
+			if (evt.input == UserInput::WINDOW_FULLSCREEN)
+			{
+				window.ToggleFS();
+			}
+		}
 
 		/* Update all layers */
 		for (const std::unique_ptr<Layer>& layer : layerStack)

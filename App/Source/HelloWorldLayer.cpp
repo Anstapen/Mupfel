@@ -69,6 +69,11 @@ void HelloWorldLayer::OnUpdate(float timestep)
 		{
 		}
 
+		if (evt.input == Mupfel::UserInput::WINDOW_FULLSCREEN)
+		{
+
+		}
+
 		/* If Right-Mouseclick is pressed, create new entites */
 		if (evt.input == Mupfel::UserInput::RIGHT_MOUSE_CLICK)
 		{
