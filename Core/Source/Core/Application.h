@@ -10,6 +10,7 @@
 #include "ECS/Registry.h"
 #include "CollisionSystem.h"
 #include "Debug/DebugLayer.h"
+#include "ThreadPool.h"
 
 namespace Mupfel {
 
@@ -30,7 +31,7 @@ namespace Mupfel {
 		void Run();
 		void Stop();
 
-		static float GetCurrentTime();
+		static double GetCurrentTime();
 		static float GetLastFrameTime();
 		static int GetRandomNumber(int min, int max);
 		static int GetCurrentRenderWidth();
@@ -39,6 +40,7 @@ namespace Mupfel {
 		static EventSystem& GetCurrentEventSystem();
 		static InputManager& GetCurrentInputManager();
 		static Registry& GetCurrentRegistry();
+		static ThreadPool& GetCurrentThreadPool();
 
 		template<typename TLayer>
 			requires(std::is_base_of_v<Layer, TLayer>)
@@ -59,6 +61,7 @@ namespace Mupfel {
 		InputManager input_manager;
 		Registry registry;
 		CollisionSystem collision_system;
+		ThreadPool thread_pool;
 	};
 }
 

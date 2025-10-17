@@ -12,10 +12,11 @@ namespace Mupfel {
 
 	struct SpatialInfo
 	{
+		static constexpr uint32_t n_memorised_cells = 16;
 		Coordinate<uint32_t> old_cell_min = { 0,0 };
 		Coordinate<uint32_t> old_cell_max = { 0,0 };
 		uint32_t num_cells = 0;
-		std::array<CellIndex, 16> refs = { 0, 0 };
+		std::array<CellIndex, n_memorised_cells> refs = { 0, 0 };
 	};
 
 }

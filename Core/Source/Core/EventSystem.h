@@ -137,7 +137,7 @@ namespace Mupfel {
 
 		using EventCallback = std::function<void(const IEvent&)>;
 
-		std::unordered_map<uint32_t, std::vector<EventCallback>> listeners;
+		std::unordered_map<uint64_t, std::vector<EventCallback>> listeners;
 	};
 
 	template<typename T>

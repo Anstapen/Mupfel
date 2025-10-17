@@ -213,7 +213,8 @@ namespace Mupfel {
         SCROLLWHEEL_UP,
         SCROLLWHEEL_DOWN,
         WINDOW_FULLSCREEN,
-        TOGGLE_DEBUG_MODE
+        TOGGLE_DEBUG_MODE,
+        TOGGLE_MULTI_THREAD_MODE
 	};
 
 	/**
@@ -268,11 +269,11 @@ namespace Mupfel {
          * @note This function should be called once every frame.
 		 * @param elapsedTime Time since the last frame.
 		 */
-		void Update(float elapsedTime);
+		void Update(double elapsedTime);
 
-        uint32_t GetCurrentCursorX() const;
+        float GetCurrentCursorX() const;
 
-        uint32_t GetCurrentCursorY() const;
+        float GetCurrentCursorY() const;
 
 		/**
 		 * @brief Maps the given key so that the given UserInputEvent is triggered

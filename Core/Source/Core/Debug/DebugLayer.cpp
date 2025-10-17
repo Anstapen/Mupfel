@@ -76,11 +76,16 @@ void Mupfel::DebugLayer::OnRender()
 	/* Draw the BroadColliders of each entity */
 	Registry& reg = Application::GetCurrentRegistry();
 
-#if 1
 	auto position_view = reg.view<BroadCollider>();
 	for (auto [entity, broad] : position_view)
 	{
-		Rectangle::RaylibDrawRect(broad.min.x, broad.min.y, broad.max.x - broad.min.x, broad.max.y - broad.min.y, 102, 191, 255, 255);
+		Rectangle::RaylibDrawRect(static_cast<int>(broad.min.x),
+			static_cast<int>(broad.min.y),
+			static_cast<int>(broad.max.x - broad.min.x),
+			static_cast<int>(broad.max.y - broad.min.y),
+			102,
+			191,
+			255,
+			255);
 	}
-#endif
 }

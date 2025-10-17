@@ -67,7 +67,6 @@ namespace Mupfel {
 			return Iterator(reg, array.dense, requiredSignature(), array.dense.size());
 		}
 
-	private:
 		static Entity::Signature requiredSignature();
 	private:
 		Registry& reg;

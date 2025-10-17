@@ -40,6 +40,8 @@ void HelloWorldLayer::OnInit()
 
 }
 
+static double perf_counter_update = 0.0f;
+
 void HelloWorldLayer::OnUpdate(float timestep)
 {
 	auto &evt_system = Mupfel::Application::GetCurrentEventSystem();
@@ -66,12 +68,13 @@ void HelloWorldLayer::OnUpdate(float timestep)
 		/* If Right-Mouseclick is pressed, create new entites */
 		if (evt.input == Mupfel::UserInput::RIGHT_MOUSE_CLICK)
 		{
-			float pos_x = (float)Application::GetRandomNumber(1, screen_width-1);
-			float pos_y = (float)Application::GetRandomNumber(1, screen_height-1);
 
 			for (uint32_t i = 0; i < entities_per_frame; i++)
 			{
 				Mupfel::Entity ent = reg.CreateEntity();
+
+				float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
+				float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
 
 				/* Add velocity component to the entity */
 				float vel_x = (float)Application::GetRandomNumber(50, 200);
@@ -97,49 +100,69 @@ void HelloWorldLayer::OnUpdate(float timestep)
 			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 100), 1, 10000000);
 		}
 	}
-	auto position_view = reg.view<Velocity, Transform>();
-
 	
+	float delta_time = Application::GetLastFrameTime();
+	std::mutex garbage_mutex;
 
 	static std::vector<Entity> entity_garbage;
-
+	static std::vector<Entity> entity_transform_container;
+	entity_transform_container.clear();
 	entity_garbage.clear();
 
-	float delta_time = Application::GetLastFrameTime();
-
-	/* Update Position on the screen, remember entities that leave it */
-	for (auto [entity, velocity, transform] : position_view)
-	{
-		transform.pos.x += velocity.x * delta_time;
-		transform.pos.y += velocity.y * delta_time;
-
-		if (transform.pos.x > screen_width || transform.pos.x < 0.0f || transform.pos.y > screen_height || transform.pos.y < 0.0f)
+	double start_perf = Application::GetCurrentTime();
+	
+	reg.ParallelForEach<Transform, Velocity>([delta_time, &garbage_mutex, &reg, screen_width, screen_height](Entity e, Transform& t, Velocity& v)
 		{
-			entity_garbage.push_back(entity);
-			continue;
-		}
 
-		reg.MarkDirty<Transform>(entity);
+			if (v.x == 0.0f || v.y == 0.0f)
+			{
+				/* This Entity currently has a Velocity of 0 */
+				return false;
+			}
 
-		/* Update the BroadCollider, if there is one */
-		if (reg.HasComponent<BroadCollider>(entity))
-		{
-			auto& broad_collider = reg.GetComponent<BroadCollider>(entity);
-			broad_collider.max.x = transform.pos.x + broad_collider.offset.x;
-			broad_collider.max.y = transform.pos.y + broad_collider.offset.y;
-			broad_collider.min.x = transform.pos.x - broad_collider.offset.x;
-			broad_collider.min.y = transform.pos.y - broad_collider.offset.y;
+			t.pos.x += v.x * delta_time;
+			t.pos.y += v.y * delta_time;
+			
 
-			/* Clamp the top-left values */
-			broad_collider.min.x = broad_collider.min.x < 0.0f ? 0.0f : broad_collider.min.x;
-			broad_collider.min.y = broad_collider.min.y < 0.0f ? 0.0f : broad_collider.min.y;
-		}
-	}
+			if (t.pos.x > screen_width || t.pos.x < 0.0f || t.pos.y > screen_height || t.pos.y < 0.0f)
+			{
+				std::scoped_lock lock(garbage_mutex);
+				entity_garbage.push_back(e);
+			}
+
+			/* Update the BroadCollider, if there is one */
+			if (reg.HasComponent<BroadCollider>(e))
+			{
+				auto& broad_collider = reg.GetComponent<BroadCollider>(e);
+				broad_collider.max.x = t.pos.x + broad_collider.offset.x;
+				broad_collider.max.y = t.pos.y + broad_collider.offset.y;
+				broad_collider.min.x = t.pos.x - broad_collider.offset.x;
+				broad_collider.min.y = t.pos.y - broad_collider.offset.y;
+
+				/* Clamp the top-left values */
+				broad_collider.min.x = broad_collider.min.x < 0.0f ? 0.0f : broad_collider.min.x;
+				broad_collider.min.y = broad_collider.min.y < 0.0f ? 0.0f : broad_collider.min.y;
+			}
+
+			return true;
+
+		},
+		entity_transform_container
+	);
+	double end_perf = Application::GetCurrentTime();
 
 	for (auto e : entity_garbage)
 	{
 		reg.DestroyEntity(e);
 	}
+
+	for (auto e : entity_transform_container)
+	{
+		reg.MarkDirty<Transform>(e);
+	}
+	
+
+	perf_counter_update = (end_perf - start_perf) * 1000.0f;
 }
 
 void HelloWorldLayer::OnRender()
@@ -157,9 +180,11 @@ void HelloWorldLayer::OnRender()
 	std::string text1 = std::vformat("Frame Time: {:.3f}, FPS: {:.1f}, Entities(GLOBAL): {} Events: {}", std::make_format_args(last_frame_time, fps, current_entities, events_last_frame));
 	std::string text2 = std::vformat("Screen Height: {}, Screen Width: {}", std::make_format_args(screen_height, screen_width));
 	std::string text4 = std::vformat("Entities per added per Frame: {}", std::make_format_args(entities_per_frame));
+	std::string text5 = std::vformat("Update time this frame: {:.1f}ms", std::make_format_args(perf_counter_update));
 	Text::RaylibDrawText(text1.c_str(), 50, 40);
 	Text::RaylibDrawText(text2.c_str(), 50, 60);
 	Text::RaylibDrawText(text4.c_str(), 50, 80);
+	Text::RaylibDrawText(text5.c_str(), 50, 100);
 
 	auto& transform = Application::GetCurrentRegistry().GetComponent<Transform>(*cursor);
 	/* Draw a Cirle around the Cursor */
@@ -170,10 +195,12 @@ void HelloWorldLayer::OnRender()
 	/* Render all entities */
 	auto view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
 
+#if 0
 	for (auto [entity, texture, transform] : view)
 	{
 		uint32_t render_pos_x = transform.pos.x - (texture.texture->width / 2);
 		uint32_t render_pos_y = transform.pos.y - (texture.texture->height / 2);
 		Texture::RaylibDrawTexture(*texture.texture.get(), render_pos_x, render_pos_y);
 	}
+#endif
 }

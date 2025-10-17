@@ -25,6 +25,7 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 	MapKeyboardButton(KEY_D, UserInput::MOVE_RIGHT);
 	MapKeyboardButton(KEY_F, UserInput::WINDOW_FULLSCREEN);
 	MapKeyboardButton(KEY_F1, UserInput::TOGGLE_DEBUG_MODE);
+	MapKeyboardButton(KEY_F2, UserInput::TOGGLE_MULTI_THREAD_MODE);
 
 	MapMouseButton(MOUSE_BUTTON_LEFT, UserInput::LEFT_MOUSE_CLICK);
 	MapMouseButton(MOUSE_BUTTON_RIGHT, UserInput::RIGHT_MOUSE_CLICK);
@@ -32,18 +33,18 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 
 }
 
-void InputManager::Update(float elapsedTime)
+void InputManager::Update(double elapsedTime)
 {
 	UpdateButtons();
 	UpdateCursor();
 }
 
-uint32_t Mupfel::InputManager::GetCurrentCursorX() const
+float Mupfel::InputManager::GetCurrentCursorX() const
 {
 	return current_mouse_pos.x;
 }
 
-uint32_t Mupfel::InputManager::GetCurrentCursorY() const
+float Mupfel::InputManager::GetCurrentCursorY() const
 {
 	return current_mouse_pos.y;
 }

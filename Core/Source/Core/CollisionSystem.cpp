@@ -1,6 +1,9 @@
 #include "CollisionSystem.h"
 #include <algorithm>
 #include <cassert>
+#include <array>
+#include <thread>
+#include "Application.h"
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/SpatialInfo.h"
@@ -30,6 +33,22 @@ void CollisionSystem::Init()
 	evt_system.RegisterListener<EntityDestroyedEvent>(
 		[this](const EntityDestroyedEvent& evt) { RemoveEntity(evt); }
 	);
+
+	/* Scale the Thread local buffer */
+	const size_t num_threads = Application::GetCurrentThreadPool().GetThreadCount();
+	thread_local_buffer.resize(num_threads);
+
+	jobs.clear();
+	jobs.reserve(num_threads);
+
+	/*
+		Reserve some sane amount of memory for each Buffer.
+		Let's go for 100 Move Commands per buffer.
+	*/
+	for (auto& buf : thread_local_buffer)
+	{
+		buf.reserve(100);
+	}
 }
 
 void CollisionSystem::Update()
@@ -41,36 +60,110 @@ void CollisionSystem::Update()
 
 	auto& dirty_entities = transform_array.GetDirtyEntities();
 
-	for (Entity e : dirty_entities)
+	/* If no Entities needs updates, we can exit */
+	if (dirty_entities.empty())
 	{
-		/* For now, we are only interested in entities that have the BroadCollider Component */
+		return;
+	}
 
-		if (!registry.HasComponent<BroadCollider>(e) || !registry.HasComponent<SpatialInfo>(e))
+	if (multithreadingEnabled && dirty_entities.size() > 2000 * Application::GetCurrentThreadPool().GetThreadCount())
+	{
+		auto& thread_pool = Application::GetCurrentThreadPool();
+		const uint32_t num_threads = static_cast<uint32_t>(thread_pool.GetThreadCount());
+
+		if (thread_local_buffer.size() != num_threads) {
+			thread_local_buffer.clear();
+			thread_local_buffer.resize(num_threads);
+		}
+		
+		const uint32_t total_entities = static_cast<uint32_t>(dirty_entities.size());
+
+		/* Split up the entities for the threads */
+		const uint32_t chunk = (total_entities + num_threads - 1) / num_threads;
+
+		for (uint32_t t = 0; t < num_threads; t++)
 		{
-			continue;
+			const uint32_t begin = t * chunk;
+			const uint32_t end = std::min(begin + chunk, total_entities);
+
+			if (begin >= end) continue;
+
+			/* Push a new job */
+			jobs.push_back(thread_pool.Enqueue([&, t, begin, end]() {
+				for (uint32_t i = begin; i < end; i++)
+				{
+					CheckEntity(dirty_entities[i], t);
+				}
+			}));
 		}
 
-		auto& broad_collider = registry.GetComponent<BroadCollider>(e);
-		auto& spatial_info = registry.GetComponent<SpatialInfo>(e);
-		/* Update the Grid */
-		Coordinate<uint32_t> cell_min = { PointXtoCell(broad_collider.min.x), PointYtoCell(broad_collider.min.y) };
-		Coordinate<uint32_t> cell_max = { PointXtoCell(broad_collider.max.x - 1), PointYtoCell(broad_collider.max.y - 1) };
-
-		if (spatial_info.old_cell_max == cell_max && spatial_info.old_cell_min == cell_min)
+		/* Wait for all jobs to finish */
+		for (auto& job : jobs)
 		{
-			continue;
+			job.get();
 		}
 
-		/* Entity entered new Cells */
-		/* Delete entity from old cells */
-		
+		/* Jobs are done for this frame, clear the buffer */
+		jobs.clear();
 
-		ClearOldCells(spatial_info);
-		
-		UpdateCells(e, spatial_info, cell_min, cell_max);
+		/* Resolve Commands */
+		for (auto& cmd_buffer : thread_local_buffer)
+		{
+			for (auto& cmd : cmd_buffer)
+			{
+				auto& spatial_info = registry.GetComponent<SpatialInfo>(cmd.e);
+				ClearOldCells(spatial_info);
+				UpdateCells(cmd.e, spatial_info, cmd);
+			}
+			cmd_buffer.clear();
+		}
+
+	}
+	else
+	{
+		for (Entity e : dirty_entities)
+		{
+			/* For now, we are only interested in entities that have the BroadCollider and SpatialInfo Component */
+
+			if (!registry.HasComponent<BroadCollider>(e) || !registry.HasComponent<SpatialInfo>(e))
+			{
+				continue;
+			}
+
+			auto& broad_collider = registry.GetComponent<BroadCollider>(e);
+			auto& spatial_info = registry.GetComponent<SpatialInfo>(e);
+
+			/* Update the Grid */
+			uint32_t cell_min_x = PointXtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.x)));
+			uint32_t cell_min_y = PointYtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.y)));
+			uint32_t cell_max_x = PointXtoCell(static_cast<uint32_t>(std::floor(broad_collider.max.x - 1.0f)));
+			uint32_t cell_max_y = PointYtoCell(static_cast<uint32_t>(std::floor(broad_collider.max.y - 1.0f)));
+
+			Coordinate<uint32_t> cell_min = { cell_min_x, cell_min_y };
+			Coordinate<uint32_t> cell_max = { cell_max_x,  cell_max_y };
+
+			if (spatial_info.old_cell_max == cell_max && spatial_info.old_cell_min == cell_min)
+			{
+				continue;
+			}
+
+			ClearOldCells(spatial_info);
+
+			UpdateCells(e, spatial_info, cell_min, cell_max);
+		}
 	}
 
 	transform_array.ClearDirtyList();
+}
+
+void Mupfel::CollisionSystem::ToggleMultiThreading()
+{
+	multithreadingEnabled = !multithreadingEnabled;
+}
+
+bool Mupfel::CollisionSystem::IsMultiThreaded() const
+{
+	return multithreadingEnabled;
 }
 
 void Mupfel::CollisionSystem::ClearOldCells(SpatialInfo& info)
@@ -149,6 +242,35 @@ void Mupfel::CollisionSystem::UpdateCells(Entity e, SpatialInfo& info, Coordinat
 	info.old_cell_min = cell_min;
 }
 
+void Mupfel::CollisionSystem::UpdateCells(Entity e, SpatialInfo& info, const CellMoveCommand& cmd)
+{
+	for (uint32_t i = 0; i < cmd.new_count; i++)
+	{
+		uint32_t cell_index = cmd.new_cells[i];
+
+		/* Calculate the starting index of the entity array */
+		uint32_t cell_start_index = collision_grid.cells[cell_index].startIndex;
+
+		uint32_t cell_count = collision_grid.cells[cell_index].count;
+
+		assert(cell_count < collision_grid.EntitiesPerCell);
+
+		collision_grid.entities[cell_start_index + cell_count] = e.Index();
+
+		/* Update the SpatialInfo component of the entity */
+		info.refs[i].cell_id = cell_index;
+		info.refs[i].entity_id = cell_count;
+		info.num_cells++;
+
+		/* Increment the cell entity counter */
+		collision_grid.cells[cell_index].count++;
+
+		assert(info.num_cells == i + 1);
+	}
+	info.old_cell_max = cmd.new_max;
+	info.old_cell_min = cmd.new_min;
+}
+
 uint32_t Mupfel::CollisionSystem::WorldtoCell(Coordinate<uint32_t> c)
 {
 	uint32_t cell_x = c.x >> cell_size_pow;
@@ -170,6 +292,54 @@ uint32_t Mupfel::CollisionSystem::PointYtoCell(uint32_t y)
 {
 	uint32_t cell_y = y >> cell_size_pow;
 	return std::min(cell_y, num_cells_y - 1);
+}
+
+void Mupfel::CollisionSystem::CheckEntity(Entity e, uint32_t thread_index)
+{
+	/* For now, we are only interested in entities that have the BroadCollider and SpatialInfo Component */
+
+	if (!registry.HasComponent<BroadCollider>(e) || !registry.HasComponent<SpatialInfo>(e))
+	{
+		return;
+	}
+
+	auto& broad_collider = registry.GetComponent<BroadCollider>(e);
+	auto& spatial_info = registry.GetComponent<SpatialInfo>(e);
+	/* Update the Grid */
+	uint32_t cell_min_x = PointXtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.x)));
+	uint32_t cell_min_y = PointYtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.y)));
+	uint32_t cell_max_x = PointXtoCell(static_cast<uint32_t>(std::floor(broad_collider.max.x - 1.0f)));
+	uint32_t cell_max_y = PointYtoCell(static_cast<uint32_t>(std::floor(broad_collider.max.y - 1.0f)));
+
+	Coordinate<uint32_t> cell_min = { cell_min_x, cell_min_y };
+	Coordinate<uint32_t> cell_max = { cell_max_x,  cell_max_y };
+
+	if (spatial_info.old_cell_max == cell_max && spatial_info.old_cell_min == cell_min)
+	{
+		return;
+	}
+
+	/* Cells of the Entity have changed, update them */
+	CellMoveCommand cmd{};
+	cmd.e = e;
+	
+	/* Enter the new Cells into the command */
+	uint8_t count = 0;
+	for (uint32_t y = cell_min.y; y <= cell_max.y && count < cmd.new_cells.size(); ++y)
+	{
+		for (uint32_t x = cell_min.x; x <= cell_max.x && count < cmd.new_cells.size(); ++x)
+		{	
+			cmd.new_cells[count++] = y * num_cells_x + x;
+		}
+	}
+
+	cmd.new_count = count;
+
+	/* Add the new Cell Boundaries to the command */
+	cmd.new_max = cell_max;
+	cmd.new_min = cell_min;
+
+	thread_local_buffer[thread_index].push_back(std::move(cmd));
 }
 
 void Mupfel::CollisionSystem::SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index)

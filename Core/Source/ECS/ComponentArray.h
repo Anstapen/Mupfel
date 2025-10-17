@@ -22,6 +22,7 @@ namespace Mupfel {
 	class ComponentArray : public IComponentArray
 	{
 		template<typename... Components> friend class View;
+		friend class Registry;
 	public:
 		void Insert(Entity e, const T& component);
 		void Remove(Entity e) override;

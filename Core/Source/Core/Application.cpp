@@ -10,7 +10,13 @@ Application& Application::Get()
 	return app;
 }
 
-Application::Application() : window(Window::GetInstance()), evt_system(), input_manager(evt_system), registry(evt_system), collision_system(registry, evt_system)
+Application::Application() :
+	window(Window::GetInstance()),
+	evt_system(),
+	input_manager(evt_system),
+	registry(evt_system),
+	collision_system(registry, evt_system),
+	thread_pool(std::thread::hardware_concurrency())
 {
 }
 
@@ -49,7 +55,7 @@ void Application::Stop()
 	running = false;
 }
 
-float Application::GetCurrentTime()
+double Application::GetCurrentTime()
 {
 	return GetTime();
 }
@@ -94,11 +100,16 @@ Registry& Mupfel::Application::GetCurrentRegistry()
 	return Get().registry;
 }
 
+ThreadPool& Mupfel::Application::GetCurrentThreadPool()
+{
+	return Get().thread_pool;
+}
+
 void Application::Run()
 {
 	running = true;
 
-	float lastTime = Application::GetCurrentTime();
+	double lastTime = Application::GetCurrentTime();
 
 	/* Main Loop */
 	while (running)
@@ -109,8 +120,8 @@ void Application::Run()
 			break;
 		}
 
-		float currentTime = Application::GetCurrentTime();
-		float timestep = std::clamp<float>(currentTime - lastTime, 0.001f, 0.1f);
+		double currentTime = Application::GetCurrentTime();
+		double timestep = std::clamp<double>(currentTime - lastTime, 0.001f, 0.1f);
 		lastTime = currentTime;
 
 		/* Check for Application related changes */
@@ -125,6 +136,13 @@ void Application::Run()
 			{
 				std::cout << "Toggled Debug Mode!" << std::endl;
 				debugModeEnabled = !debugModeEnabled;
+			}
+
+			if (evt.input == UserInput::TOGGLE_MULTI_THREAD_MODE)
+			{
+				std::cout << "Toggled MT Mode!" << std::endl;
+				collision_system.ToggleMultiThreading();
+				std::cout << "MT is now: " << (collision_system.IsMultiThreaded() ? "Enabled" : "Disabled") << std::endl;
 			}
 		}
 
