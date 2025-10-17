@@ -87,17 +87,19 @@ void HelloWorldLayer::OnUpdate(float timestep)
 			}
 		}
 
+		ComponentArray<Transform>& transform_array = reg.GetComponentArray<Transform>();
+
 		/* If the Cursor Position changed, we update our entity */
 		if (evt.input == Mupfel::UserInput::CURSOR_POS_CHANGED)
 		{
-			auto& transform = reg.GetComponent<Transform>(*cursor);
+			auto& transform = transform_array.Get(*cursor);
 			transform.pos.x = Application::GetCurrentInputManager().GetCurrentCursorX();
 			transform.pos.y = Application::GetCurrentInputManager().GetCurrentCursorY();
 		}
 
 		if (evt.input == Mupfel::UserInput::MOVE_FORWARD)
 		{
-			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 100), 1, 10000000);
+			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 10), 1, 10000000);
 		}
 	}
 	
@@ -110,8 +112,10 @@ void HelloWorldLayer::OnUpdate(float timestep)
 	entity_garbage.clear();
 
 	double start_perf = Application::GetCurrentTime();
+
+	ComponentArray<BroadCollider>& broad_collider_array = reg.GetComponentArray<BroadCollider>();
 	
-	reg.ParallelForEach<Transform, Velocity>([delta_time, &garbage_mutex, &reg, screen_width, screen_height](Entity e, Transform& t, Velocity& v)
+	reg.ParallelForEach<Transform, Velocity>([delta_time, &garbage_mutex, &reg, screen_width, screen_height, &broad_collider_array](Entity e, Transform& t, Velocity& v)
 		{
 
 			if (v.x == 0.0f || v.y == 0.0f)
@@ -124,16 +128,16 @@ void HelloWorldLayer::OnUpdate(float timestep)
 			t.pos.y += v.y * delta_time;
 			
 
-			if (t.pos.x > screen_width || t.pos.x < 0.0f || t.pos.y > screen_height || t.pos.y < 0.0f)
+			if (t.pos.x > screen_width || t.pos.x < 0.0f || t.pos.y > screen_height || t.pos.y < 100.0f)
 			{
 				std::scoped_lock lock(garbage_mutex);
 				entity_garbage.push_back(e);
 			}
 
 			/* Update the BroadCollider, if there is one */
-			if (reg.HasComponent<BroadCollider>(e))
+			if (broad_collider_array.Has(e))
 			{
-				auto& broad_collider = reg.GetComponent<BroadCollider>(e);
+				auto& broad_collider = broad_collider_array.Get(e);
 				broad_collider.max.x = t.pos.x + broad_collider.offset.x;
 				broad_collider.max.y = t.pos.y + broad_collider.offset.y;
 				broad_collider.min.x = t.pos.x - broad_collider.offset.x;
@@ -156,9 +160,11 @@ void HelloWorldLayer::OnUpdate(float timestep)
 		reg.DestroyEntity(e);
 	}
 
+	ComponentArray<Transform>& transform_array = reg.GetComponentArray<Transform>();
+
 	for (auto e : entity_transform_container)
 	{
-		reg.MarkDirty<Transform>(e);
+		transform_array.MarkDirty(e);
 	}
 	
 
@@ -167,7 +173,23 @@ void HelloWorldLayer::OnUpdate(float timestep)
 
 void HelloWorldLayer::OnRender()
 {
-	
+
+	/* Render all entities */
+	auto view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
+
+	for (auto [entity, texture, transform] : view)
+	{
+		uint32_t render_pos_x = transform.pos.x - (texture.texture->width / 2);
+		uint32_t render_pos_y = transform.pos.y - (texture.texture->height / 2);
+		Texture::RaylibDrawTexture(*texture.texture.get(), render_pos_x, render_pos_y);
+	}
+
+	/* Draw some debug Info */
+	DrawDebugInfo();
+}
+
+void HelloWorldLayer::DrawDebugInfo()
+{
 	uint32_t current_entities = Application::GetCurrentRegistry().GetCurrentEntities();
 	/* Get the time of the last frame. */
 	float last_frame_time = Application::GetLastFrameTime();
@@ -180,27 +202,9 @@ void HelloWorldLayer::OnRender()
 	std::string text1 = std::vformat("Frame Time: {:.3f}, FPS: {:.1f}, Entities(GLOBAL): {} Events: {}", std::make_format_args(last_frame_time, fps, current_entities, events_last_frame));
 	std::string text2 = std::vformat("Screen Height: {}, Screen Width: {}", std::make_format_args(screen_height, screen_width));
 	std::string text4 = std::vformat("Entities per added per Frame: {}", std::make_format_args(entities_per_frame));
-	std::string text5 = std::vformat("Update time this frame: {:.1f}ms", std::make_format_args(perf_counter_update));
-	Text::RaylibDrawText(text1.c_str(), 50, 40);
-	Text::RaylibDrawText(text2.c_str(), 50, 60);
-	Text::RaylibDrawText(text4.c_str(), 50, 80);
-	Text::RaylibDrawText(text5.c_str(), 50, 100);
-
-	auto& transform = Application::GetCurrentRegistry().GetComponent<Transform>(*cursor);
-	/* Draw a Cirle around the Cursor */
-	Circle::RayLibDrawCircleLines(transform.pos.x, transform.pos.y, 50.0f);
-	Rectangle::RaylibDrawRect(0, 0, screen_width, screen_height, 255, 109, 194, 255);
-	
-
-	/* Render all entities */
-	auto view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
-
-#if 0
-	for (auto [entity, texture, transform] : view)
-	{
-		uint32_t render_pos_x = transform.pos.x - (texture.texture->width / 2);
-		uint32_t render_pos_y = transform.pos.y - (texture.texture->height / 2);
-		Texture::RaylibDrawTexture(*texture.texture.get(), render_pos_x, render_pos_y);
-	}
-#endif
+	std::string text5 = std::vformat("Update time this frame: {:.0f}ms", std::make_format_args(perf_counter_update));
+	Text::RaylibDrawText(text1.c_str(), 50, 20);
+	Text::RaylibDrawText(text2.c_str(), 50, 40);
+	Text::RaylibDrawText(text4.c_str(), 50, 60);
+	Text::RaylibDrawText(text5.c_str(), 50, 80);
 }

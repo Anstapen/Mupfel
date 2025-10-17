@@ -73,6 +73,7 @@ void Mupfel::DebugLayer::OnRender()
 		pos_y += cell_size;
 	}
 
+#if 0
 	/* Draw the BroadColliders of each entity */
 	Registry& reg = Application::GetCurrentRegistry();
 
@@ -88,4 +89,5 @@ void Mupfel::DebugLayer::OnRender()
 			255,
 			255);
 	}
+#endif
 }

@@ -33,9 +33,6 @@ namespace Mupfel {
 
 		uint32_t GetCurrentEntities() const;
 
-		template<typename T>
-		void MarkDirty(Entity e);
-
 		Entity::Signature GetSignature(uint32_t index) const;
 
 		template<typename... Components>
@@ -53,16 +50,8 @@ namespace Mupfel {
 		T& AddComponent(Entity e, const T& component);
 
 		template<typename T>
-		T& GetComponent(Entity e);
-
-		template<typename T>
 		void RemoveComponent(Entity e);
 
-		template<typename T>
-		bool HasComponent(Entity e);
-
-	private:
-		//template<typename... Components> friend class View;
 		template<typename T>
 		ComponentArray<T>& GetComponentArray();
 
@@ -72,17 +61,6 @@ namespace Mupfel {
 		std::vector<Entity::Signature> signatures;
 		std::unordered_map<std::type_index, SafeComponentArrayPtr> component_map;
 	};
-
-	template<typename T>
-	inline void Registry::MarkDirty(Entity e)
-	{
-		if (!HasComponent<T>(e))
-		{
-			return;
-		}
-		auto& comp_array = GetComponentArray<T>();
-		comp_array.MarkDirty(e);
-	}
 
 
 	template<typename ...Components, typename F>
@@ -187,13 +165,6 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline T& Registry::GetComponent(Entity e)
-	{
-		ComponentArray<T>& storage = GetComponentArray<T>();
-		return storage.Get(e);
-	}
-
-	template<typename T>
 	inline void Registry::RemoveComponent(Entity e)
 	{
 		ComponentArray<T>& storage = GetComponentArray<T>();
@@ -201,21 +172,6 @@ namespace Mupfel {
 
 		/* Update the Entity Signature */
 		signatures[e.Index()].reset(CompUtil::GetComponentTypeID<T>());
-	}
-
-	template<typename T>
-	inline bool Registry::HasComponent(Entity e)
-	{
-		/*If there is no component array for the given component type, the entity does not have it. */
-		auto it = component_map.find(typeid(T));
-
-		if (it == component_map.end())
-		{
-			return false;
-		}
-
-		/* look into the component array */
-		return it->second->Has(e);
 	}
 
 	template<typename T>

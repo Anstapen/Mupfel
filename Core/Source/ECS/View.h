@@ -12,16 +12,18 @@ namespace Mupfel {
 	template<typename... Components>
 	class View {
 	public:
-		explicit View(Registry& in_reg) : reg(in_reg) {}
+		explicit View(Registry& in_reg) : reg(in_reg),
+			component_arrays(std::make_tuple(&reg.GetComponentArray<Components>()...)){}
 
 		struct Iterator {
 			Registry& registry;
 			const std::vector<uint32_t>& entities;
 			size_t index = 0;
 			const Entity::Signature required;
+			std::tuple<ComponentArray<Components>*...> arrays;
 
-			Iterator(Registry& in_reg, const std::vector<uint32_t>& ents, Entity::Signature req, size_t idx) :
-				registry(in_reg), entities(ents), index(idx), required(req)
+			Iterator(Registry& in_reg, const std::vector<uint32_t>& ents, Entity::Signature req, std::tuple<ComponentArray<Components>*...> arrs, size_t idx) :
+				registry(in_reg), entities(ents), index(idx), required(req), arrays(arrs)
 			{
 				SkipInvalid();
 			}
@@ -50,7 +52,15 @@ namespace Mupfel {
 
 			auto operator*() {
 				Entity e{ entities[index]};
-				return std::make_tuple(e, std::ref((registry.GetComponent<Components>(e)))...);
+				// wende Get(e) für jedes Array im Tuple an
+				auto tuple_of_refs = std::apply(
+					[&](auto*... arr) {
+						return std::make_tuple(std::ref(arr->Get(e))...);
+					},
+					arrays
+				);
+				return std::tuple_cat(std::make_tuple(e), tuple_of_refs);
+				//return std::make_tuple(e, std::ref((registry.GetComponent<Components>(e)))...);
 			}
 		};
 
@@ -58,18 +68,19 @@ namespace Mupfel {
 		Iterator begin() {
 			using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 			auto& array = reg.GetComponentArray<BaseComponent>();
-			return Iterator(reg, array.dense, requiredSignature(), 0);
+			return Iterator(reg, array.dense, requiredSignature(), component_arrays, 0);
 		}
 
 		Iterator end() {
 			using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 			auto& array = reg.GetComponentArray<BaseComponent>();
-			return Iterator(reg, array.dense, requiredSignature(), array.dense.size());
+			return Iterator(reg, array.dense, requiredSignature(), component_arrays,array.dense.size());
 		}
 
 		static Entity::Signature requiredSignature();
 	private:
 		Registry& reg;
+		std::tuple<ComponentArray<Components>*...> component_arrays;
 	};
 
 	template<typename ...Components>

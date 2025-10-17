@@ -6,6 +6,8 @@
 #include "Coordinate.h"
 #include "Debug/DebugLayer.h"
 #include "ECS/Entity.h"
+#include "ECS/Components/BroadCollider.h"
+#include "ECS/ComponentArray.h"
 
 namespace Mupfel {
 
@@ -58,8 +60,8 @@ namespace Mupfel {
 		static uint32_t WorldtoCell(Coordinate<uint32_t> c);
 		static uint32_t PointXtoCell(uint32_t x);
 		static uint32_t PointYtoCell(uint32_t y);
-		void CheckEntity(Entity e, uint32_t thread_index);
-		void SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index);
+		void CheckEntity(Entity e, uint32_t thread_index, ComponentArray<BroadCollider>& broad_collider_array, ComponentArray<SpatialInfo>& spatial_info_array);
+		void SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index, ComponentArray<SpatialInfo>& spatial_info_array);
 		void RemoveEntity(const EntityDestroyedEvent& evt);
 	private:
 		Registry& registry;
