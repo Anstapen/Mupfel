@@ -5,22 +5,30 @@
 #include <typeindex>
 #include <memory>
 #include "Core/GUID.h"
+#include "Core/EventSystem.h"
 
 namespace Mupfel {
 
 	template<typename... Components> class View;
 
+	class CollisionSystem;
+
 	class Registry
 	{
 		template<typename... Components> friend class View;
+		friend class CollisionSystem;
 	public:
 		using SafeComponentArrayPtr = std::unique_ptr<IComponentArray>;
 	public:
+		Registry(EventSystem& in_evt_sys) : evt_system(in_evt_sys) {}
 		Entity CreateEntity();
 
 		void DestroyEntity(Entity e);
 
 		uint32_t GetCurrentEntities() const;
+
+		template<typename T>
+		void MarkDirty(Entity e);
 
 		Entity::Signature GetSignature(uint32_t index) const;
 
@@ -50,10 +58,22 @@ namespace Mupfel {
 		ComponentArray<T>& GetComponentArray();
 
 	private:
+		EventSystem& evt_system;
 		EntityManager entity_manager;
 		std::vector<Entity::Signature> signatures;
 		std::unordered_map<std::type_index, SafeComponentArrayPtr> component_map;
 	};
+
+	template<typename T>
+	inline void Registry::MarkDirty(Entity e)
+	{
+		if (!HasComponent<T>(e))
+		{
+			return;
+		}
+		auto& comp_array = GetComponentArray<T>();
+		comp_array.MarkDirty(e);
+	}
 
 
 	template<typename T, typename ...Args>

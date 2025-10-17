@@ -10,7 +10,7 @@ Application& Application::Get()
 	return app;
 }
 
-Application::Application() : window(Window::GetInstance()), evt_system(), input_manager(evt_system)
+Application::Application() : window(Window::GetInstance()), evt_system(), input_manager(evt_system), registry(evt_system), collision_system(registry, evt_system)
 {
 }
 
@@ -36,7 +36,10 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	Window::GetInstance().Init(window_spec);
 
+	collision_system.Init();
 
+	/* Add a debug Layer */
+	this->PushLayer<DebugLayer>();
 
 	return true;
 }
@@ -69,6 +72,11 @@ int Mupfel::Application::GetCurrentRenderWidth()
 int Mupfel::Application::GetCurrentRenderHeight()
 {
 	return GetRenderHeight();
+}
+
+bool Mupfel::Application::isDebugModeEnabled()
+{
+	return Get().debugModeEnabled;
 }
 
 EventSystem& Application::GetCurrentEventSystem()
@@ -105,14 +113,23 @@ void Application::Run()
 		float timestep = std::clamp<float>(currentTime - lastTime, 0.001f, 0.1f);
 		lastTime = currentTime;
 
-		/* Check if the Window dimensions should change */
+		/* Check for Application related changes */
 		for (const auto& evt : evt_system.GetEvents<Mupfel::UserInputEvent>())
 		{
 			if (evt.input == UserInput::WINDOW_FULLSCREEN)
 			{
 				window.ToggleFS();
 			}
+
+			if (evt.input == UserInput::TOGGLE_DEBUG_MODE)
+			{
+				std::cout << "Toggled Debug Mode!" << std::endl;
+				debugModeEnabled = !debugModeEnabled;
+			}
 		}
+
+		/* Update the Collision System */
+		collision_system.Update();
 
 		/* Update all layers */
 		for (const std::unique_ptr<Layer>& layer : layerStack)

@@ -17,11 +17,17 @@ Entity Registry::CreateEntity() {
 		signatures[e.Index()] = 0x0;
 	}
 
+	/* Entity is created successfully, notify everyone */
+	evt_system.AddImmediateEvent<EntityCreatedEvent>(e);
+
 	return e;
 
 }
 
 void Registry::DestroyEntity(Entity e) {
+	/* Create an Entity Destroyed Event to give all Listeners time to react */
+	evt_system.AddImmediateEvent<EntityDestroyedEvent>(e);
+
 	/* We have to remove the entity from all component lists */
 	for (auto& [type, storage] : component_map)
 	{

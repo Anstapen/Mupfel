@@ -4,6 +4,9 @@
 #include "Renderer/Rectangle.h"
 #include "Renderer/TextureManager.h"
 #include "Core/Application.h"
+#include "ECS/Components/Transform.h"
+#include "ECS/Components/BroadCollider.h"
+#include "ECS/Components/SpatialInfo.h"
 #include <iostream>
 #include "ECS/View.h"
 #include <format>
@@ -16,33 +19,15 @@ struct Velocity {
 	float x, y;
 };
 
-struct Position {
-	float x, y;
-};
-
-struct CollisionCircle {
-	float r;
-};
-
-struct RenderableCircleOutline {
-	float radius;
-	uint8_t col_r;
-	uint8_t col_g;
-	uint8_t col_b;
-	uint8_t alpha;
-};
-
 struct TextureComponent {
 	SafeTexturePointer texture;
 };
-
-static_assert(sizeof(RenderableCircleOutline) == 8);
 
 static Entity *cursor = nullptr;
 
 static const std::string ball_texture_path = "Resources/simple_ball.png";
 
-static uint64_t entities_per_frame = 10;
+static uint64_t entities_per_frame = 1;
 
 void HelloWorldLayer::OnInit()
 {
@@ -51,7 +36,7 @@ void HelloWorldLayer::OnInit()
 	cursor = new Entity(reg.CreateEntity());
 
 	/* Add the Position component to it */
-	reg.AddComponent<Position>(*cursor, { 0 ,0 });
+	reg.AddComponent<Transform>(*cursor, { 0 ,0 });
 
 }
 
@@ -59,6 +44,10 @@ void HelloWorldLayer::OnUpdate(float timestep)
 {
 	auto &evt_system = Mupfel::Application::GetCurrentEventSystem();
 	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
+
+	int screen_height = Application::GetCurrentRenderHeight();
+	int screen_width = Application::GetCurrentRenderWidth();
+
 	/*
 		Retrieve all the UserInputEvents that were issued the last frame.
 	*/
@@ -77,8 +66,8 @@ void HelloWorldLayer::OnUpdate(float timestep)
 		/* If Right-Mouseclick is pressed, create new entites */
 		if (evt.input == Mupfel::UserInput::RIGHT_MOUSE_CLICK)
 		{
-			float pos_x = (float)Application::GetCurrentInputManager().GetCurrentCursorX();
-			float pos_y = (float)Application::GetCurrentInputManager().GetCurrentCursorY();
+			float pos_x = (float)Application::GetRandomNumber(1, screen_width-1);
+			float pos_y = (float)Application::GetRandomNumber(1, screen_height-1);
 
 			for (uint32_t i = 0; i < entities_per_frame; i++)
 			{
@@ -88,8 +77,9 @@ void HelloWorldLayer::OnUpdate(float timestep)
 				float vel_x = (float)Application::GetRandomNumber(50, 200);
 				float vel_y = (float)Application::GetRandomNumber(50, 200);
 				reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
-				reg.AddComponent<Position>(ent, { pos_x, pos_y });
-				reg.AddComponent<CollisionCircle>(ent, { 10.0f });
+				reg.AddComponent<Transform>(ent, { pos_x, pos_y });
+				reg.AddComponent<BroadCollider>(ent, {15, 15});
+				reg.AddComponent<SpatialInfo>(ent, {});
 				reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
 			}
 		}
@@ -97,9 +87,9 @@ void HelloWorldLayer::OnUpdate(float timestep)
 		/* If the Cursor Position changed, we update our entity */
 		if (evt.input == Mupfel::UserInput::CURSOR_POS_CHANGED)
 		{
-			auto& pos = reg.GetComponent<Position>(*cursor);
-			pos.x = Application::GetCurrentInputManager().GetCurrentCursorX();
-			pos.y = Application::GetCurrentInputManager().GetCurrentCursorY();
+			auto& transform = reg.GetComponent<Transform>(*cursor);
+			transform.pos.x = Application::GetCurrentInputManager().GetCurrentCursorX();
+			transform.pos.y = Application::GetCurrentInputManager().GetCurrentCursorY();
 		}
 
 		if (evt.input == Mupfel::UserInput::MOVE_FORWARD)
@@ -107,10 +97,9 @@ void HelloWorldLayer::OnUpdate(float timestep)
 			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 100), 1, 10000000);
 		}
 	}
-	auto position_view = reg.view<Velocity, Position>();
+	auto position_view = reg.view<Velocity, Transform>();
 
-	int screen_height = Application::GetCurrentRenderHeight()-50;
-	int screen_width = Application::GetCurrentRenderWidth()-50;
+	
 
 	static std::vector<Entity> entity_garbage;
 
@@ -119,14 +108,31 @@ void HelloWorldLayer::OnUpdate(float timestep)
 	float delta_time = Application::GetLastFrameTime();
 
 	/* Update Position on the screen, remember entities that leave it */
-	for (auto [entity, velocity, position] : position_view)
+	for (auto [entity, velocity, transform] : position_view)
 	{
-		position.x += velocity.x * delta_time;
-		position.y += velocity.y * delta_time;
+		transform.pos.x += velocity.x * delta_time;
+		transform.pos.y += velocity.y * delta_time;
 
-		if (position.x > screen_width || position.x < 50.0f || position.y > screen_height || position.y < 50.0f)
+		if (transform.pos.x > screen_width || transform.pos.x < 0.0f || transform.pos.y > screen_height || transform.pos.y < 0.0f)
 		{
 			entity_garbage.push_back(entity);
+			continue;
+		}
+
+		reg.MarkDirty<Transform>(entity);
+
+		/* Update the BroadCollider, if there is one */
+		if (reg.HasComponent<BroadCollider>(entity))
+		{
+			auto& broad_collider = reg.GetComponent<BroadCollider>(entity);
+			broad_collider.max.x = transform.pos.x + broad_collider.offset.x;
+			broad_collider.max.y = transform.pos.y + broad_collider.offset.y;
+			broad_collider.min.x = transform.pos.x - broad_collider.offset.x;
+			broad_collider.min.y = transform.pos.y - broad_collider.offset.y;
+
+			/* Clamp the top-left values */
+			broad_collider.min.x = broad_collider.min.x < 0.0f ? 0.0f : broad_collider.min.x;
+			broad_collider.min.y = broad_collider.min.y < 0.0f ? 0.0f : broad_collider.min.y;
 		}
 	}
 
@@ -155,17 +161,19 @@ void HelloWorldLayer::OnRender()
 	Text::RaylibDrawText(text2.c_str(), 50, 60);
 	Text::RaylibDrawText(text4.c_str(), 50, 80);
 
-	auto& pos = Application::GetCurrentRegistry().GetComponent<Position>(*cursor);
+	auto& transform = Application::GetCurrentRegistry().GetComponent<Transform>(*cursor);
 	/* Draw a Cirle around the Cursor */
-	Circle::RayLibDrawCircleLines(pos.x, pos.y, 50.0f);
-	Rectangle::RaylibDrawRect(50, 50, screen_width - 100, screen_height - 100, 255, 109, 194, 255);
+	Circle::RayLibDrawCircleLines(transform.pos.x, transform.pos.y, 50.0f);
+	Rectangle::RaylibDrawRect(0, 0, screen_width, screen_height, 255, 109, 194, 255);
 	
 
 	/* Render all entities */
-	auto view = Application::GetCurrentRegistry().view<TextureComponent, Position>();
+	auto view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
 
-	for (auto [entity, texture, position] : view)
+	for (auto [entity, texture, transform] : view)
 	{
-		Texture::RaylibDrawTexture(*texture.texture.get(), position.x, position.y);
+		uint32_t render_pos_x = transform.pos.x - (texture.texture->width / 2);
+		uint32_t render_pos_y = transform.pos.y - (texture.texture->height / 2);
+		Texture::RaylibDrawTexture(*texture.texture.get(), render_pos_x, render_pos_y);
 	}
 }

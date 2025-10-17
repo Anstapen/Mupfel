@@ -14,8 +14,8 @@ namespace Mupfel {
 	class IComponentArray {
 	public:
 		virtual ~IComponentArray() = default;
-		virtual void Remove(const Entity& e) = 0;
-		virtual bool Has(const Entity& e) const = 0;
+		virtual void Remove(Entity e) = 0;
+		virtual bool Has(Entity e) const = 0;
 	};
 
 	template <typename T>
@@ -23,21 +23,25 @@ namespace Mupfel {
 	{
 		template<typename... Components> friend class View;
 	public:
-		void Insert(const Entity& e, const T& component);
-		void Remove(const Entity& e) override;
-		bool Has(const Entity& e) const override;
-		T& Get(const Entity& e);
+		void Insert(Entity e, const T& component);
+		void Remove(Entity e) override;
+		bool Has(Entity e) const override;
+		T& Get(Entity e);
+		void MarkDirty(Entity e);
+		const std::vector<Entity>& GetDirtyEntities() const;
+		void ClearDirtyList();
 	private:
 		static constexpr size_t invalid_entry = std::numeric_limits<size_t>::max();
 
 		std::vector<size_t> sparse;
 		std::vector<uint32_t> dense;
 		std::vector<T> components;
+		std::vector<Entity> dirty_entities;
 	};
 
 
 	template<typename T>
-	inline void ComponentArray<T>::Insert(const Entity& e, const T& component)
+	inline void ComponentArray<T>::Insert(Entity e, const T& component)
 	{
 		/*
 			If the sparse array is too small, we resize it using the invalid_index as value.
@@ -45,7 +49,7 @@ namespace Mupfel {
 		*/
 		if (e.Index() >= sparse.size())
 		{
-			sparse.resize((sparse.size() + 1) * 2, invalid_entry);
+			sparse.resize((sparse.size() + 2) * 2, invalid_entry);
 		}
 
 		/*
@@ -65,7 +69,7 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline void ComponentArray<T>::Remove(const Entity& e)
+	inline void ComponentArray<T>::Remove(Entity e)
 	{
 		if (!Has(e))
 		{
@@ -92,17 +96,35 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline bool ComponentArray<T>::Has(const Entity& e) const
+	inline bool ComponentArray<T>::Has(Entity e) const
 	{
 		return e.Index() < sparse.size() && sparse[e.Index()] != invalid_entry;
 	}
 
 	template<typename T>
-	inline T& ComponentArray<T>::Get(const Entity& e)
+	inline T& ComponentArray<T>::Get(Entity e)
 	{
 		assert(Has(e) && "Given Entity does not currently have a component of this type!");
 
 		return components[sparse[e.Index()]];
+	}
+
+	template<typename T>
+	inline void ComponentArray<T>::MarkDirty(Entity e)
+	{
+		dirty_entities.push_back(e);
+	}
+
+	template<typename T>
+	inline const std::vector<Entity>& ComponentArray<T>::GetDirtyEntities() const
+	{
+		return dirty_entities;
+	}
+
+	template<typename T>
+	inline void ComponentArray<T>::ClearDirtyList()
+	{
+		dirty_entities.clear();
 	}
 }
 

@@ -198,21 +198,22 @@ namespace Mupfel {
 	/**
 	 * @brief All possible User Input.
 	 */
-	enum class UserInput {
-		NONE,
-		CURSOR_POS_CHANGED,
-		MOVE_FORWARD,
-		MOVE_LEFT,
-		MOVE_RIGHT,
-		MOVE_BACKKWARDS,
-		RIGHT_MOUSE_CLICK,
+    enum class UserInput {
+        NONE,
+        CURSOR_POS_CHANGED,
+        MOVE_FORWARD,
+        MOVE_LEFT,
+        MOVE_RIGHT,
+        MOVE_BACKKWARDS,
+        RIGHT_MOUSE_CLICK,
         RIGHT_MOUSE_HOLD,
-		LEFT_MOUSE_CLICK,
+        LEFT_MOUSE_CLICK,
         LEFT_MOUSE_HOLD,
-		MIDDLE_MOUSE_CLICK,
-		SCROLLWHEEL_UP,
-		SCROLLWHEEL_DOWN,
-        WINDOW_FULLSCREEN
+        MIDDLE_MOUSE_CLICK,
+        SCROLLWHEEL_UP,
+        SCROLLWHEEL_DOWN,
+        WINDOW_FULLSCREEN,
+        TOGGLE_DEBUG_MODE
 	};
 
 	/**

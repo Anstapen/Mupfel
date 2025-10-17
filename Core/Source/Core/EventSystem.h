@@ -1,9 +1,11 @@
 #pragma once
 #include <unordered_map>
 #include <memory>
+#include <vector>
 #include <cstdint>
 #include <optional>
 #include <ranges>
+#include <functional>
 #include "GUID.h"
 #include "EventBuffer.h"
 
@@ -32,7 +34,7 @@ namespace Mupfel {
 		 * added and stores them in an unordered map. To be safe regarding memory leaks,
 		 * the Eventbuffers are stored as unique pointers.
 		 */
-		typedef std::unordered_map<uint32_t, std::unique_ptr<IEventBuffer>> EventBufferMap;
+		typedef std::unordered_map<uint64_t, std::unique_ptr<IEventBuffer>> EventBufferMap;
 	public:
 		/**
 		 * @brief The construcor of the EventSystem class.
@@ -56,6 +58,10 @@ namespace Mupfel {
 		template<typename T>
 			requires std::derived_from<T, IEvent>
 		void AddEvent(T &&event);
+
+		template<typename T>
+			requires std::derived_from<T, IEvent>
+		void AddImmediateEvent(T&& event);
 
 		/**
 		 * @brief Get the amount of events currently pending for the specified
@@ -98,6 +104,9 @@ namespace Mupfel {
 			-> std::ranges::subrange<typename EventBuffer<T>::const_iterator,
 			typename EventBuffer<T>::const_iterator>;
 
+		template<typename T>
+		void RegisterListener(std::function<void(const T&)> callback);
+
 	private:
 		/**
 		 * @brief Two maps that hold the eventbuffers and get swapped every frame.
@@ -125,6 +134,10 @@ namespace Mupfel {
 		 * @brief The amount of events that were issued this frame.
 		 */
 		uint64_t events_this_frame = 0;
+
+		using EventCallback = std::function<void(const IEvent&)>;
+
+		std::unordered_map<uint32_t, std::vector<EventCallback>> listeners;
 	};
 
 	template<typename T>
@@ -140,6 +153,23 @@ namespace Mupfel {
 		current_evt_buffer->Add(std::move(event));
 
 		events_this_frame++;
+	}
+
+	template<typename T>
+		requires std::derived_from<T, IEvent>
+	inline void EventSystem::AddImmediateEvent(T&& event)
+	{
+		constexpr uint64_t evt_guid = T::GetGUIDStatic();
+
+		auto it = listeners.find(evt_guid);
+
+		if (it != listeners.end())
+		{
+			for (auto& callback : it->second)
+			{
+				callback(event);
+			}
+		}
 	}
 
 	template<typename T>
@@ -193,6 +223,17 @@ namespace Mupfel {
 
 		const EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(it->second.get());
 		return std::ranges::subrange(buf->begin(), buf->end());
+	}
+
+	template<typename T>
+	inline void EventSystem::RegisterListener(std::function<void(const T&)> callback)
+	{
+		constexpr uint64_t index = T::GetGUIDStatic();
+		listeners[index].push_back(
+			[cb = std::move(callback)](const IEvent& evt) {
+				cb(static_cast<const T&>(evt));
+			}
+		);
 	}
 
 	template<typename T>

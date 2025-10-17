@@ -8,6 +8,8 @@
 #include "EventSystem.h"
 #include "InputManager.h"
 #include "ECS/Registry.h"
+#include "CollisionSystem.h"
+#include "Debug/DebugLayer.h"
 
 namespace Mupfel {
 
@@ -18,6 +20,7 @@ namespace Mupfel {
 
 	class Application
 	{
+		friend class DebugLayer;
 	public:
 		static Application& Get();
 		
@@ -32,6 +35,7 @@ namespace Mupfel {
 		static int GetRandomNumber(int min, int max);
 		static int GetCurrentRenderWidth();
 		static int GetCurrentRenderHeight();
+		static bool isDebugModeEnabled();
 		static EventSystem& GetCurrentEventSystem();
 		static InputManager& GetCurrentInputManager();
 		static Registry& GetCurrentRegistry();
@@ -49,10 +53,12 @@ namespace Mupfel {
 		ApplicationSpecification spec;
 		Window& window;
 		bool running = false;
+		bool debugModeEnabled = false;
 		std::vector<std::unique_ptr<Layer>> layerStack;
 		EventSystem evt_system;
 		InputManager input_manager;
 		Registry registry;
+		CollisionSystem collision_system;
 	};
 }
 

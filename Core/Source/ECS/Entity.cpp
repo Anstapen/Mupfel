@@ -1,4 +1,7 @@
 #include "Entity.h"
+#include <iostream>
+#include "Core/EventSystem.h"
+#include "Core/Application.h"
 
 using namespace Mupfel;
 

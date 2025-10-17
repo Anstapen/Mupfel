@@ -24,6 +24,7 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 	MapKeyboardButton(KEY_S, UserInput::MOVE_BACKKWARDS);
 	MapKeyboardButton(KEY_D, UserInput::MOVE_RIGHT);
 	MapKeyboardButton(KEY_F, UserInput::WINDOW_FULLSCREEN);
+	MapKeyboardButton(KEY_F1, UserInput::TOGGLE_DEBUG_MODE);
 
 	MapMouseButton(MOUSE_BUTTON_LEFT, UserInput::LEFT_MOUSE_CLICK);
 	MapMouseButton(MOUSE_BUTTON_RIGHT, UserInput::RIGHT_MOUSE_CLICK);
