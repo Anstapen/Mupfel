@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Layer.h"
+#include <mutex>
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -9,5 +10,7 @@ class HelloWorldLayer : public Mupfel::Layer
 	void OnRender() override;
 private:
 	void DrawDebugInfo();
+private:
+	std::mutex garbage_mutex;
 };
 

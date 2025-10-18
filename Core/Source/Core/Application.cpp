@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "raylib.h"
 #include <algorithm>
+#include "Profiler.h"
 
 using namespace Mupfel;
 
@@ -26,6 +27,7 @@ Application::~Application()
 
 bool Application::Init(const ApplicationSpecification& in_spec)
 {
+	(void)Mupfel::Profiler::Get();
 	auto &app = Get();
 	app.spec = in_spec;
 
@@ -167,5 +169,6 @@ void Application::Run()
 		/* Update the EventSystem */
 		evt_system.Update();
 		input_manager.Update(timestep);
+		Profiler::Clear();
 	}
 }

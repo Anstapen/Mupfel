@@ -70,7 +70,7 @@ namespace Mupfel {
 		static constexpr uint32_t cell_size_pow = 6;
 		static constexpr uint32_t num_cells_x = 64;
 		static constexpr uint32_t num_cells_y = 64;
-		static constexpr uint32_t entities_per_cell = 1024;
+		static constexpr uint32_t entities_per_cell = 2048;
 		CollisionGrid<num_cells_x, num_cells_y, entities_per_cell, cell_size_pow> collision_grid;
 
 		using ThreadLocalCommandBuffer = std::vector<std::vector<CellMoveCommand>>;
