@@ -46,8 +46,7 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	collision_system.Init();
 
-	/* Add a debug Layer */
-	this->PushLayer<DebugLayer>();
+	debug_layer.OnInit();
 
 	return true;
 }
@@ -157,12 +156,17 @@ void Application::Run()
 			layer->OnUpdate(timestep);
 		}
 
+		debug_layer.OnUpdate(timestep);
+
 		window.StartFrame();
 
 		for (const std::unique_ptr<Layer>& layer : layerStack)
 		{
 			layer->OnRender();
 		}
+
+		/* Make sure the debug Layer is Rendered last */
+		debug_layer.OnRender();
 
 		window.EndFrame();
 

@@ -62,6 +62,7 @@ namespace Mupfel {
 		Registry registry;
 		CollisionSystem collision_system;
 		ThreadPool thread_pool;
+		DebugLayer debug_layer;
 	};
 }
 

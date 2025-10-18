@@ -7,6 +7,8 @@
 #include "ECS/Registry.h"
 #include "ECS/View.h"
 #include "ECS/Components/BroadCollider.h"
+#include "Core/Profiler.h"
+#include "raylib.h"
 
 using namespace Mupfel;
 
@@ -73,21 +75,48 @@ void Mupfel::DebugLayer::OnRender()
 		pos_y += cell_size;
 	}
 
-#if 0
-	/* Draw the BroadColliders of each entity */
-	Registry& reg = Application::GetCurrentRegistry();
+	DrawDebugInfo();
+}
 
-	auto position_view = reg.view<BroadCollider>();
-	for (auto [entity, broad] : position_view)
+void Mupfel::DebugLayer::DrawDebugInfo()
+{
+	DrawRectangle(0, 0, 350, 500, BLACK);
+	uint32_t current_entities = Application::GetCurrentRegistry().GetCurrentEntities() / 1000;
+	/* Get the time of the last frame. */
+	float last_frame_time = Application::GetLastFrameTime();
+	float fps = 1.0f / last_frame_time;
+
+	int screen_height = Application::GetCurrentRenderHeight();
+	int screen_width = Application::GetCurrentRenderWidth();
+
+	uint64_t events_last_frame = Application::GetCurrentEventSystem().GetLastEventCount();
+	std::string text1 = std::vformat("FPS: {:.1f}", std::make_format_args(fps));
+	std::string text2 = std::vformat("Entities(GLOBAL): {}k", std::make_format_args(current_entities));
+	Text::RaylibDrawText(text1.c_str(), 10, 20);
+	Text::RaylibDrawText(text2.c_str(), 10, 40);
+
+	/* Print the Profiling Samples */
+	const std::vector<ProfilingSample>& samples = Profiler::GetCurrentSamples();
+
+	std::vector<ProfilingSample> local(samples.begin(), samples.end());
+
+	if (!local.empty())
 	{
-		Rectangle::RaylibDrawRect(static_cast<int>(broad.min.x),
-			static_cast<int>(broad.min.y),
-			static_cast<int>(broad.max.x - broad.min.x),
-			static_cast<int>(broad.max.y - broad.min.y),
-			102,
-			191,
-			255,
-			255);
+		// Sortiere stabil nach Startzeit (aufsteigend)
+		std::stable_sort(local.begin(), local.end(),
+			[](auto const& a, auto const& b) {
+				return a.id < b.id;
+			});
+
+		std::string t;
+		uint32_t offset = 100;
+		for (const auto& s : local)
+		{
+			std::string indent(s.depth * 2, ' ');
+			double elapsed_ms = (s.end_time - s.start_time) * 1000.0f;
+			t = std::vformat("{}{}: {:.0f}ms", std::make_format_args(indent, s.name, elapsed_ms));
+			Text::RaylibDrawText(t.c_str(), 10, offset);
+			offset += 20;
+		}
 	}
-#endif
 }

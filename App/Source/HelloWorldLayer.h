@@ -2,6 +2,8 @@
 
 #include "Core/Layer.h"
 #include <mutex>
+#include "ECS/Entity.h"
+#include <vector>
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -9,8 +11,13 @@ class HelloWorldLayer : public Mupfel::Layer
 	void OnUpdate(float timestep) override;
 	void OnRender() override;
 private:
-	void DrawDebugInfo();
+	void ProcessEvents();
+	void UpdateEntityPositions();
+	void CleanUpEntities();
+	void MarkDirtyEntities();
 private:
 	std::mutex garbage_mutex;
+	std::vector<Mupfel::Entity> entity_garbage;
+	std::vector<Mupfel::Entity> entity_transform_container;
 };
 

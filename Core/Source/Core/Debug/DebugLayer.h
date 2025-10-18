@@ -8,6 +8,8 @@ namespace Mupfel {
 		void OnInit() override;
 		void OnUpdate(float timestep) override;
 		void OnRender() override;
+	private:
+		void DrawDebugInfo();
 	};
 }
 
