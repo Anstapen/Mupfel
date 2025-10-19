@@ -1,4 +1,8 @@
 -- premake5.lua
+newoption {
+   trigger = "graphics",
+   description = "Force the use of OpenGL for rendering, regardless of platform"
+}
 
 include "Dependencies.lua"
 

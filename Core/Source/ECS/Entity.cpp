@@ -27,6 +27,8 @@ Entity EntityManager::CreateEntity()
     
     current_entities++;
 
+    std::cout << "Created Entity: " << index << std::endl;
+
     return Entity(index);
 }
 

@@ -57,6 +57,7 @@ void HelloWorldLayer::OnUpdate(float timestep)
 
 void HelloWorldLayer::OnRender()
 {
+#if 0
 	{
 		ProfilingSample prof("HelloWorld Render");
 		/* Render all entities */
@@ -69,7 +70,7 @@ void HelloWorldLayer::OnRender()
 			Texture::RaylibDrawTexture(*texture.texture.get(), render_pos_x, render_pos_y);
 		}
 	}
-
+#endif
 }
 
 

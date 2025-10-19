@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <algorithm>
 #include "Profiler.h"
+#include "Renderer/Renderer.h"
 
 using namespace Mupfel;
 
@@ -47,6 +48,8 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	collision_system.Init();
 
 	debug_layer.OnInit();
+
+	Renderer::Init();
 
 	return true;
 }
@@ -160,13 +163,15 @@ void Application::Run()
 
 		window.StartFrame();
 
+		Renderer::Render();
+
 		for (const std::unique_ptr<Layer>& layer : layerStack)
 		{
 			layer->OnRender();
 		}
 
 		/* Make sure the debug Layer is Rendered last */
-		debug_layer.OnRender();
+		//debug_layer.OnRender();
 
 		window.EndFrame();
 
