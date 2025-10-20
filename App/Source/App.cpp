@@ -3,6 +3,7 @@
 
 int main()
 {
+
 	Mupfel::ApplicationSpecification app_spec;
 	app_spec.name.insert(0, "My first Application");
 
@@ -14,6 +15,7 @@ int main()
 
 		app.Run();
 	}
+
 
 	return 0;
 }

@@ -1,7 +1,6 @@
 #include "Renderer.h"
 #include "raylib.h"
 #include "glad.h"
-
 #include "rlgl.h"
 #include "Core/Application.h"
 #include "ECS/Components/Transform.h"
@@ -10,12 +9,23 @@
 
 using namespace Mupfel;
 
+static Shader shader;
+static unsigned int VAO;
+static unsigned int VBO;
+static unsigned int EBO;
+
 /* For now, use a default Triangle location (in 2D space) */
-static float vertices[] = {
+static float vertices_ebo[] = {
      0.5f,  0.5f, 0.0f, // Top-Right
      0.5f, -0.5f, 0.0f, // Bottom-Right
     -0.5f, -0.5f, 0.0f, // Bottom-Left
     -0.5f,  0.5f, 0.0f  // Top-Left
+};
+
+static float vertices_def[] = {
+     -0.5f, -0.5f, 0.0f, // left  
+      0.5f, -0.5f, 0.0f, // right 
+      0.0f,  0.5f, 0.0f  // top 
 };
 
 unsigned int indices[] = {
@@ -23,57 +33,22 @@ unsigned int indices[] = {
     1, 2, 3
 };
 
-static unsigned int vertex_buffer;
-static unsigned int element_buffer_object;
-static unsigned int vertex_array_object;
-static unsigned int vertex_shader;
-static unsigned int fragment_shader;
-static unsigned int shader_program;
+
 
 void Renderer::Init()
 {
-	/* Generate a new Vertex Buffer */
-    glGenBuffers(1, &vertex_buffer);
-    glGenBuffers(1, &element_buffer_object);
 
-    /* Gen a corresbonding Vertex Array Object */
-    glGenVertexArrays(1, &vertex_array_object);
+    shader = LoadShader("Shaders/simple_vertex_shader.glsl", "Shaders/simple_fragment_shader.glsl");
 
-    /* Configure the Vertex Array */
-    glBindVertexArray(vertex_array_object);
+    VAO = rlLoadVertexArray();
+    rlEnableVertexArray(VAO);
 
-    /* Bind our Vertex Buffer to GL_ARRAY_BUFFER (which is the vertex buffer type) */
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    VBO = rlLoadVertexBuffer(vertices_def, sizeof(vertices_def), false);
+    EBO = rlLoadVertexBufferElement(indices, sizeof(indices), false);
 
-    /*
-        copy our triangle verticies into the vertex buffer. Currently we use GL_STATIC_DRAW,
-        because the triangle position does not change. If we update the verticies in the future,
-        we should use GL_DYNAMIC_DRAW.
-    */
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 3 * sizeof(float), 0);
+    rlEnableVertexAttribute(0);
 
-    /* Bind the EBO buffer */
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer_object);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    /* Tell OpenGL how to interpret our vertex data */
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), static_cast<void*>(0));
-
-    glEnableVertexAttribArray(0);
-
-    /* Load Our Shaders */
-    ImportVertexShader();
-    ImportFragmentShader();
-
-    /* Create the Shader Program */
-    CreateShaderProgram();
-
-    /* Use the created Shader Program */
-    glUseProgram(shader_program);
-
-    /* Shaders are no longer needed, delete them */
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
     
 }
 
@@ -85,10 +60,15 @@ void Renderer::Render()
         return;
     }
 
-    glUseProgram(shader_program);
-    glBindVertexArray(vertex_array_object);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    rlEnableShader(shader.id);
+
+    rlEnableVertexArray(VAO);
+    rlDrawVertexArray(0, 3);
+    //rlDrawVertexArrayElements(0, 6, 0);
+    rlDisableVertexArray();
+
+    rlDisableShader();
+    
 }
 
 void Renderer::DeInit()
@@ -98,6 +78,7 @@ void Renderer::DeInit()
 
 void Mupfel::Renderer::ImportVertexShader()
 {
+#if 0
     char* vertex_shader_source = LoadFileText("Shaders/simple_vertex_shader.glsl");
     if (vertex_shader_source == nullptr)
     {
@@ -122,10 +103,12 @@ void Mupfel::Renderer::ImportVertexShader()
     }
     /* Unload the text file */
     UnloadFileText(vertex_shader_source);
+#endif
 }
 
 void Mupfel::Renderer::ImportFragmentShader()
 {
+#if 0
     char* fragment_shader_source = LoadFileText("Shaders/simple_fragment_shader.glsl");
     if (fragment_shader_source == nullptr)
     {
@@ -153,10 +136,12 @@ void Mupfel::Renderer::ImportFragmentShader()
 
     /* Unload the text file */
     UnloadFileText(fragment_shader_source);
+#endif
 }
 
 void Mupfel::Renderer::CreateShaderProgram()
 {
+#if 0
     /* Create the shader program */
     shader_program = glCreateProgram();
     glAttachShader(shader_program, vertex_shader);
@@ -174,5 +159,5 @@ void Mupfel::Renderer::CreateShaderProgram()
         TraceLog(LOG_ERROR, "Could not link the Shader Program:");
         TraceLog(LOG_ERROR, infoLog);
     }
-
+#endif
 }
