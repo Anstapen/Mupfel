@@ -1,6 +1,10 @@
 
 include "Raylib.lua"
 
+glm_dir = "Vendor/Sources/glm-master"
+
+raygui_dir = "Vendor/Sources/raygui-master"
+
 project "Core"
    kind "StaticLib"
    language "C++"
@@ -28,6 +32,8 @@ project "Core"
    includedirs {"../" .. raylib_dir .. "/src"}
    includedirs {"../" .. raylib_dir .."/src/external"}
    includedirs {"../" .. raylib_dir .."/src/external/glfw/include"}
+   includedirs {"../" .. glm_dir .."/glm"}
+   includedirs {"../" .. raygui_dir .."/src"}
    
    filter "action:vs*"
        defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}

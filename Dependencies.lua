@@ -24,12 +24,59 @@ function check_raylib()
         zip.extract("raylib-master.zip", os.getcwd())
         os.remove("raylib-master.zip")
     end
+    os.chdir("../../")
+end
+
+function check_raygui()
+    print("Checking for Raygui...")
+    os.chdir("Vendor")
+    if(os.isdir("Sources") == false) then
+        os.mkdir("Sources")
+    end
+    os.chdir("Sources")
+    if(os.isdir("raygui-master") == false) then
+        if(not os.isfile("raygui-master.zip")) then
+            print("Raylib not found, downloading from https://github.com/raysan5/raygui/archive/refs/heads/master.zip")
+            local result_str, response_code = http.download("https://github.com/raysan5/raygui/archive/refs/heads/master.zip", "raygui-master.zip", {
+                progress = download_progress,
+                headers = { "From: Premake", "Referer: Premake" }
+            })
+        end
+        print("Unzipping to " ..  os.getcwd())
+        zip.extract("raygui-master.zip", os.getcwd())
+        os.remove("raygui-master.zip")
+    end
+    os.chdir("../../")
+end
+
+function check_glm()
+    print("Checking for GLM...")
+    print(os.getcwd())
+    os.chdir("Vendor")
+    if(os.isdir("Sources") == false) then
+        os.mkdir("Sources")
+    end
+    os.chdir("Sources")
+    if(os.isdir("glm-master") == false) then
+        if(not os.isfile("glm-master.zip")) then
+            print("GLM not found, downloading from https://github.com/g-truc/glm/archive/refs/heads/master.zip")
+            local result_str, response_code = http.download("https://github.com/g-truc/glm/archive/refs/heads/master.zip", "glm-master.zip", {
+                progress = download_progress,
+                headers = { "From: Premake", "Referer: Premake" }
+            })
+        end
+        print("Unzipping to " ..  os.getcwd())
+        zip.extract("glm-master.zip", os.getcwd())
+        os.remove("glm-master.zip")
+    end
     os.chdir("../../../")
 end
 
 function build_externals()
      print("Checking external dependencies...")
      check_raylib()
+     check_raygui()
+     check_glm()
 end
 
 build_externals()

@@ -14,6 +14,8 @@
 #include <string>
 #include <algorithm>
 
+#include "Renderer/Renderer.h"
+
 using namespace Mupfel;
 
 struct Velocity {
@@ -44,6 +46,28 @@ void HelloWorldLayer::OnInit()
 void HelloWorldLayer::OnUpdate(float timestep)
 {
 	ProfilingSample on_update("HelloWorld OnUpdate");
+
+	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
+
+	int screen_height = Application::GetCurrentRenderHeight();
+	int screen_width = Application::GetCurrentRenderWidth();
+
+	for (uint32_t i = 0; i < entities_per_frame; i++)
+	{
+		Mupfel::Entity ent = reg.CreateEntity();
+
+		float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
+		float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
+
+		/* Add velocity component to the entity */
+		float vel_x = (float)Application::GetRandomNumber(50, 200);
+		float vel_y = (float)Application::GetRandomNumber(50, 200);
+		reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
+		reg.AddComponent<Transform>(ent, { pos_x, pos_y });
+		reg.AddComponent<BroadCollider>(ent, { 15, 15 });
+		reg.AddComponent<SpatialInfo>(ent, {});
+		reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
+	}
 	
 	ProcessEvents();
 	
@@ -57,20 +81,6 @@ void HelloWorldLayer::OnUpdate(float timestep)
 
 void HelloWorldLayer::OnRender()
 {
-#if 0
-	{
-		ProfilingSample prof("HelloWorld Render");
-		/* Render all entities */
-		auto view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
-
-		for (auto [entity, texture, transform] : view)
-		{
-			uint32_t render_pos_x = transform.pos.x - (texture.texture->width / 2);
-			uint32_t render_pos_y = transform.pos.y - (texture.texture->height / 2);
-			Texture::RaylibDrawTexture(*texture.texture.get(), render_pos_x, render_pos_y);
-		}
-	}
-#endif
 }
 
 
@@ -96,29 +106,11 @@ void HelloWorldLayer::ProcessEvents()
 
 		if (evt.input == Mupfel::UserInput::WINDOW_FULLSCREEN)
 		{
-
 		}
 
 		/* If Right-Mouseclick is pressed, create new entites */
 		if (evt.input == Mupfel::UserInput::RIGHT_MOUSE_CLICK)
 		{
-
-			for (uint32_t i = 0; i < entities_per_frame; i++)
-			{
-				Mupfel::Entity ent = reg.CreateEntity();
-
-				float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
-				float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
-
-				/* Add velocity component to the entity */
-				float vel_x = (float)Application::GetRandomNumber(50, 200);
-				float vel_y = (float)Application::GetRandomNumber(50, 200);
-				reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
-				reg.AddComponent<Transform>(ent, { pos_x, pos_y });
-				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
-				reg.AddComponent<SpatialInfo>(ent, {});
-				reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
-			}
 		}
 
 		ComponentArray<Transform>& transform_array = reg.GetComponentArray<Transform>();
@@ -133,7 +125,12 @@ void HelloWorldLayer::ProcessEvents()
 
 		if (evt.input == Mupfel::UserInput::MOVE_FORWARD)
 		{
-			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 100), 1, 10000000);
+			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 10), 1, 10000000);
+		}
+
+		if (evt.input == Mupfel::UserInput::MOVE_BACKKWARDS)
+		{
+			Mupfel::Renderer::ToggleMode();
 		}
 	}
 }

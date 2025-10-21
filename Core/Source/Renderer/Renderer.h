@@ -8,6 +8,7 @@ namespace Mupfel {
 		static void Init();
 		static void Render();
 		static void DeInit();
+		static void ToggleMode();
 	private:
 		static void ImportVertexShader();
 		static void ImportFragmentShader();
