@@ -3,5 +3,5 @@
 
 void Mupfel::Text::RaylibDrawText(const char* text, int posX, int posY)
 {
-	DrawText(text, posX, posY, 20, PINK);
+	DrawText(text, posX, posY, 20, GREEN);
 }

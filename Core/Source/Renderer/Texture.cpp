@@ -21,7 +21,7 @@ Mupfel::Texture::Texture(std::string_view path)
 {
 	Image img = LoadImage(path.data());
 
-	/* If Image Loading failed, return nullptr */
+	/* If Image Loading failed, return */
 	if (img.data == nullptr)
 	{
 		std::cout << "WARNING: Construction of Texture FAILED!" << path << std::endl;
@@ -37,6 +37,7 @@ Mupfel::Texture::Texture(std::string_view path)
 	height = t.height;
 	mipmaps = t.mipmaps;
 	format = t.format;
+
 }
 
 

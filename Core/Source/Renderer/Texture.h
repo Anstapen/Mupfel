@@ -1,10 +1,10 @@
 #pragma once
 #include <cstdint>
 #include <string_view>
+#include <memory>
 
 
 namespace Mupfel {
-
 
 	struct Texture {
 		unsigned int id = 0;        // OpenGL texture id
@@ -15,6 +15,12 @@ namespace Mupfel {
 		static void RaylibDrawTexture(const Texture& t, int posX, int posY);
 		virtual ~Texture();
 		Texture(std::string_view path);
+	};
+
+	typedef std::shared_ptr< Texture> SafeTexturePointer;
+
+	struct TextureComponent {
+		SafeTexturePointer texture;
 	};
 }
 

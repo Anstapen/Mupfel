@@ -4,6 +4,7 @@
 #include "rlgl.h"
 #include "Core/Application.h"
 #include "ECS/Components/Transform.h"
+#include "ECS/Components/Velocity.h"
 #include "ECS/View.h"
 #include <vector>
 
@@ -15,44 +16,54 @@
 
 #include "Core/Profiler.h"
 #include "Texture.h"
+#include <algorithm>
 
 using namespace Mupfel;
 
 static Shader shader;
-static unsigned int VAO;
-static unsigned int VBO;
-static unsigned int EBO;
 
+static unsigned int VAO = 0;
+static unsigned int instanceVBO = 0;
+static unsigned int quadVBO = 0;
+static unsigned int EBO = 0;
 
-
-static float vertices_def[] = {
-     -32.0f, -32.0f, 0.0f, 0.0f, 0.0f, // bottom-left
-      32.0f, -32.0f, 0.0f, 1.0f, 0.0f, // bottom-right 
-      32.0f,  32.0f, 0.0f, 1.0f, 1.0f, // top-right
-      -32.0f, 32.0f, 0.0f, 0.0f, 1.0f, //top-left
+struct InstanceData
+{
+    // Wir schicken eine Model-Matrix als mat4 (64 Bytes)
+    // plus Farbe (16B) + TexIndex (4B als float) -> 84B pro Instance.
+    //glm::mat4 model;
+    glm::vec2 pos;
+    glm::vec2 scale;
+    float rotation;
+    float _pad[3];
+    //glm::vec4 color;     // z.B. (1,1,1,1)
+    //float texIndex;      // als float; im Shader wieder als float
+    //float _pad[3];       // Padding auf 16-Byte (optional, für Ordnung)
 };
 
-static glm::vec3 cubePositions[] = {
-    glm::vec3(100.0f,  100.0f,  0.0f),
-    glm::vec3(200.0f,  200.0f, 0.0f),
-    glm::vec3(300.0f,  300.0f, 0.0f),
-    glm::vec3(400.0f,  400.0f, 0.0f),
-    glm::vec3(500.0f,  500.0f, 0.0f),
-    glm::vec3(600.0f,  600.0f, 0.0f),
-    glm::vec3(700.0f,  700.0f, 0.0f),
-    glm::vec3(800.0f,  800.0f, 0.0f),
-    glm::vec3(900.0f,  900.0f, 0.0f),
-    glm::vec3(1000.0f, 1000.0f, 0.0f)
+static_assert(sizeof(InstanceData) == 32);
+
+// Statisches Unit-Quad (centered) mit pos+uv
+static const float QUAD_VERTS[] = {
+    //  x      y      z     u     v
+    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f,  // 0
+     0.5f, -0.5f, 0.0f,   1.0f, 0.0f,  // 1
+     0.5f,  0.5f, 0.0f,   1.0f, 1.0f,  // 2
+    -0.5f,  0.5f, 0.0f,   0.0f, 1.0f   // 3
 };
 
-unsigned short indices[] = {
-    0, 1, 2,
-    0, 2, 3
-};
+static const unsigned short QUAD_IDX[] = { 0,2,1, 0,3,2 };
+
+
+static std::vector<InstanceData> instances;
 
 static Mupfel::Texture *t;
 
 static bool renderModeCustom = true;
+static size_t instanceVBOSize = 0;
+static void* mappedPtr = nullptr;
+
+static constexpr GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 
 
 void Renderer::Init()
@@ -62,13 +73,22 @@ void Renderer::Init()
     VAO = rlLoadVertexArray();
     rlEnableVertexArray(VAO);
 
-    VBO = rlLoadVertexBuffer(vertices_def, sizeof(vertices_def), false);
-    EBO = rlLoadVertexBufferElement(indices, sizeof(indices), false);
-
-    rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 5 * sizeof(float),0);
+    /* statischer VBO */
+    quadVBO = rlLoadVertexBuffer(QUAD_VERTS, sizeof(QUAD_VERTS), false);
+    rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 5 * sizeof(float), 0);
     rlSetVertexAttribute(1, 2, RL_FLOAT, 0, 5 * sizeof(float), sizeof(float) * 3);
     rlEnableVertexAttribute(0);
     rlEnableVertexAttribute(1);
+
+    EBO = rlLoadVertexBufferElement(QUAD_IDX, sizeof(QUAD_IDX), false);
+
+    /* instanced VBO */
+    glGenBuffers(1, &instanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+
+    size_t initialCap = 10000;
+    
+    AllocateInstanceBuffer(initialCap);
 
     t = new Texture("Resources/simple_ball.png");
 
@@ -76,7 +96,7 @@ void Renderer::Init()
 
 void Renderer::Render()
 {
-    ProfilingSample prof("Renderer::Update()");
+    
 
     if (!IsWindowReady()) {
         TraceLog(LOG_ERROR, "Renderer: window context not ready!");
@@ -84,6 +104,7 @@ void Renderer::Render()
     }
 
     if (!renderModeCustom) {
+        ProfilingSample prof("Renderer Raylib DrawTexture calls");
         /* Render all entities */
         auto view = Application::GetCurrentRegistry().view<Transform>();
 
@@ -95,35 +116,41 @@ void Renderer::Render()
         }
     }
     else {
-        int screen_width = Application::GetCurrentRenderWidth();
-        int screen_height = Application::GetCurrentRenderHeight();
+        ProfilingSample prof("Renderer custom Draw Batching");
 
-        auto entity_view = Application::GetCurrentRegistry().view<Transform>();
+        int screen_w = Application::GetCurrentRenderWidth();
+        int screen_h = Application::GetCurrentRenderHeight();
 
-        std::vector<glm::vec3> position_vector;
+        auto entity_view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
 
-        for (auto [entity, transform] : entity_view)
-        {
-            position_vector.push_back(glm::vec3(transform.pos.x, transform.pos.y, 0.0f));
-        }
+        instances.clear();
+        instances.reserve(4096); // typische Anzahl; wächst bei Bedarf
 
         glm::mat4 view = glm::mat4(1.0f);
 
-        glm::mat4 projection = glm::mat4(1.0f);
+        //glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(screen_w), 0.0f, static_cast<float>(screen_h), -1.0f, 1.0f);
 
-        projection = glm::ortho(0.0f, static_cast<float>(screen_width), 0.0f, static_cast<float>(screen_height), -1.0f, 1.0f);
+        glm::mat4 projection = glm::ortho(0.0f, (float)screen_w, (float)screen_h, 0.0f, -1.0f, 1.0f);
+
+        for (auto [entity, texture, transform] : entity_view)
+        {
+            float w = float(texture.texture->width);
+            float h = float(texture.texture->height);
+
+            InstanceData inst{};
+            inst.pos.x = transform.pos.x;
+            inst.pos.y = transform.pos.y;
+            inst.scale.x = transform.scale_x * w;
+            inst.scale.y = transform.scale_y * h;
+            inst.rotation = transform.rotation;
+            instances.push_back(inst);
+        }
+
+        const GLsizei instanceCount = static_cast<GLsizei>(instances.size());
+        if (instanceCount == 0) return;
 
 
         rlEnableShader(shader.id);
-
-        rlEnableTexture(t->id);
-
-        int modelLoc = glGetUniformLocation(shader.id, "model");
-        if (modelLoc == -1)
-        {
-            TraceLog(LOG_ERROR, "Could not find uniform");
-        }
-
 
         int viewlLoc = glGetUniformLocation(shader.id, "view");
         if (viewlLoc == -1)
@@ -139,33 +166,41 @@ void Renderer::Render()
         }
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
+        // Textur binden:
+        // A) Einzel-Textur:
+        rlActiveTextureSlot(0);
+        rlEnableTexture(t->id);
+        int uTex = glGetUniformLocation(shader.id, "uTex");
+        if (uTex >= 0) glUniform1i(uTex, 0);
+
+        /* Update the Vertex Array Buffer and index buffer */
         rlEnableVertexArray(VAO);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 
-        for (auto& pos : position_vector)
+        const GLsizeiptr bytes = instanceCount * sizeof(InstanceData);
+
+        if (bytes > instanceVBOSize)
         {
-            glm::mat4 model = glm::mat4(1.0f);
-            //model = glm::rotate(model, glm::radians(rotation_val), glm::vec3(1.0f, 0.0f, 0.0f));
-            model = glm::translate(model, pos);
-
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            rlDrawVertexArrayElements(0, 6, 0);
+            TraceLog(LOG_WARNING, "Instance buffer overflow! Increasing buffer.");
+            size_t newSize = std::max<size_t>(bytes, instanceVBOSize * 2);
+            AllocateInstanceBuffer(bytes * 2);
+        }
+        else
+        {
+            // Direkt in den gemappten GPU-Speicher schreiben
+            std::memcpy(mappedPtr, instances.data(), bytes);
         }
 
+        //glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, instances.data());
 
-        GLenum err;
-        while ((err = glGetError()) != GL_NO_ERROR)
-        {
-            std::cout << "OpenGL Error: " << err << std::endl;
-        }
+        rlEnableVertexBuffer(quadVBO);
+        rlEnableVertexBufferElement(EBO);
+        rlDrawVertexArrayElementsInstanced(0, 6, 0, instanceCount);
 
-        rlDisableVertexArray();
-
-        rlDisableShader();
+        //rlDisableVertexArray();
+        //rlDisableShader();
     }
-
-    
-
-    
     
 }
 
@@ -264,4 +299,48 @@ void Mupfel::Renderer::CreateShaderProgram()
         TraceLog(LOG_ERROR, infoLog);
     }
 #endif
+}
+
+void Mupfel::Renderer::AllocateInstanceBuffer(size_t newCapacity)
+{
+    if (instanceVBO)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+        glDeleteBuffers(1, &instanceVBO);
+        instanceVBO = 0;
+        mappedPtr = nullptr;
+    }
+
+    // Neuen Buffer erstellen
+    glGenBuffers(1, &instanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+
+    glBufferStorage(GL_ARRAY_BUFFER, newCapacity, nullptr, flags);
+
+    mappedPtr = glMapBufferRange(GL_ARRAY_BUFFER, 0, newCapacity, flags);
+    if (!mappedPtr)
+    {
+        TraceLog(LOG_ERROR, "Persistent mapping failed (realloc)!");
+    }
+
+    instanceVBOSize = newCapacity;
+
+    /* Attribute layout for the model matrix */
+    size_t stride = sizeof(InstanceData);
+
+    // layout (location = 2): vec2 iPos
+    rlSetVertexAttribute(2, 2, RL_FLOAT, false, stride, offsetof(InstanceData, pos));
+    rlEnableVertexAttribute(2);
+    rlSetVertexAttributeDivisor(2, 1);
+
+    // layout (location = 3): vec2 iScale
+    rlSetVertexAttribute(3, 2, RL_FLOAT, false, stride, offsetof(InstanceData, scale));
+    rlEnableVertexAttribute(3);
+    rlSetVertexAttributeDivisor(3, 1);
+
+    // layout (location = 4): float iRotation
+    rlSetVertexAttribute(4, 1, RL_FLOAT, false, stride, offsetof(InstanceData, rotation));
+    rlEnableVertexAttribute(4);
+    rlSetVertexAttributeDivisor(4, 1);
 }

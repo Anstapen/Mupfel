@@ -4,6 +4,7 @@
 #include "Core/GUID.h"
 #include "Texture.h"
 #include <iostream>
+#include <memory>
 
 using WeakTexturePointer = std::weak_ptr<Mupfel::Texture>;
 
@@ -11,7 +12,7 @@ static std::unordered_map<uint64_t, WeakTexturePointer> textures;
 
 Mupfel::SafeTexturePointer Mupfel::TextureManager::LoadTextureFromFile(std::string_view path)
 {
-	/* Check if the image specified by path is already */
+	/* Check if the image specified by path is already loaded */
 	uint64_t hashed_path = Hash::Compute_n(path.data(), path.size());
 
 	auto it = textures.find(hashed_path);
@@ -31,7 +32,6 @@ Mupfel::SafeTexturePointer Mupfel::TextureManager::LoadTextureFromFile(std::stri
 		auto safe_txtr_ptr = std::make_shared<Mupfel::Texture>(path.data());
 		
 		textures[hashed_path] = safe_txtr_ptr;
-
 
 		return safe_txtr_ptr;
 	}

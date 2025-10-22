@@ -5,10 +5,6 @@
 
 namespace Mupfel {
 
-	using SafeTexturePointer = std::shared_ptr< Mupfel::Texture>;
-	using TextureHandle = uint64_t;
-
-
 	class TextureManager
 	{
 	public:

@@ -7,6 +7,7 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/BroadCollider.h"
 #include "ECS/Components/SpatialInfo.h"
+#include "ECS/Components/Velocity.h"
 #include "Core/Profiler.h"
 #include <iostream>
 #include "ECS/View.h"
@@ -18,13 +19,7 @@
 
 using namespace Mupfel;
 
-struct Velocity {
-	float x, y;
-};
 
-struct TextureComponent {
-	SafeTexturePointer texture;
-};
 
 static Entity *cursor = nullptr;
 
