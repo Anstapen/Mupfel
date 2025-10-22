@@ -33,9 +33,9 @@ struct InstanceData
     // plus Farbe (16B) + TexIndex (4B als float) -> 84B pro Instance.
     //glm::mat4 model;
     glm::vec2 pos;
+    glm::vec2 velocity;
     glm::vec2 scale;
-    float rotation;
-    float _pad[3];
+    glm::vec2 rotation;
     //glm::vec4 color;     // z.B. (1,1,1,1)
     //float texIndex;      // als float; im Shader wieder als float
     //float _pad[3];       // Padding auf 16-Byte (optional, für Ordnung)
@@ -65,6 +65,13 @@ static void* mappedPtr = nullptr;
 
 static constexpr GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 
+static glm::mat4 view = glm::mat4(1.0f);
+
+static glm::mat4 projection = glm::mat4(1.0f);
+
+static int screen_w = 0;
+static int screen_h = 0;
+
 
 void Renderer::Init()
 {
@@ -87,8 +94,11 @@ void Renderer::Init()
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 
     size_t initialCap = 10000;
+    instances.reserve(initialCap);
     
-    AllocateInstanceBuffer(initialCap);
+    AllocateInstanceBuffer(initialCap * sizeof(InstanceData));
+
+    /* Load Copute Shader + Buffers */
 
     t = new Texture("Resources/simple_ball.png");
 
@@ -118,32 +128,27 @@ void Renderer::Render()
     else {
         ProfilingSample prof("Renderer custom Draw Batching");
 
-        int screen_w = Application::GetCurrentRenderWidth();
-        int screen_h = Application::GetCurrentRenderHeight();
-
         auto entity_view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
 
-        instances.clear();
-        instances.reserve(4096); // typische Anzahl; wächst bei Bedarf
+        UpdateScreenSize();
 
-        glm::mat4 view = glm::mat4(1.0f);
-
-        //glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(screen_w), 0.0f, static_cast<float>(screen_h), -1.0f, 1.0f);
-
-        glm::mat4 projection = glm::ortho(0.0f, (float)screen_w, (float)screen_h, 0.0f, -1.0f, 1.0f);
-
-        for (auto [entity, texture, transform] : entity_view)
         {
-            float w = float(texture.texture->width);
-            float h = float(texture.texture->height);
+            ProfilingSample prof("Filling Instance vector ");
+            instances.clear();
 
-            InstanceData inst{};
-            inst.pos.x = transform.pos.x;
-            inst.pos.y = transform.pos.y;
-            inst.scale.x = transform.scale_x * w;
-            inst.scale.y = transform.scale_y * h;
-            inst.rotation = transform.rotation;
-            instances.push_back(inst);
+            for (auto [entity, texture, transform] : entity_view)
+            {
+                float w = float(texture.texture->width);
+                float h = float(texture.texture->height);
+
+                InstanceData inst{};
+                inst.pos.x = transform.pos.x;
+                inst.pos.y = transform.pos.y;
+                inst.scale.x = transform.scale_x * w;
+                inst.scale.y = transform.scale_y * h;
+                inst.rotation = transform.rotation;
+                instances.push_back(inst);
+            }
         }
 
         const GLsizei instanceCount = static_cast<GLsizei>(instances.size());
@@ -183,6 +188,7 @@ void Renderer::Render()
         if (bytes > instanceVBOSize)
         {
             TraceLog(LOG_WARNING, "Instance buffer overflow! Increasing buffer.");
+            TraceLog(LOG_WARNING, "Old size: %u, New Size: %u", instanceVBOSize, bytes * 2);
             size_t newSize = std::max<size_t>(bytes, instanceVBOSize * 2);
             AllocateInstanceBuffer(bytes * 2);
         }
@@ -299,6 +305,33 @@ void Mupfel::Renderer::CreateShaderProgram()
         TraceLog(LOG_ERROR, infoLog);
     }
 #endif
+}
+
+void Mupfel::Renderer::UpdateScreenSize()
+{
+    int current_screen_w = Application::GetCurrentRenderWidth();
+    int current_screen_h = Application::GetCurrentRenderHeight();
+
+    bool screen_changed = false;
+
+    if (current_screen_h != screen_h)
+    {
+        screen_h = current_screen_h;
+        screen_changed = true;
+    }
+
+    if (current_screen_w != screen_w)
+    {
+        screen_w = current_screen_w;
+        screen_changed = true;
+    }
+
+    if (screen_changed)
+    {
+        /* Update perspective matrix */
+        projection = glm::ortho(0.0f, (float)screen_w, (float)screen_h, 0.0f, -1.0f, 1.0f);
+    }
+
 }
 
 void Mupfel::Renderer::AllocateInstanceBuffer(size_t newCapacity)

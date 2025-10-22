@@ -13,6 +13,7 @@ namespace Mupfel {
 		static void ImportVertexShader();
 		static void ImportFragmentShader();
 		static void CreateShaderProgram();
+		static void UpdateScreenSize();
 		static void AllocateInstanceBuffer(size_t newCapacity);
 	};
 
