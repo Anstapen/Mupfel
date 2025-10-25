@@ -19,8 +19,6 @@
 
 using namespace Mupfel;
 
-
-
 static Entity *cursor = nullptr;
 
 static const std::string ball_texture_path = "Resources/simple_ball.png";
@@ -40,7 +38,6 @@ void HelloWorldLayer::OnInit()
 
 void HelloWorldLayer::OnUpdate(float timestep)
 {
-	ProfilingSample on_update("HelloWorld OnUpdate");
 
 	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
 
@@ -66,12 +63,6 @@ void HelloWorldLayer::OnUpdate(float timestep)
 	
 	ProcessEvents();
 	
-	UpdateEntityPositions();
-
-	CleanUpEntities();
-	
-	MarkDirtyEntities();	
-	
 }
 
 void HelloWorldLayer::OnRender()
@@ -81,7 +72,6 @@ void HelloWorldLayer::OnRender()
 
 void HelloWorldLayer::ProcessEvents()
 {
-	ProfilingSample prof("ProcessEvents");
 
 	auto& evt_system = Mupfel::Application::GetCurrentEventSystem();
 	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
@@ -127,85 +117,5 @@ void HelloWorldLayer::ProcessEvents()
 		{
 			Mupfel::Renderer::ToggleMode();
 		}
-	}
-}
-
-void HelloWorldLayer::UpdateEntityPositions()
-{
-	ProfilingSample prof("UpdateEntityPositions");
-
-	float delta_time = Application::GetLastFrameTime();
-
-	Registry& reg = Application::GetCurrentRegistry();
-
-	int screen_height = Application::GetCurrentRenderHeight();
-	int screen_width = Application::GetCurrentRenderWidth();
-
-	entity_transform_container.clear();
-	entity_garbage.clear();
-
-	ComponentArray<BroadCollider>& broad_collider_array = reg.GetComponentArray<BroadCollider>();
-
-	reg.ParallelForEach<Transform, Velocity>([this, delta_time, &reg, screen_width, screen_height, &broad_collider_array](Entity e, Transform& t, Velocity& v)
-		{
-
-			if (v.x == 0.0f || v.y == 0.0f)
-			{
-				/* This Entity currently has a Velocity of 0 */
-				return false;
-			}
-
-			t.pos.x += v.x * delta_time;
-			t.pos.y += v.y * delta_time;
-
-
-			if (t.pos.x > screen_width || t.pos.x < 0.0f || t.pos.y > screen_height || t.pos.y < 0.0f)
-			{
-				std::scoped_lock lock(garbage_mutex);
-				entity_garbage.push_back(e);
-			}
-
-			/* Update the BroadCollider, if there is one */
-			if (broad_collider_array.Has(e))
-			{
-				auto& broad_collider = broad_collider_array.Get(e);
-				broad_collider.max.x = t.pos.x + broad_collider.offset.x;
-				broad_collider.max.y = t.pos.y + broad_collider.offset.y;
-				broad_collider.min.x = t.pos.x - broad_collider.offset.x;
-				broad_collider.min.y = t.pos.y - broad_collider.offset.y;
-
-				/* Clamp the top-left values */
-				broad_collider.min.x = broad_collider.min.x < 0.0f ? 0.0f : broad_collider.min.x;
-				broad_collider.min.y = broad_collider.min.y < 0.0f ? 0.0f : broad_collider.min.y;
-			}
-
-			return true;
-
-		},
-		entity_transform_container
-	);
-}
-
-void HelloWorldLayer::CleanUpEntities()
-{
-	ProfilingSample prof("CleanUpEntities");
-
-	Registry& reg = Application::GetCurrentRegistry();
-	for (auto e : entity_garbage)
-	{
-		reg.DestroyEntity(e);
-	}
-}
-
-void HelloWorldLayer::MarkDirtyEntities()
-{
-	ProfilingSample prof("MarkDirtyEntities");
-
-	Registry& reg = Application::GetCurrentRegistry();
-	ComponentArray<Transform>& transform_array = reg.GetComponentArray<Transform>();
-
-	for (auto e : entity_transform_container)
-	{
-		transform_array.MarkDirty(e);
 	}
 }

@@ -3,8 +3,8 @@
 #include <array>
 #include <vector>
 #include <future>
-#include "Coordinate.h"
-#include "Debug/DebugLayer.h"
+#include "Core/Coordinate.h"
+#include "Core/Debug/DebugLayer.h"
 #include "ECS/Entity.h"
 #include "ECS/Components/BroadCollider.h"
 #include "ECS/ComponentArray.h"
@@ -24,7 +24,7 @@ namespace Mupfel {
 		static constexpr size_t NumCells = num_cells_x * num_cells_y;
 		static constexpr size_t EntitiesPerCell = entities_per_cell;
 
-		std::array<Entity, NumCells* EntitiesPerCell> entities = { 0 };
+		std::array<Entity, NumCells * EntitiesPerCell> entities = { 0 };
 		std::array<Cell, NumCells> cells{ 0 };
 
 	private:

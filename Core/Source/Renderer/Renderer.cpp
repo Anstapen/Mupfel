@@ -100,6 +100,7 @@ void Renderer::Init()
 
     /* Load Copute Shader + Buffers */
 
+
     t = new Texture("Resources/simple_ball.png");
 
 }
@@ -146,7 +147,7 @@ void Renderer::Render()
                 inst.pos.y = transform.pos.y;
                 inst.scale.x = transform.scale_x * w;
                 inst.scale.y = transform.scale_y * h;
-                inst.rotation = transform.rotation;
+                inst.rotation.x = transform.rotation;
                 instances.push_back(inst);
             }
         }
@@ -373,7 +374,7 @@ void Mupfel::Renderer::AllocateInstanceBuffer(size_t newCapacity)
     rlSetVertexAttributeDivisor(3, 1);
 
     // layout (location = 4): float iRotation
-    rlSetVertexAttribute(4, 1, RL_FLOAT, false, stride, offsetof(InstanceData, rotation));
+    rlSetVertexAttribute(4, 2, RL_FLOAT, false, stride, offsetof(InstanceData, rotation));
     rlEnableVertexAttribute(4);
     rlSetVertexAttributeDivisor(4, 1);
 }

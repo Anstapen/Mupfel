@@ -6,7 +6,7 @@ layout (location = 1) in vec2 aUV;     // Quad-UV (statisch)
 // Instance data
 layout (location = 2) in vec2 iPos;
 layout (location = 3) in vec2 iScale;
-layout (location = 4) in float iRotation;
+layout (location = 4) in vec2 iRotation;
 
 uniform mat4 view;
 uniform mat4 projection;
@@ -16,8 +16,8 @@ out vec2 vUV;
 void main()
 {
     // 2D Rotation Matrix
-    float c = cos(iRotation);
-    float s = sin(iRotation);
+    float c = cos(iRotation.x);
+    float s = sin(iRotation.x);
     mat2 rot = mat2(c, -s, s, c);
 
     // Skaliere und rotiere das Vertex (aPos.xy), 

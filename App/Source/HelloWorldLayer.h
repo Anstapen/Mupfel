@@ -12,12 +12,5 @@ class HelloWorldLayer : public Mupfel::Layer
 	void OnRender() override;
 private:
 	void ProcessEvents();
-	void UpdateEntityPositions();
-	void CleanUpEntities();
-	void MarkDirtyEntities();
-private:
-	std::mutex garbage_mutex;
-	std::vector<Mupfel::Entity> entity_garbage;
-	std::vector<Mupfel::Entity> entity_transform_container;
 };
 

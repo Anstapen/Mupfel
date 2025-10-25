@@ -3,7 +3,7 @@
 #include <cassert>
 #include <array>
 #include <thread>
-#include "Application.h"
+#include "Core/Application.h"
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/SpatialInfo.h"

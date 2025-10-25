@@ -20,7 +20,7 @@ Application::Application() :
 	evt_system(),
 	input_manager(evt_system),
 	registry(evt_system),
-	collision_system(registry, evt_system),
+	physics(registry, evt_system, ComputationStrategy::CPU_MULTITHREADED),
 	thread_pool(std::thread::hardware_concurrency())
 {
 }
@@ -49,7 +49,7 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	Window::GetInstance().Init(window_spec);
 
-	collision_system.Init();
+	physics.Init();
 
 	debug_layer.OnInit();
 
@@ -113,6 +113,11 @@ ThreadPool& Mupfel::Application::GetCurrentThreadPool()
 	return Get().thread_pool;
 }
 
+void Application::ChangeComputationStrategy(ComputationStrategy new_strat)
+{
+	Get().physics.ChangeComputationStrategy(new_strat);
+}
+
 void Application::Run()
 {
 	running = true;
@@ -148,14 +153,11 @@ void Application::Run()
 
 			if (evt.input == UserInput::TOGGLE_MULTI_THREAD_MODE)
 			{
-				std::cout << "Toggled MT Mode!" << std::endl;
-				collision_system.ToggleMultiThreading();
-				std::cout << "MT is now: " << (collision_system.IsMultiThreaded() ? "Enabled" : "Disabled") << std::endl;
 			}
 		}
 
 		/* Update the Collision System */
-		collision_system.Update();
+		physics.Update(timestep);
 
 		/* Update all layers */
 		for (const std::unique_ptr<Layer>& layer : layerStack)
@@ -189,4 +191,13 @@ void Application::Run()
 		input_manager.Update(timestep);
 		Profiler::Clear();
 	}
+
+	/* Exited Main Loop, clean everything up */
+	DeInit();
+}
+
+
+void Application::DeInit()
+{
+	physics.DeInit();
 }

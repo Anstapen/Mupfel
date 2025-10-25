@@ -8,15 +8,17 @@
 #include "EventSystem.h"
 #include "InputManager.h"
 #include "ECS/Registry.h"
-#include "CollisionSystem.h"
+#include "Physics/CollisionSystem.h"
 #include "Debug/DebugLayer.h"
 #include "ThreadPool.h"
+#include "Physics/PhysicsSimulation.h"
 
 namespace Mupfel {
 
 	struct ApplicationSpecification {
 		std::string name;
 		WindowSpecification windowSpec;
+		ComputationStrategy physics_strategy;
 	};
 
 	class Application
@@ -41,6 +43,7 @@ namespace Mupfel {
 		static InputManager& GetCurrentInputManager();
 		static Registry& GetCurrentRegistry();
 		static ThreadPool& GetCurrentThreadPool();
+		static void ChangeComputationStrategy(ComputationStrategy new_strat);
 
 		template<typename TLayer>
 			requires(std::is_base_of_v<Layer, TLayer>)
@@ -51,6 +54,7 @@ namespace Mupfel {
 		}
 	private:
 		Application();
+		void DeInit();
 	private:
 		ApplicationSpecification spec;
 		Window& window;
@@ -60,7 +64,7 @@ namespace Mupfel {
 		EventSystem evt_system;
 		InputManager input_manager;
 		Registry registry;
-		CollisionSystem collision_system;
+		PhysicsSimulation physics;
 		ThreadPool thread_pool;
 		DebugLayer debug_layer;
 	};
