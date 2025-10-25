@@ -22,7 +22,7 @@ namespace Mupfel {
 	class ComponentAddedEvent : public Event<ComponentAddedEvent> {
 	public:
 		ComponentAddedEvent() = default;
-		ComponentAddedEvent(Entity in_e, size_t in_comp_id) : e(in_e), comp_id(in_comp_id) {};
+		ComponentAddedEvent(Entity in_e, size_t in_comp_id, Entity::Signature in_sig) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
 		virtual ~ComponentAddedEvent() = default;
 
 
@@ -32,13 +32,14 @@ namespace Mupfel {
 
 	public:
 		Entity e;
+		Entity::Signature sig;
 		size_t comp_id;
 	};
 
 	class ComponentRemovedEvent : public Event<ComponentRemovedEvent> {
 	public:
 		ComponentRemovedEvent() = default;
-		ComponentRemovedEvent(Entity in_e, size_t in_comp_id) : e(in_e), comp_id(in_comp_id) {};
+		ComponentRemovedEvent(Entity in_e, size_t in_comp_id, Entity::Signature in_sig) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
 		virtual ~ComponentRemovedEvent() = default;
 
 
@@ -48,6 +49,7 @@ namespace Mupfel {
 
 	public:
 		Entity e;
+		Entity::Signature sig;
 		size_t comp_id;
 	};
 
@@ -182,7 +184,7 @@ namespace Mupfel {
 		signatures[e.Index()].set(id);
 
 		/* Send a ComponentAdded Event */
-		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id });
+		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id, signatures[e.Index()] });
 
 		return storage.Get(e);
 	}
@@ -198,7 +200,7 @@ namespace Mupfel {
 		signatures[e.Index()].set(id);
 
 		/* Send a ComponentAdded Event */
-		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id });
+		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id, signatures[e.Index()] });
 
 		return storage.Get(e);
 	}
@@ -208,7 +210,7 @@ namespace Mupfel {
 	{
 		uint32_t id = CompUtil::GetComponentTypeID<T>();
 		/* Send a ComponentRemoved Event */
-		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, id });
+		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, id, signatures[e.Index()] });
 
 		ComponentArray<T>& storage = GetComponentArray<T>();
 		storage.Remove(e);

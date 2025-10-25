@@ -18,7 +18,7 @@ Application::Application() :
 	evt_system(),
 	input_manager(evt_system),
 	registry(evt_system),
-	physics(registry, evt_system, ComputationStrategy::CPU_SINGLE_THREADED),
+	physics(registry, evt_system),
 	thread_pool(std::thread::hardware_concurrency())
 {
 }
@@ -26,8 +26,6 @@ Application::Application() :
 Application::~Application()
 {
 }
-
-
 
 bool Application::Init(const ApplicationSpecification& in_spec)
 {
@@ -48,8 +46,6 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	Window::GetInstance().Init(window_spec);
 
 	physics.Init();
-
-	physics.ChangeComputationStrategy(spec.physics_strategy);
 
 	debug_layer.OnInit();
 
@@ -113,11 +109,6 @@ ThreadPool& Mupfel::Application::GetCurrentThreadPool()
 	return Get().thread_pool;
 }
 
-void Application::ChangeComputationStrategy(ComputationStrategy new_strat)
-{
-	Get().physics.ChangeComputationStrategy(new_strat);
-}
-
 void Application::Run()
 {
 	running = true;
@@ -150,10 +141,6 @@ void Application::Run()
 			{
 				std::cout << "Toggled Debug Mode!" << std::endl;
 				debugModeEnabled = !debugModeEnabled;
-			}
-
-			if (evt.input == UserInput::TOGGLE_MULTI_THREAD_MODE)
-			{
 			}
 		}
 

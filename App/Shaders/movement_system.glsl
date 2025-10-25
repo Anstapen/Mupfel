@@ -20,27 +20,27 @@ void main() {
     if (id >= uEntityCount) return;
 
     // Check bounds here for now
-    if (entities[id].position.x > 2000)
+    if (entities[id].position.x > 2300)
     {
-        entities[id].position.x = 1950;
+        entities[id].position.x = 2299;
         entities[id].velocity.x *= -1.0;
     }
 
-    if (entities[id].position.x < 0)
+    if (entities[id].position.x < 300)
     {
-        entities[id].position.x = 50;
+        entities[id].position.x = 301;
         entities[id].velocity.x *= -1.0;
     }
 
-    if (entities[id].position.y > 1000)
+    if (entities[id].position.y > 1400)
     {
-        entities[id].position.y = 950;
+        entities[id].position.y = 1399;
         entities[id].velocity.y *= -1.0;
     }
 
-    if (entities[id].position.y < 0)
+    if (entities[id].position.y < 50)
     {
-        entities[id].position.y = 50;
+        entities[id].position.y = 51;
         entities[id].velocity.y *= -1.0;
     }
 

@@ -110,12 +110,8 @@ void HelloWorldLayer::ProcessEvents()
 
 		if (evt.input == Mupfel::UserInput::MOVE_FORWARD)
 		{
-			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 10), 1, 10000000);
+			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 50), 1, 10000000);
 		}
 
-		if (evt.input == Mupfel::UserInput::MOVE_BACKKWARDS)
-		{
-			Mupfel::Renderer::ToggleMode();
-		}
 	}
 }

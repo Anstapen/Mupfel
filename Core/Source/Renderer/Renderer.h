@@ -8,15 +8,8 @@ namespace Mupfel {
 		static void Init();
 		static void Render();
 		static void DeInit();
-		static void ToggleMode();
-		static void SetSSBO(unsigned int id);
-		static void SetEntityCount(unsigned int c);
 	private:
-		static void ImportVertexShader();
-		static void ImportFragmentShader();
-		static void CreateShaderProgram();
 		static void UpdateScreenSize();
-		static void AllocateInstanceBuffer(size_t newCapacity);
 	};
 
 }

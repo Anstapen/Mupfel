@@ -213,8 +213,7 @@ namespace Mupfel {
         SCROLLWHEEL_UP,
         SCROLLWHEEL_DOWN,
         WINDOW_FULLSCREEN,
-        TOGGLE_DEBUG_MODE,
-        TOGGLE_MULTI_THREAD_MODE
+        TOGGLE_DEBUG_MODE
 	};
 
 	/**
