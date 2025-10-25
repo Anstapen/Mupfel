@@ -107,6 +107,10 @@ namespace Mupfel {
 		template<typename T>
 		void RegisterListener(std::function<void(const T&)> callback);
 
+		template<typename T>
+			requires std::derived_from<T, IEvent>
+		uint64_t EventTypeToID();
+
 	private:
 		/**
 		 * @brief Two maps that hold the eventbuffers and get swapped every frame.
@@ -234,6 +238,13 @@ namespace Mupfel {
 				cb(static_cast<const T&>(evt));
 			}
 		);
+	}
+
+	template<typename T>
+		requires std::derived_from<T, IEvent>
+	inline uint64_t EventSystem::EventTypeToID()
+	{
+		return T::GetGUIDStatic();
 	}
 
 	template<typename T>

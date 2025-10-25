@@ -1,9 +1,9 @@
 #pragma once
 #include "Registry.h"
 #include "Entity.h"
-
 #include <tuple>
 #include <functional>
+#include "Core/GUID.h"
 
 namespace Mupfel {
 
@@ -68,27 +68,18 @@ namespace Mupfel {
 		Iterator begin() {
 			using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 			auto& array = reg.GetComponentArray<BaseComponent>();
-			return Iterator(reg, array.dense, requiredSignature(), component_arrays, 0);
+			return Iterator(reg, array.dense, CompUtil::ComponentSignature(), component_arrays, 0);
 		}
 
 		Iterator end() {
 			using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 			auto& array = reg.GetComponentArray<BaseComponent>();
-			return Iterator(reg, array.dense, requiredSignature(), component_arrays,array.dense.size());
+			return Iterator(reg, array.dense, CompUtil::ComponentSignature(), component_arrays, array.dense.size());
 		}
 
-		static Entity::Signature requiredSignature();
 	private:
 		Registry& reg;
 		std::tuple<ComponentArray<Components>*...> component_arrays;
 	};
-
-	template<typename ...Components>
-	inline Entity::Signature View<Components...>::requiredSignature()
-	{
-		Entity::Signature sig;
-		(sig.set(CompUtil::GetComponentTypeID<Components>()), ...);
-		return sig;
-	}
 
 }

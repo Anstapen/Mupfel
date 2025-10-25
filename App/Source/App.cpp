@@ -6,6 +6,7 @@ int main()
 
 	Mupfel::ApplicationSpecification app_spec;
 	app_spec.name.insert(0, "My first Application");
+	app_spec.physics_strategy = Mupfel::ComputationStrategy::GPU;
 
 	Mupfel::Application& app = Mupfel::Application::Get();
 

@@ -26,6 +26,9 @@ static unsigned int VAO = 0;
 static unsigned int instanceVBO = 0;
 static unsigned int quadVBO = 0;
 static unsigned int EBO = 0;
+static unsigned int SSBO = 0;
+
+static uint32_t ent_count = 0;
 
 struct InstanceData
 {
@@ -96,7 +99,7 @@ void Renderer::Init()
     size_t initialCap = 10000;
     instances.reserve(initialCap);
     
-    AllocateInstanceBuffer(initialCap * sizeof(InstanceData));
+    //AllocateInstanceBuffer(initialCap * sizeof(InstanceData));
 
     /* Load Copute Shader + Buffers */
 
@@ -133,6 +136,7 @@ void Renderer::Render()
 
         UpdateScreenSize();
 
+#if 0
         {
             ProfilingSample prof("Filling Instance vector ");
             instances.clear();
@@ -154,7 +158,7 @@ void Renderer::Render()
 
         const GLsizei instanceCount = static_cast<GLsizei>(instances.size());
         if (instanceCount == 0) return;
-
+#endif
 
         rlEnableShader(shader.id);
 
@@ -181,7 +185,7 @@ void Renderer::Render()
 
         /* Update the Vertex Array Buffer and index buffer */
         rlEnableVertexArray(VAO);
-        
+#if 0
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 
         const GLsizeiptr bytes = instanceCount * sizeof(InstanceData);
@@ -198,12 +202,13 @@ void Renderer::Render()
             // Direkt in den gemappten GPU-Speicher schreiben
             std::memcpy(mappedPtr, instances.data(), bytes);
         }
-
+#endif
         //glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, instances.data());
 
         rlEnableVertexBuffer(quadVBO);
         rlEnableVertexBufferElement(EBO);
-        rlDrawVertexArrayElementsInstanced(0, 6, 0, instanceCount);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+        rlDrawVertexArrayElementsInstanced(0, 6, 0, ent_count);
 
         //rlDisableVertexArray();
         //rlDisableShader();
@@ -220,6 +225,16 @@ void Mupfel::Renderer::ToggleMode()
 {
     renderModeCustom = !renderModeCustom;
     TraceLog(LOG_INFO, "Custom Render Mode: %s", renderModeCustom ? "yes" : "no");
+}
+
+void Mupfel::Renderer::SetSSBO(unsigned int id)
+{
+    SSBO = id;
+}
+
+void Mupfel::Renderer::SetEntityCount(unsigned int c)
+{
+    ent_count = c;
 }
 
 void Mupfel::Renderer::ImportVertexShader()

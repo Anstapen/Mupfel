@@ -30,7 +30,7 @@ namespace Mupfel {
 
 	class Profiler
 	{
-		friend class ProfilingSample;
+		friend struct ProfilingSample;
 	public:
 		static Profiler& Get();
 		static void Clear();

@@ -3,9 +3,7 @@
 #include <algorithm>
 #include "Profiler.h"
 #include "Renderer/Renderer.h"
-#include "rlgl.h"
-#include "glad.h"
-#include "GLFW/glfw3.h"
+
 
 using namespace Mupfel;
 
@@ -20,7 +18,7 @@ Application::Application() :
 	evt_system(),
 	input_manager(evt_system),
 	registry(evt_system),
-	physics(registry, evt_system, ComputationStrategy::CPU_MULTITHREADED),
+	physics(registry, evt_system, ComputationStrategy::CPU_SINGLE_THREADED),
 	thread_pool(std::thread::hardware_concurrency())
 {
 }
@@ -50,6 +48,8 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	Window::GetInstance().Init(window_spec);
 
 	physics.Init();
+
+	physics.ChangeComputationStrategy(spec.physics_strategy);
 
 	debug_layer.OnInit();
 
@@ -132,6 +132,7 @@ void Application::Run()
 			Stop();
 			break;
 		}
+		ProfilingSample prof("Application::Run()");
 
 		double currentTime = Application::GetCurrentTime();
 		double timestep = std::clamp<double>(currentTime - lastTime, 0.001f, 0.1f);
@@ -156,25 +157,40 @@ void Application::Run()
 			}
 		}
 
-		/* Update the Collision System */
-		physics.Update(timestep);
-
-		/* Update all layers */
-		for (const std::unique_ptr<Layer>& layer : layerStack)
 		{
-			layer->OnUpdate(timestep);
+			ProfilingSample prof("Physics Update");
+			/* Update the Collision System */
+			physics.Update(timestep);
 		}
+		
 
-		debug_layer.OnUpdate(timestep);
+		{
+			ProfilingSample prof("Layers - OnUpdate ");
+			/* Update all layers */
+			for (const std::unique_ptr<Layer>& layer : layerStack)
+			{
+				layer->OnUpdate(timestep);
+			}
+			debug_layer.OnUpdate(timestep);
+		}
+		
+		
 
 		window.StartFrame();
 
-		Renderer::Render();
-
-		for (const std::unique_ptr<Layer>& layer : layerStack)
 		{
-			layer->OnRender();
+			ProfilingSample prof("Engine Renderer");
+			Renderer::Render();
 		}
+		
+		{
+			ProfilingSample prof("Layer Rendering");
+			for (const std::unique_ptr<Layer>& layer : layerStack)
+			{
+				layer->OnRender();
+			}
+		}
+		
 
 
 		if (debugModeEnabled)

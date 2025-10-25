@@ -69,4 +69,6 @@ void Mupfel::PhysicsSimulation::ChangeComputationStrategy(ComputationStrategy ne
 	}
 
 	current_strat = new_strat;
+
+	movement_system->Init();
 }

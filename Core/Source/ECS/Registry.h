@@ -19,6 +19,38 @@ namespace Mupfel {
 	class CollisionSystem;
 	class Application;
 
+	class ComponentAddedEvent : public Event<ComponentAddedEvent> {
+	public:
+		ComponentAddedEvent() = default;
+		ComponentAddedEvent(Entity in_e, size_t in_comp_id) : e(in_e), comp_id(in_comp_id) {};
+		virtual ~ComponentAddedEvent() = default;
+
+
+		static constexpr uint64_t GetGUIDStatic() {
+			return Hash::Compute("ComponentAddedEvent");
+		}
+
+	public:
+		Entity e;
+		size_t comp_id;
+	};
+
+	class ComponentRemovedEvent : public Event<ComponentRemovedEvent> {
+	public:
+		ComponentRemovedEvent() = default;
+		ComponentRemovedEvent(Entity in_e, size_t in_comp_id) : e(in_e), comp_id(in_comp_id) {};
+		virtual ~ComponentRemovedEvent() = default;
+
+
+		static constexpr uint64_t GetGUIDStatic() {
+			return Hash::Compute("ComponentRemovedEvent");
+		}
+
+	public:
+		Entity e;
+		size_t comp_id;
+	};
+
 	class Registry
 	{
 		template<typename... Components> friend class View;
@@ -88,7 +120,7 @@ namespace Mupfel {
 		jobs.reserve(num_threads);
 
 
-		const auto required = View<Components...>::requiredSignature();
+		const auto required = CompUtil::ComponentSignature<Components...>();
 
 		for (uint32_t t = 0; t < num_threads; t++)
 		{
@@ -146,7 +178,11 @@ namespace Mupfel {
 		storage.Insert(e, T(std::forward<Args>(args)...));
 
 		/* Update the Entity Signature */
-		signatures[e.Index()].set(CompUtil::GetComponentTypeID<T>());
+		size_t id = CompUtil::GetComponentTypeID<T>();
+		signatures[e.Index()].set(id);
+
+		/* Send a ComponentAdded Event */
+		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id });
 
 		return storage.Get(e);
 	}
@@ -161,17 +197,25 @@ namespace Mupfel {
 		uint32_t id = CompUtil::GetComponentTypeID<T>();
 		signatures[e.Index()].set(id);
 
+		/* Send a ComponentAdded Event */
+		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id });
+
 		return storage.Get(e);
 	}
 
 	template<typename T>
 	inline void Registry::RemoveComponent(Entity e)
 	{
+		uint32_t id = CompUtil::GetComponentTypeID<T>();
+		/* Send a ComponentRemoved Event */
+		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, id });
+
 		ComponentArray<T>& storage = GetComponentArray<T>();
 		storage.Remove(e);
 
 		/* Update the Entity Signature */
-		signatures[e.Index()].reset(CompUtil::GetComponentTypeID<T>());
+		signatures[e.Index()].reset(id);
+		
 	}
 
 	template<typename T>

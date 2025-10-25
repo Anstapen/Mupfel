@@ -7,8 +7,10 @@ namespace Mupfel {
 
 	struct WindowSpecification {
 		std::string title;
-		uint32_t width = 1280;
-		uint32_t height = 720;
+		//uint32_t width = 1280;
+		//uint32_t height = 720;
+		uint32_t width = 2000;
+		uint32_t height = 1000;
 		bool isResizeable = true;
 		bool vSync = true;
 		uint32_t target_fps = 60;

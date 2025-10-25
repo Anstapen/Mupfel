@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <typeinfo>
+#include <bitset>
 
 namespace Mupfel {
 	
@@ -67,11 +68,20 @@ namespace Mupfel {
             static const size_t typeID = GetUniqueComponentTypeID();
             return typeID;
         }
+        template<typename ...Components>
+        static inline std::bitset<128> ComponentSignature()
+        {
+            std::bitset<128> sig;
+            (sig.set(CompUtil::GetComponentTypeID<Components>()), ...);
+            return sig;
+        }
     private:
         static inline size_t GetUniqueComponentTypeID() noexcept {
             static size_t lastID = 0U;
             return lastID++;
         }
     };
+
+    
 
 }

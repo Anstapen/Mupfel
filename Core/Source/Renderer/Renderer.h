@@ -9,6 +9,8 @@ namespace Mupfel {
 		static void Render();
 		static void DeInit();
 		static void ToggleMode();
+		static void SetSSBO(unsigned int id);
+		static void SetEntityCount(unsigned int c);
 	private:
 		static void ImportVertexShader();
 		static void ImportFragmentShader();

@@ -12,13 +12,14 @@
 #include "Debug/DebugLayer.h"
 #include "ThreadPool.h"
 #include "Physics/PhysicsSimulation.h"
+#include "ComputationStrategy.h"
 
 namespace Mupfel {
 
 	struct ApplicationSpecification {
 		std::string name;
 		WindowSpecification windowSpec;
-		ComputationStrategy physics_strategy;
+		ComputationStrategy physics_strategy = ComputationStrategy::CPU_SINGLE_THREADED;
 	};
 
 	class Application

@@ -23,6 +23,7 @@ namespace Mupfel {
 	{
 		template<typename... Components> friend class View;
 		friend class Registry;
+		friend class MovementSystem;
 	public:
 		void Insert(Entity e, const T& component);
 		void Remove(Entity e) override;
