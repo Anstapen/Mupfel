@@ -87,7 +87,7 @@ static float slider_val = 0.0f;
 
 void Mupfel::DebugLayer::DrawDebugInfo()
 {
-	uint32_t current_entities = Application::GetCurrentRegistry().GetCurrentEntities() / 1000;
+	uint32_t current_entities = Application::GetCurrentRegistry().GetCurrentEntities();
 	/* Get the time of the last frame. */
 	float last_frame_time = Application::GetLastFrameTime();
 	float fps = 1.0f / last_frame_time;
@@ -96,7 +96,7 @@ void Mupfel::DebugLayer::DrawDebugInfo()
 	int screen_width = Application::GetCurrentRenderWidth();
 
 	std::string text1 = std::vformat("FPS: {:.1f}", std::make_format_args(fps));
-	std::string text2 = std::vformat("Entities(GLOBAL): {}k", std::make_format_args(current_entities));
+	std::string text2 = std::vformat("Entities(GLOBAL): {}", std::make_format_args(current_entities));
 	Text::RaylibDrawText(text1.c_str(), 10, 20);
 	Text::RaylibDrawText(text2.c_str(), 10, 40);
 

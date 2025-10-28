@@ -4,6 +4,9 @@
 struct MovementEntity {
     vec2 position;
     vec2 velocity;
+    vec2 acceleration;
+	float rotation;
+	float angular_velocity;
 };
 
 layout(std430, binding = 0) buffer EntityBuffer {
@@ -45,4 +48,5 @@ void main() {
     }
 
     entities[id].position += entities[id].velocity * uDeltaTime;
+    entities[id].rotation += entities[id].angular_velocity * uDeltaTime;
 }

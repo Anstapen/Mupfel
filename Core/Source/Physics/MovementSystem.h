@@ -47,23 +47,9 @@ namespace Mupfel {
 		void Init();
 		void DeInit();
 		void Update(double elapsedTime);
-		
-	private:
-		void UpdateEntities();
-		void AddedComponentHandler(const ComponentAddedEvent& evt);
-		void RemovedComponentHandler(const ComponentRemovedEvent& evt);
-		void AddEntity(Entity e);
-		void RemoveEntity(Entity e);
-		void CreateOrResizeSSBO(uint32_t capacity);
 
 	private:
-		uint32_t max_entities;
-		std::vector<size_t> sparse;
-		std::vector<uint32_t> dense;
 		uint32_t shader_id;
-		uint32_t ssbo_id;
-		void* mapped_ssbo;
-		uint32_t current_ssbo_index;
 	};
 
 }

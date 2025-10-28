@@ -4,16 +4,14 @@
 #include "Renderer/Rectangle.h"
 #include "Renderer/TextureManager.h"
 #include "Core/Application.h"
-#include "ECS/Components/Transform.h"
-#include "ECS/Components/BroadCollider.h"
-#include "ECS/Components/SpatialInfo.h"
-#include "ECS/Components/Velocity.h"
 #include "Core/Profiler.h"
 #include <iostream>
 #include "ECS/View.h"
 #include <format>
 #include <string>
 #include <algorithm>
+
+#include "ECS/Components/Kinematic.h"
 
 #include "Renderer/Renderer.h"
 
@@ -23,7 +21,7 @@ static Entity *cursor = nullptr;
 
 static const std::string ball_texture_path = "Resources/simple_ball.png";
 
-static uint64_t entities_per_frame = 1;
+static uint64_t entities_per_frame = 100;
 
 void HelloWorldLayer::OnInit()
 {
@@ -31,15 +29,9 @@ void HelloWorldLayer::OnInit()
 	/* Create an Entity for the Cursor */
 	cursor = new Entity(reg.CreateEntity());
 
-	/* Add the Position component to it */
-	reg.AddComponent<Transform>(*cursor, { 0 ,0 });
+	/* Add the Kinematic component to it */
+	reg.AddComponent<Kinematic>(*cursor, {});
 
-}
-
-void HelloWorldLayer::OnUpdate(float timestep)
-{
-
-	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
 
 	int screen_height = Application::GetCurrentRenderHeight();
 	int screen_width = Application::GetCurrentRenderWidth();
@@ -51,15 +43,21 @@ void HelloWorldLayer::OnUpdate(float timestep)
 		float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
 		float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
 
+		float ang_vel = (float)Application::GetRandomNumber(1, 1000) / 200 + 1.0f;
+
 		/* Add velocity component to the entity */
 		float vel_x = (float)Application::GetRandomNumber(50, 200);
 		float vel_y = (float)Application::GetRandomNumber(50, 200);
-		reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
-		reg.AddComponent<Transform>(ent, { pos_x, pos_y });
+		reg.AddComponent<Kinematic>(ent, { pos_x, pos_y, vel_x, vel_y, 0.0f, 0.0f, 0.0f, ang_vel });
 		reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 		reg.AddComponent<SpatialInfo>(ent, {});
 		reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
 	}
+
+}
+
+void HelloWorldLayer::OnUpdate(float timestep)
+{
 	
 	ProcessEvents();
 	
@@ -98,14 +96,15 @@ void HelloWorldLayer::ProcessEvents()
 		{
 		}
 
-		ComponentArray<Transform>& transform_array = reg.GetComponentArray<Transform>();
+		ComponentArray<Kinematic>& kinematc_array = reg.GetComponentArray<Kinematic>();
 
 		/* If the Cursor Position changed, we update our entity */
 		if (evt.input == Mupfel::UserInput::CURSOR_POS_CHANGED)
 		{
-			auto& transform = transform_array.Get(*cursor);
-			transform.pos.x = Application::GetCurrentInputManager().GetCurrentCursorX();
-			transform.pos.y = Application::GetCurrentInputManager().GetCurrentCursorY();
+			auto& kinematic = kinematc_array.Get(*cursor);
+			kinematic.pos_x = Application::GetCurrentInputManager().GetCurrentCursorX();
+			kinematic.pos_y = Application::GetCurrentInputManager().GetCurrentCursorY();
+			kinematc_array.Set(*cursor, kinematic);
 		}
 
 		if (evt.input == Mupfel::UserInput::MOVE_FORWARD)

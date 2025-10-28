@@ -2,12 +2,11 @@
 #include <vector>
 #include <limits>
 #include <cassert>
-
+#include <memory>
 #include "Entity.h"
-
-#include <iostream>
-
 #include "Core/GUID.h"
+#include "CPUComponentStorage.h"
+#include "GPU/GPUComponentStorage.h"
 
 namespace Mupfel {
 
@@ -25,10 +24,12 @@ namespace Mupfel {
 		friend class Registry;
 		friend class MovementSystem;
 	public:
+		ComponentArray(StorageType t = StorageType::CPU);
 		void Insert(Entity e, const T& component);
 		void Remove(Entity e) override;
 		bool Has(Entity e) const override;
 		T& Get(Entity e);
+		void Set(Entity e, const T& val);
 		void MarkDirty(Entity e);
 		const std::vector<Entity>& GetDirtyEntities() const;
 		void ClearDirtyList();
@@ -37,7 +38,7 @@ namespace Mupfel {
 
 		std::vector<size_t> sparse;
 		std::vector<uint32_t> dense;
-		std::vector<T> components;
+		std::unique_ptr<ComponentStorage<T>> components;
 		std::vector<Entity> dirty_entities;
 	};
 
@@ -67,7 +68,7 @@ namespace Mupfel {
 
 		/* The value at the index stores which entity uses the component */
 		dense.push_back(e.Index());
-		components.push_back(component);
+		components->push_back(component);
 	}
 
 	template<typename T>
@@ -83,13 +84,13 @@ namespace Mupfel {
 
 		/* Swap the element that should be removed with the last one */
 		std::swap(dense[comp_index], dense[last_index]);
-		std::swap(components[comp_index], components[last_index]);
+		std::swap(components->Read(comp_index), components->Read(last_index));
 
 		/* the component order changed, update the sparse list */
 		sparse[dense[comp_index]] = comp_index;
 
 		/* Delete the last component */
-		components.pop_back();
+		components->pop_back();
 		dense.pop_back();
 
 		/* invalidate the component reference */
@@ -108,7 +109,14 @@ namespace Mupfel {
 	{
 		assert(Has(e) && "Given Entity does not currently have a component of this type!");
 
-		return components[sparse[e.Index()]];
+		return components->Read(sparse[e.Index()]);
+	}
+
+	template<typename T>
+	inline void ComponentArray<T>::Set(Entity e, const T& val)
+	{
+		assert(Has(e) && "Given Entity does not currently have a component of this type!");
+		components->Write(sparse[e.Index()], val);
 	}
 
 	template<typename T>
@@ -128,5 +136,16 @@ namespace Mupfel {
 	{
 		dirty_entities.clear();
 	}
+	template<typename T>
+	inline ComponentArray<T>::ComponentArray(StorageType t)
+	{
+		if (t == StorageType::GPU)
+		{
+			components = std::make_unique<GPUComponentStorage<T>>();
+		}
+		else {
+			components = std::make_unique<CPUComponentStorage<T>>();
+		}
+		
+	}
 }
-

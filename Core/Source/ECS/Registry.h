@@ -18,6 +18,7 @@ namespace Mupfel {
 
 	class CollisionSystem;
 	class Application;
+	class MovementSystem;
 
 	class ComponentAddedEvent : public Event<ComponentAddedEvent> {
 	public:
@@ -57,6 +58,7 @@ namespace Mupfel {
 	{
 		template<typename... Components> friend class View;
 		friend class CollisionSystem;
+		friend class MovementSystem;
 	public:
 		using SafeComponentArrayPtr = std::unique_ptr<IComponentArray>;
 	public:
@@ -88,6 +90,9 @@ namespace Mupfel {
 
 		template<typename T>
 		ComponentArray<T>& GetComponentArray();
+	private:
+		template<typename T>
+		ComponentArray<T>& CreateComponentArray(StorageType t);
 
 	private:
 		EventSystem& evt_system;
@@ -230,12 +235,23 @@ namespace Mupfel {
 		if (it == component_map.end())
 		{
 			/* The component map does not exist yet, create it */
-			SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>();
+			SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(StorageType::CPU);
 			component_map[index] = std::move(new_array);
 			return *static_cast<ComponentArray<T>*>(component_map[index].get());
 		}
 
 		return *static_cast<ComponentArray<T>*>(it->second.get());
+	}
+
+	template<typename T>
+	inline ComponentArray<T>& Registry::CreateComponentArray(StorageType t)
+	{
+		auto index = std::type_index(typeid(T));
+		assert(component_map.find(index) == component_map.end());
+
+		SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(StorageType::GPU);
+		component_map[index] = std::move(new_array);
+		return *static_cast<ComponentArray<T>*>(component_map[index].get());
 	}
 
 }

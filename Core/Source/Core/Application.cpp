@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "Profiler.h"
 #include "Renderer/Renderer.h"
+#include <iostream>
 
 
 using namespace Mupfel;
