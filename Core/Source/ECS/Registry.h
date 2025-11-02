@@ -1,16 +1,16 @@
 #pragma once
 #include "Entity.h"
 #include "ComponentArray.h"
-#include <unordered_map>
 #include <typeindex>
 #include <memory>
-#include "Core/GUID.h"
 #include "Core/EventSystem.h"
 #include <future>
 #include <functional>
 #include "Core/ThreadPool.h"
 #include <vector>
 #include <algorithm>
+
+#include "Archetype.h"
 
 namespace Mupfel {
 
@@ -20,16 +20,11 @@ namespace Mupfel {
 	class Application;
 	class MovementSystem;
 
-	class ComponentAddedEvent : public Event<ComponentAddedEvent> {
+	class ComponentAddedEvent : public Event {
 	public:
 		ComponentAddedEvent() = default;
 		ComponentAddedEvent(Entity in_e, size_t in_comp_id, Entity::Signature in_sig) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
 		virtual ~ComponentAddedEvent() = default;
-
-
-		static constexpr uint64_t GetGUIDStatic() {
-			return Hash::Compute("ComponentAddedEvent");
-		}
 
 	public:
 		Entity e;
@@ -37,16 +32,11 @@ namespace Mupfel {
 		size_t comp_id;
 	};
 
-	class ComponentRemovedEvent : public Event<ComponentRemovedEvent> {
+	class ComponentRemovedEvent : public Event {
 	public:
 		ComponentRemovedEvent() = default;
 		ComponentRemovedEvent(Entity in_e, size_t in_comp_id, Entity::Signature in_sig) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
 		virtual ~ComponentRemovedEvent() = default;
-
-
-		static constexpr uint64_t GetGUIDStatic() {
-			return Hash::Compute("ComponentRemovedEvent");
-		}
 
 	public:
 		Entity e;
@@ -59,6 +49,7 @@ namespace Mupfel {
 		template<typename... Components> friend class View;
 		friend class CollisionSystem;
 		friend class MovementSystem;
+		friend class Renderer;
 	public:
 		using SafeComponentArrayPtr = std::unique_ptr<IComponentArray>;
 	public:
@@ -79,26 +70,76 @@ namespace Mupfel {
 		template <typename... Components, typename F>
 		void ParallelForEach(F&& function, std::vector<Entity>& changed_entities);
 
+		template<typename... Components>
+		Archetype SetArchetype();
+
 		template<typename T, typename... Args>
-		T& AddComponent(Entity e, Args&&... args);
+		void AddComponent(Entity e, Args&&... args);
 
 		template<typename T>
-		T& AddComponent(Entity e, const T& component);
+		void AddComponent(Entity e, T component);
 
 		template<typename T>
 		void RemoveComponent(Entity e);
 
 		template<typename T>
-		ComponentArray<T>& GetComponentArray();
+		T GetComponent(Entity e);
+
+		template<typename T>
+		void SetComponent(Entity e, T comp);
+
+		template<typename T>
+		bool HasComponent(Entity e);
+		
 	private:
 		template<typename T>
-		ComponentArray<T>& CreateComponentArray(StorageType t);
+		ComponentArray<T>& GetComponentArray();
+
+		template<typename T>
+		void CreateLinkedComponentArray(StorageType t);
+
+		template<typename ...Components>
+		static inline std::bitset<128> ComponentSignature()
+		{
+			std::bitset<128> sig;
+			(sig.set(ComponentIndex<Components>()), ...);
+			return sig;
+		}
+
+		template<typename T>
+		static size_t ComponentIndex() noexcept {
+			static const size_t id = comp_counter++;
+			return id;
+		}
+
+		template<typename T>
+		void resizeComponentBuffer();
+
+		template<typename T>
+		void AddArchetypeToComponent(Archetype::Signature sig);
+
+		void UpdateEntityArchetypes(Entity e);
 
 	private:
 		EventSystem& evt_system;
 		EntityManager entity_manager;
+		static inline size_t comp_counter = 0;
 		std::vector<Entity::Signature> signatures;
-		std::unordered_map<std::type_index, SafeComponentArrayPtr> component_map;
+		Entity::Signature linked_components;
+		std::vector<SafeComponentArrayPtr> component_buffer;
+
+		/* Archetype related data structures */
+
+		/* a vector of the currently registered archetypes */
+		std::vector<Archetype> archetypes;
+
+		/* a vector for each archetype that holds the entities that currently have this archetype */
+		std::vector<std::vector<Entity>> archetypeToEntities;
+
+		/* This vector holds the Archetype signature for each entity */
+		std::vector<Archetype::Signature> entityToArchetype;
+
+		std::vector<Archetype::Signature> componentToArchetype;
 	};
 
 
@@ -127,7 +168,7 @@ namespace Mupfel {
 		jobs.reserve(num_threads);
 
 
-		const auto required = CompUtil::ComponentSignature<Components...>();
+		const auto required = Registry::ComponentSignature<Components...>();
 
 		for (uint32_t t = 0; t < num_threads; t++)
 		{
@@ -178,42 +219,55 @@ namespace Mupfel {
 		}
 	}
 
-	template<typename T, typename ...Args>
-	inline T& Registry::AddComponent(Entity e, Args && ...args)
+	template<typename ...Components>
+	inline Archetype Registry::SetArchetype()
 	{
-		ComponentArray<T>& storage = GetComponentArray<T>();
-		storage.Insert(e, T(std::forward<Args>(args)...));
+		
+		/* Create a new Archetype object */
+		Entity::Signature sig = ComponentSignature<Components...>();
+		Archetype arch{ sig, archetypes.size()};
 
-		/* Update the Entity Signature */
-		size_t id = CompUtil::GetComponentTypeID<T>();
-		signatures[e.Index()].set(id);
+		/* Add it to the archetype vector */
+		archetypes.push_back(arch);
 
-		/* Send a ComponentAdded Event */
-		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id, signatures[e.Index()] });
+		/* Add a new entity list for the new archetype */
+		archetypeToEntities.emplace_back();
 
-		return storage.Get(e);
+		/* Add the archetype to the components */
+		(..., (AddArchetypeToComponent<Components>(arch.arch_signature), 0));
+
+		return arch;
+	}
+
+	template<typename T, typename ...Args>
+	inline void Registry::AddComponent(Entity e, Args && ...args)
+	{
+		AddComponent(e, T(std::forward<Args>(args)...));
 	}
 
 	template<typename T>
-	inline T& Registry::AddComponent(Entity e, const T& component)
+	inline void Registry::AddComponent(Entity e, T component)
 	{
+
 		ComponentArray<T>& storage = GetComponentArray<T>();
 		storage.Insert(e, component);
 
 		/* Update the Entity Signature */
-		uint32_t id = CompUtil::GetComponentTypeID<T>();
+		uint32_t id = ComponentIndex<T>();
 		signatures[e.Index()].set(id);
+
+		/* Check Archetypes */
+		UpdateEntityArchetypes(e);
 
 		/* Send a ComponentAdded Event */
 		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id, signatures[e.Index()] });
 
-		return storage.Get(e);
 	}
 
 	template<typename T>
 	inline void Registry::RemoveComponent(Entity e)
 	{
-		uint32_t id = CompUtil::GetComponentTypeID<T>();
+		uint32_t id = ComponentIndex<T>();
 		/* Send a ComponentRemoved Event */
 		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, id, signatures[e.Index()] });
 
@@ -222,37 +276,88 @@ namespace Mupfel {
 
 		/* Update the Entity Signature */
 		signatures[e.Index()].reset(id);
+
+		/* Check Archetypes */
+		UpdateEntityArchetypes(e);
 		
+	}
+
+	template<typename T>
+	inline T Registry::GetComponent(Entity e)
+	{
+		return GetComponentArray<T>().Get(e);
+	}
+
+	template<typename T>
+	inline void Registry::SetComponent(Entity e, T comp)
+	{
+		GetComponentArray<T>().Set(e, comp);
+	}
+
+	template<typename T>
+	inline bool Registry::HasComponent(Entity e)
+	{
+		return GetComponentArray<T>().Has(e);
 	}
 
 	template<typename T>
 	inline ComponentArray<T>& Registry::GetComponentArray()
 	{
-		/* We index into the map using the type id of the given type */
-		auto index = std::type_index(typeid(T));
-		auto it = component_map.find(index);
+		size_t comp_index = ComponentIndex<T>();
+		
+		resizeComponentBuffer<T>();
 
-		if (it == component_map.end())
+		/* Create a new Component Array for the given Type if there is none */
+		if (!component_buffer[comp_index])
 		{
-			/* The component map does not exist yet, create it */
 			SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(StorageType::CPU);
-			component_map[index] = std::move(new_array);
-			return *static_cast<ComponentArray<T>*>(component_map[index].get());
+			component_buffer[comp_index] = std::move(new_array);
 		}
 
-		return *static_cast<ComponentArray<T>*>(it->second.get());
+		return *static_cast<ComponentArray<T>*>(component_buffer[comp_index].get());
 	}
 
 	template<typename T>
-	inline ComponentArray<T>& Registry::CreateComponentArray(StorageType t)
+	inline void Registry::CreateLinkedComponentArray(StorageType t)
 	{
-		auto index = std::type_index(typeid(T));
-		assert(component_map.find(index) == component_map.end());
+		size_t comp_index = ComponentIndex<T>();
+
+		resizeComponentBuffer<T>();
+
+		assert(!component_buffer[comp_index]);
 
 		SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(StorageType::GPU);
-		component_map[index] = std::move(new_array);
-		return *static_cast<ComponentArray<T>*>(component_map[index].get());
+		component_buffer[comp_index] = std::move(new_array);
+
+	}
+
+	template<typename T>
+	inline void Registry::resizeComponentBuffer()
+	{
+		size_t comp_index = ComponentIndex<T>();
+
+		if (comp_index >= component_buffer.size())
+		{
+			component_buffer.resize(comp_index + 1);
+		}
+
+		if (comp_index >= componentToArchetype.size())
+		{
+			componentToArchetype.resize(comp_index + 1);
+		}
+	}
+
+	template<typename T>
+	inline void Registry::AddArchetypeToComponent(Archetype::Signature sig)
+	{
+		size_t comp_index = ComponentIndex<T>();
+		
+		/* resize the component vectors if they are not big enough */
+		resizeComponentBuffer<T>();
+
+		componentToArchetype[comp_index] |= sig;
 	}
 
 }
 
+#include "ECS/View.h"

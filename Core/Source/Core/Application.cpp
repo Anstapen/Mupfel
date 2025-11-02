@@ -4,6 +4,7 @@
 #include "Profiler.h"
 #include "Renderer/Renderer.h"
 #include <iostream>
+#include "glad.h"
 
 
 using namespace Mupfel;
@@ -26,6 +27,24 @@ Application::Application() :
 
 Application::~Application()
 {
+}
+
+static void GLAPIENTRY
+MessageCallback(GLenum source,
+	GLenum type,
+	GLuint id,
+	GLenum severity,
+	GLsizei length,
+	const GLchar* message,
+	const void* userParam)
+{
+	if (severity <= GL_DEBUG_SEVERITY_NOTIFICATION)
+	{
+		return;
+	}
+	fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+		(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+		type, severity, message);
 }
 
 bool Application::Init(const ApplicationSpecification& in_spec)
@@ -51,6 +70,11 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	debug_layer.OnInit();
 
 	Renderer::Init();
+	
+
+	// During init, enable debug output
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback(MessageCallback, 0);
 
 	return true;
 }

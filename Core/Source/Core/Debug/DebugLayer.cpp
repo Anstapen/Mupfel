@@ -19,7 +19,7 @@ void Mupfel::DebugLayer::OnInit()
 {
 }
 
-void Mupfel::DebugLayer::OnUpdate(float timestep)
+void Mupfel::DebugLayer::OnUpdate(double timestep)
 {
 }
 

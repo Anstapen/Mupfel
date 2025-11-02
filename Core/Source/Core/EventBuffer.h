@@ -33,7 +33,7 @@ namespace Mupfel {
 	 * @tparam T 
 	 */
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	class EventBuffer : public IEventBuffer {
 	public:
 		using const_iterator = typename std::vector<T>::const_iterator;
@@ -87,21 +87,21 @@ namespace Mupfel {
 	};
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline EventBuffer<T>::EventBuffer(uint32_t initial_size) : event_buf(initial_size)
 	{
 		event_buf.clear();
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline void EventBuffer<T>::Add(T &&event)
 	{
 		event_buf.emplace_back(event);
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline std::optional<const T*> EventBuffer<T>::Get(uint32_t index)
 	{
 		if (index < event_buf.size())
@@ -114,7 +114,7 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline std::optional<const T*> EventBuffer<T>::GetLatest()
 	{
 		if (!event_buf.empty())
@@ -127,14 +127,14 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline void EventBuffer<T>::Clear()
 	{
 		event_buf.clear();
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline uint64_t EventBuffer<T>::GetPendingEvents()
 	{
 		return event_buf.size();

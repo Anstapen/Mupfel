@@ -54,14 +54,14 @@ namespace Mupfel {
 		void ToggleMultiThreading();
 		bool IsMultiThreaded() const;
 	private:
-		void ClearOldCells(SpatialInfo& info);
+		void ClearOldCells(SpatialInfo info);
 		void UpdateCells(Entity e, SpatialInfo& info, Coordinate<uint32_t> cell_min, Coordinate<uint32_t> cell_max);
-		void UpdateCells(Entity e, SpatialInfo& info, const CellMoveCommand& cmd);
+		void UpdateCells(Entity e, const CellMoveCommand& cmd);
 		static uint32_t WorldtoCell(Coordinate<uint32_t> c);
 		static uint32_t PointXtoCell(uint32_t x);
 		static uint32_t PointYtoCell(uint32_t y);
-		void CheckEntity(Entity e, uint32_t thread_index, ComponentArray<BroadCollider>& broad_collider_array, ComponentArray<SpatialInfo>& spatial_info_array);
-		void SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index, ComponentArray<SpatialInfo>& spatial_info_array);
+		void CheckEntity(Entity e, uint32_t thread_index, Registry& registry);
+		void SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index);
 		void RemoveEntity(const EntityDestroyedEvent& evt);
 	private:
 		Registry& registry;

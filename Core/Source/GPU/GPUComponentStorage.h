@@ -11,12 +11,11 @@ namespace Mupfel {
 		GPUComponentStorage(uint32_t capacity = 10000);
 		virtual ~GPUComponentStorage();
 		size_t size() const override;
-		void push_back(const T& item) override;
-		void push_back(T&& item) override;
+		void push_back(T item) override;
 		void pop_back() override;
 		const T& Read(size_t index) const override;
 		T& Read(size_t index) override;
-		void Write(size_t pos, const T& val) override;
+		void Write(size_t pos, T val) override;
 		void clear() override;
 		uint32_t Id() const override;
 	private:
@@ -55,30 +54,16 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline void GPUComponentStorage<T>::push_back(const T& item)
+	inline void GPUComponentStorage<T>::push_back(T item)
 	{
-		if (m_size >= h.capacity)
+		if ((m_size * sizeof(T)) >= h.capacity)
 		{
-			uint32_t new_size = (m_size + 1) * 2;
+			uint32_t new_size = (m_size * sizeof(T)) * 2;
 			realloc(new_size);
 			h.capacity = new_size;
 		}
 
-		mem[m_size] = item;
-		m_size++;
-	}
-
-	template<typename T>
-	inline void GPUComponentStorage<T>::push_back(T&& item)
-	{
-		if (m_size >= h.capacity)
-		{
-			uint32_t new_size = (m_size + 1) * 2;
-			realloc(new_size);
-			h.capacity = new_size;
-		}
-
-		mem[m_size] = item;
+		Write(m_size, item);
 		m_size++;
 	}
 
@@ -104,10 +89,10 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline void GPUComponentStorage<T>::Write(size_t pos, const T& val)
+	inline void GPUComponentStorage<T>::Write(size_t pos, T val)
 	{
 		mem[pos] = val;
-		GPUAllocator::MemBarrier();
+		//GPUAllocator::MemBarrier();
 	}
 
 	template<typename T>

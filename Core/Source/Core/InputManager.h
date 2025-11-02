@@ -220,16 +220,11 @@ namespace Mupfel {
 	 * @brief This Event class is used to propagate events that
      * are triggered by User input (Mouse, Keyboard or Gamepad).
 	 */
-	class UserInputEvent : public Event<UserInputEvent> {
+	class UserInputEvent : public Event {
 	public:
 		UserInputEvent();
 		UserInputEvent(UserInput in_input);
 		virtual ~UserInputEvent() = default;
-
-	
-		static constexpr uint64_t GetGUIDStatic() {
-			return Hash::Compute("UserInputEvent");
-		}
 
 	public:
         UserInput input;

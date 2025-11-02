@@ -1,5 +1,4 @@
 #pragma once
-#include <unordered_map>
 #include <memory>
 #include <vector>
 #include <cstdint>
@@ -34,10 +33,10 @@ namespace Mupfel {
 		 * added and stores them in an unordered map. To be safe regarding memory leaks,
 		 * the Eventbuffers are stored as unique pointers.
 		 */
-		typedef std::unordered_map<uint64_t, std::unique_ptr<IEventBuffer>> EventBufferMap;
+		typedef std::vector<std::unique_ptr<IEventBuffer>> EventBufferArray;
 	public:
 		/**
-		 * @brief The construcor of the EventSystem class.
+		 * @brief The constructor of the EventSystem class.
 		 */
 		EventSystem();
 
@@ -56,11 +55,11 @@ namespace Mupfel {
 		 * @param event The event data.
 		 */
 		template<typename T>
-			requires std::derived_from<T, IEvent>
+			requires std::derived_from<T, Event>
 		void AddEvent(T &&event);
 
 		template<typename T>
-			requires std::derived_from<T, IEvent>
+			requires std::derived_from<T, Event>
 		void AddImmediateEvent(T&& event);
 
 		/**
@@ -70,7 +69,7 @@ namespace Mupfel {
 		 * @return The number of events pending for the given Event type.
 		 */
 		template<typename T>
-			requires std::derived_from<T, IEvent>
+			requires std::derived_from<T, Event>
 		uint64_t GetPendingEvents();
 
 		/**
@@ -80,7 +79,7 @@ namespace Mupfel {
 		 * @return The event.
 		 */
 		template<typename T>
-			requires std::derived_from<T, IEvent>
+			requires std::derived_from<T, Event>
 		std::optional<const T*> GetEvent(uint32_t index);
 
 		/**
@@ -89,7 +88,7 @@ namespace Mupfel {
 		 * @return The latest event.
 		 */
 		template<typename T>
-			requires std::derived_from<T, IEvent>
+			requires std::derived_from<T, Event>
 		std::optional<const T*> GetLatestEvent();
 
 		/**
@@ -99,7 +98,7 @@ namespace Mupfel {
 		 * Eventbuffer.
 		 */
 		template<typename T>
-			requires std::derived_from<T, IEvent>
+			requires std::derived_from<T, Event>
 		auto GetEvents() const noexcept
 			-> std::ranges::subrange<typename EventBuffer<T>::const_iterator,
 			typename EventBuffer<T>::const_iterator>;
@@ -108,14 +107,25 @@ namespace Mupfel {
 		void RegisterListener(std::function<void(const T&)> callback);
 
 		template<typename T>
-			requires std::derived_from<T, IEvent>
-		uint64_t EventTypeToID();
+			requires std::derived_from<T, Event>
+		size_t EventTypeToID();
+
+	private:
+		template<typename T>
+		static size_t EventIndex() noexcept {
+			static const size_t id = evt_counter++;
+			return id;
+		}
+
+		template<typename T>
+			requires std::derived_from<T, Event>
+		bool EventBufferEntryExists(uint32_t buffer_index) const;
 
 	private:
 		/**
 		 * @brief Two maps that hold the eventbuffers and get swapped every frame.
 		 */
-		EventBufferMap event_map[2];
+		EventBufferArray event_buffer_array[2];
 
 		/**
 		 * @brief The index of the current EventBufferMap. Events that are read 
@@ -139,20 +149,33 @@ namespace Mupfel {
 		 */
 		uint64_t events_this_frame = 0;
 
-		using EventCallback = std::function<void(const IEvent&)>;
+		/**
+		 * @brief This counter serves as an ID for the different Event Types.
+		 */
+		static inline size_t evt_counter = 0;
+
+		using EventCallback = std::function<void(const Event&)>;
 
 		std::unordered_map<uint64_t, std::vector<EventCallback>> listeners;
 	};
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline void EventSystem::AddEvent(T &&event)
 	{
-		constexpr uint64_t evt_guid = T::GetGUIDStatic();
+		size_t evt_index = EventIndex<T>();
 
-		auto [it, inserted] = event_map[next].try_emplace(evt_guid, std::make_unique<EventBuffer<T>>(16));
+		if (evt_index >= event_buffer_array[next].size())
+		{
+			event_buffer_array[next].resize(evt_index + 1);
+		}
+
+		if (!event_buffer_array[next][evt_index])
+		{
+			event_buffer_array[next][evt_index] = std::make_unique<EventBuffer<T>>(16);
+		}
 		
-		EventBuffer<T>* current_evt_buffer = static_cast<EventBuffer<T> *>(it->second.get());
+		EventBuffer<T>* current_evt_buffer = static_cast<EventBuffer<T> *>(event_buffer_array[next][evt_index].get());
 
 		current_evt_buffer->Add(std::move(event));
 
@@ -160,12 +183,12 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline void EventSystem::AddImmediateEvent(T&& event)
 	{
-		constexpr uint64_t evt_guid = T::GetGUIDStatic();
+		size_t evt_index = EventIndex<T>();
 
-		auto it = listeners.find(evt_guid);
+		auto it = listeners.find(evt_index);
 
 		if (it != listeners.end())
 		{
@@ -177,89 +200,94 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline std::optional<const T*> EventSystem::GetEvent(uint32_t index)
 	{
-		constexpr uint64_t evt_guid = T::GetGUIDStatic();
-		auto it = event_map[current].find(evt_guid);
+		size_t evt_index = EventIndex<T>();
 
-		if (it != event_map[current].end())
+		if (!EventBufferEntryExists<T>(current))
 		{
-			EventBuffer<T> *buf = static_cast<EventBuffer<T> *>(it->second.get());
-			return buf->Get(index);
-		}
-		else {
 			return std::nullopt;
 		}
+
+		EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(event_buffer_array[current][evt_index].get());
+		return buf->Get(index);
+
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline std::optional<const T*> EventSystem::GetLatestEvent()
 	{
-		auto it = event_map[current].find(T::GetGUIDStatic());
+		size_t evt_index = EventIndex<T>();
 
-		if (it != event_map[current].end())
+		if (!EventBufferEntryExists<T>(current))
 		{
-			EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(it->second.get());
-			return buf->GetLatest();
-		}
-		else {
 			return std::nullopt;
 		}
+
+		EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(event_buffer_array[current][evt_index].get());
+		return buf->GetLatest();
+
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
 	inline auto EventSystem::GetEvents() const noexcept -> std::ranges::subrange<typename EventBuffer<T>::const_iterator, typename EventBuffer<T>::const_iterator>
 	{
-		const auto it = event_map[current].find(T::GetGUIDStatic());
 
 		/*
 			If the eventbuffer of the given type is not found (because no events were added yet),
 			return the begin/end iterator of an empty buffer of that type.
 		*/
-		if (it == event_map[current].end()) [[unlikely]]
+		if (!EventBufferEntryExists<T>(current)) [[unlikely]]
 		{
 			static const EventBuffer<T> empty_buffer(0);
 			return std::ranges::subrange(empty_buffer.begin(), empty_buffer.end());
 		}
 
-		const EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(it->second.get());
+		const EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(event_buffer_array[current][EventIndex<T>()].get());
 		return std::ranges::subrange(buf->begin(), buf->end());
 	}
 
 	template<typename T>
 	inline void EventSystem::RegisterListener(std::function<void(const T&)> callback)
 	{
-		constexpr uint64_t index = T::GetGUIDStatic();
+		size_t index = EventIndex<T>();
 		listeners[index].push_back(
-			[cb = std::move(callback)](const IEvent& evt) {
+			[cb = std::move(callback)](const Event& evt) {
 				cb(static_cast<const T&>(evt));
 			}
 		);
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
-	inline uint64_t EventSystem::EventTypeToID()
+		requires std::derived_from<T, Event>
+	inline size_t EventSystem::EventTypeToID()
 	{
-		return T::GetGUIDStatic();
+		return EventIndex<T>();
 	}
 
 	template<typename T>
-		requires std::derived_from<T, IEvent>
+		requires std::derived_from<T, Event>
+	inline bool EventSystem::EventBufferEntryExists(uint32_t buffer_index) const
+	{
+		size_t evt_index = EventIndex<T>();
+		return (evt_index < event_buffer_array[buffer_index].size()) && event_buffer_array[buffer_index][evt_index];
+	}
+
+	template<typename T>
+		requires std::derived_from<T, Event>
 	inline uint64_t EventSystem::GetPendingEvents()
 	{
-		auto it = event_map[current].find(T::GetGUIDStatic());
-
-		if (it != event_map[current].end())
+		auto index = EventIndex<T>();
+		if (!EventBufferEntryExists<T>(current))
 		{
-			return it->second.get()->GetPendingEvents();
-		}
-		else {
 			return 0;
 		}
+
+		return event_buffer_array[current][index].get()->GetPendingEvents();
+
 	}
 
 }

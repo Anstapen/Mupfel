@@ -10,12 +10,11 @@ public:
 	CPUComponentStorage() = default;
 	virtual ~CPUComponentStorage() = default;
 	size_t size() const override;
-	void push_back(const T& item) override;
-	void push_back(T&& item) override;
+	void push_back(T item) override;
 	void pop_back() override;
 	const T& Read(size_t index) const override;
 	T& Read(size_t index) override;
-	void Write(size_t pos, const T& val) override;
+	void Write(size_t pos, T val) override;
 	void clear() override;
 	uint32_t Id() const override;
 private:
@@ -29,13 +28,7 @@ inline size_t CPUComponentStorage<T>::size() const
 }
 
 template<typename T>
-inline void CPUComponentStorage<T>::push_back(const T& item)
-{
-	vector.push_back(item);
-}
-
-template<typename T>
-inline void CPUComponentStorage<T>::push_back(T&& item)
+inline void CPUComponentStorage<T>::push_back(T item)
 {
 	vector.push_back(item);
 }
@@ -59,7 +52,7 @@ inline T& CPUComponentStorage<T>::Read(size_t index)
 }
 
 template<typename T>
-inline void CPUComponentStorage<T>::Write(size_t pos, const T& val)
+inline void CPUComponentStorage<T>::Write(size_t pos, T val)
 {
 	vector[pos] = val;
 }

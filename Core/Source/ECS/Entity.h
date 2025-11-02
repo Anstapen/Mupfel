@@ -23,28 +23,22 @@ namespace Mupfel {
 
 	static_assert((sizeof(Entity) == 4) && "Error: Size of Entity Class is not 4 bytes!");
 
-	class EntityCreatedEvent : public Event<EntityCreatedEvent> {
+	class EntityCreatedEvent : public Event {
 	public:
 		EntityCreatedEvent() : e(0) {}
 		EntityCreatedEvent(Entity in_e) : e(in_e) {};
 		virtual ~EntityCreatedEvent() = default;
 
-		static constexpr uint64_t GetGUIDStatic() {
-			return Hash::Compute("EntityCreatedEvent");
-		}
 	public:
 		Entity e;
 	};
 
-	class EntityDestroyedEvent : public Event<EntityDestroyedEvent> {
+	class EntityDestroyedEvent : public Event {
 	public:
 		EntityDestroyedEvent() : e(0) {}
 		EntityDestroyedEvent(Entity in_e) : e(in_e) {};
 		virtual ~EntityDestroyedEvent() = default;
 
-		static constexpr uint64_t GetGUIDStatic() {
-			return Hash::Compute("EntityDestroyedEvent");
-		}
 	public:
 		Entity e;
 	};

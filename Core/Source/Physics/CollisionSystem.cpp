@@ -71,10 +71,6 @@ void CollisionSystem::Update()
 		auto& thread_pool = Application::GetCurrentThreadPool();
 		const uint32_t num_threads = static_cast<uint32_t>(thread_pool.GetThreadCount());
 
-		/* Safe the component arrays */
-		ComponentArray<BroadCollider>& broad_collider_array = registry.GetComponentArray<BroadCollider>();
-		ComponentArray<SpatialInfo>& spatial_info_array = registry.GetComponentArray<SpatialInfo>();
-
 		if (thread_local_buffer.size() != num_threads) {
 			thread_local_buffer.clear();
 			thread_local_buffer.resize(num_threads);
@@ -96,7 +92,7 @@ void CollisionSystem::Update()
 			jobs.push_back(thread_pool.Enqueue([&, t, begin, end]() {
 				for (uint32_t i = begin; i < end; i++)
 				{
-					CheckEntity(dirty_entities[i], t, broad_collider_array, spatial_info_array);
+					CheckEntity(dirty_entities[i], t, registry);
 				}
 			}));
 		}
@@ -111,14 +107,13 @@ void CollisionSystem::Update()
 		jobs.clear();
 
 		/* Resolve Commands */
-		ComponentArray<SpatialInfo>& spatial_array = registry.GetComponentArray<SpatialInfo>();
 		for (auto& cmd_buffer : thread_local_buffer)
 		{
 			for (auto& cmd : cmd_buffer)
 			{
-				auto& spatial_info = spatial_array.Get(cmd.e);
+				auto spatial_info = registry.GetComponent<SpatialInfo>(cmd.e);
 				ClearOldCells(spatial_info);
-				UpdateCells(cmd.e, spatial_info, cmd);
+				UpdateCells(cmd.e, cmd);
 			}
 			cmd_buffer.clear();
 		}
@@ -137,8 +132,8 @@ void CollisionSystem::Update()
 				continue;
 			}
 
-			auto& broad_collider = broad_collider_array.Get(e);
-			auto& spatial_info = spatial_array.Get(e);
+			auto broad_collider = registry.GetComponent<BroadCollider>(e);
+			auto spatial_info = registry.GetComponent<SpatialInfo>(e);
 
 			/* Update the Grid */
 			uint32_t cell_min_x = PointXtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.x)));
@@ -173,7 +168,7 @@ bool Mupfel::CollisionSystem::IsMultiThreaded() const
 	return multithreadingEnabled;
 }
 
-void Mupfel::CollisionSystem::ClearOldCells(SpatialInfo& info)
+void Mupfel::CollisionSystem::ClearOldCells(SpatialInfo info)
 {
 	if (info.num_cells == 0)
 	{
@@ -199,7 +194,7 @@ void Mupfel::CollisionSystem::ClearOldCells(SpatialInfo& info)
 			/* The entity component holds the index into the entity array of the current cell */
 			uint32_t entity_index = info.refs[ref_count].entity_id;
 			/* Swap-Remove */
-			SwapRemoveEntities(cell_index, entity_index, spatial_info_array);
+			SwapRemoveEntities(cell_index, entity_index);
 
 			ref_count++;
 		}
@@ -251,8 +246,9 @@ void Mupfel::CollisionSystem::UpdateCells(Entity e, SpatialInfo& info, Coordinat
 	info.old_cell_min = cell_min;
 }
 
-void Mupfel::CollisionSystem::UpdateCells(Entity e, SpatialInfo& info, const CellMoveCommand& cmd)
+void Mupfel::CollisionSystem::UpdateCells(Entity e, const CellMoveCommand& cmd)
 {
+	SpatialInfo new_spatial;
 	for (uint32_t i = 0; i < cmd.new_count; i++)
 	{
 		uint32_t cell_index = cmd.new_cells[i];
@@ -267,17 +263,20 @@ void Mupfel::CollisionSystem::UpdateCells(Entity e, SpatialInfo& info, const Cel
 		collision_grid.entities[cell_start_index + cell_count] = e.Index();
 
 		/* Update the SpatialInfo component of the entity */
-		info.refs[i].cell_id = cell_index;
-		info.refs[i].entity_id = cell_count;
-		info.num_cells++;
+		new_spatial.refs[i].cell_id = cell_index;
+		new_spatial.refs[i].entity_id = cell_count;
+		new_spatial.num_cells++;
 
 		/* Increment the cell entity counter */
 		collision_grid.cells[cell_index].count++;
 
-		assert(info.num_cells == i + 1);
+		assert(new_spatial.num_cells == i + 1);
 	}
-	info.old_cell_max = cmd.new_max;
-	info.old_cell_min = cmd.new_min;
+	new_spatial.old_cell_max = cmd.new_max;
+	new_spatial.old_cell_min = cmd.new_min;
+
+	/* Write new spatial component */
+	Application::GetCurrentRegistry().SetComponent(e, new_spatial);
 }
 
 uint32_t Mupfel::CollisionSystem::WorldtoCell(Coordinate<uint32_t> c)
@@ -303,17 +302,17 @@ uint32_t Mupfel::CollisionSystem::PointYtoCell(uint32_t y)
 	return std::min(cell_y, num_cells_y - 1);
 }
 
-void Mupfel::CollisionSystem::CheckEntity(Entity e, uint32_t thread_index, ComponentArray<BroadCollider>& broad_collider_array, ComponentArray<SpatialInfo>& spatial_info_array)
+void Mupfel::CollisionSystem::CheckEntity(Entity e, uint32_t thread_index, Registry& registry)
 {
 	/* For now, we are only interested in entities that have the BroadCollider and SpatialInfo Component */
 
-	if (!broad_collider_array.Has(e) || !spatial_info_array.Has(e))
+	if (!registry.HasComponent<BroadCollider>(e) || !registry.HasComponent<SpatialInfo>(e))
 	{
 		return;
 	}
 
-	auto& broad_collider = broad_collider_array.Get(e);
-	auto& spatial_info = spatial_info_array.Get(e);
+	auto broad_collider = registry.GetComponent<BroadCollider>(e);
+	auto spatial_info = registry.GetComponent<SpatialInfo>(e);
 	/* Update the Grid */
 	uint32_t cell_min_x = PointXtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.x)));
 	uint32_t cell_min_y = PointYtoCell(static_cast<uint32_t>(std::floor(broad_collider.min.y)));
@@ -351,7 +350,7 @@ void Mupfel::CollisionSystem::CheckEntity(Entity e, uint32_t thread_index, Compo
 	thread_local_buffer[thread_index].push_back(std::move(cmd));
 }
 
-void Mupfel::CollisionSystem::SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index, ComponentArray<SpatialInfo>& spatial_info_array)
+void Mupfel::CollisionSystem::SwapRemoveEntities(uint32_t cell_id, uint32_t new_entity_index)
 {
 	/* Calculate the starting index of the entity array */
 	uint32_t cell_start_index = collision_grid.cells[cell_id].startIndex;
@@ -374,17 +373,18 @@ void Mupfel::CollisionSystem::SwapRemoveEntities(uint32_t cell_id, uint32_t new_
 		/* Update the SpatialInfo component of the swapped entity */
 		/* Removal of destroyed entities is done asynchronously */
 		Entity entity_to_be_updated = collision_grid.entities[entity_location];
-		if (!spatial_info_array.Has(entity_to_be_updated))
+		if (!registry.HasComponent<SpatialInfo>(entity_to_be_updated))
 		{
 			return;
 		}
-		auto& spatial_comp = spatial_info_array.Get(entity_to_be_updated);
+		auto spatial_comp = registry.GetComponent<SpatialInfo>(entity_to_be_updated);
 		for (uint32_t i = 0; i < spatial_comp.num_cells; i++)
 		{
 			/* We need to find the cell with the correct index */
 			if (cell_id == spatial_comp.refs[i].cell_id)
 			{
 				spatial_comp.refs[i].entity_id = new_entity_index;
+				registry.SetComponent<SpatialInfo>(entity_to_be_updated, spatial_comp);
 				break;
 			}
 		}
@@ -398,12 +398,11 @@ void Mupfel::CollisionSystem::RemoveEntity(const EntityDestroyedEvent& evt)
 	ComponentArray<SpatialInfo>& spatial_info_array = registry.GetComponentArray<SpatialInfo>();
 
 	/* Only entities which have a SpatialInfo component are of interest */
-	if (!spatial_info_array.Has(removed_entity))
+	if (!registry.HasComponent<SpatialInfo>(removed_entity))
 	{
 		return;
 	}
-	auto& spatial_info = spatial_info_array.Get(removed_entity);
 
-	ClearOldCells(spatial_info);
+	ClearOldCells(registry.GetComponent<SpatialInfo>(removed_entity));
 
 }

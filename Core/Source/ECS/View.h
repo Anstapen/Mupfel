@@ -68,13 +68,13 @@ namespace Mupfel {
 		Iterator begin() {
 			using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 			auto& array = reg.GetComponentArray<BaseComponent>();
-			return Iterator(reg, array.dense, CompUtil::ComponentSignature(), component_arrays, 0);
+			return Iterator(reg, array.dense, Registry::ComponentSignature(), component_arrays, 0);
 		}
 
 		Iterator end() {
 			using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 			auto& array = reg.GetComponentArray<BaseComponent>();
-			return Iterator(reg, array.dense, CompUtil::ComponentSignature(), component_arrays, array.dense.size());
+			return Iterator(reg, array.dense, Registry::ComponentSignature(), component_arrays, array.dense.size());
 		}
 
 	private:

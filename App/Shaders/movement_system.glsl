@@ -1,16 +1,31 @@
 #version 430
 
 // Pro Entity: Position + Velocity
-struct MovementEntity {
-    vec2 position;
-    vec2 velocity;
-    vec2 acceleration;
-	float rotation;
-	float angular_velocity;
+struct Transform {
+    vec2 pos;
+	vec2 scale;
+	vec2 rotation;
 };
 
-layout(std430, binding = 0) buffer EntityBuffer {
-    MovementEntity entities[];
+struct Velocity {
+		vec2 vel;
+};
+
+struct ComponentIndices {
+	uint transform_index;
+	uint velocity_index;
+};
+
+layout(std430, binding = 0) buffer TransformBuffer {
+    Transform transforms[];
+};
+
+layout(std430, binding = 1) buffer VelocityBuffer {
+    Velocity velocities[];
+};
+
+layout(std430, binding = 2) buffer IndexBuffer {
+    ComponentIndices indices[];
 };
 
 uniform float uDeltaTime;
@@ -22,31 +37,37 @@ void main() {
     uint id = gl_GlobalInvocationID.x;
     if (id >= uEntityCount) return;
 
+    uint pos_index = indices[id].transform_index;
+    uint vel_index = indices[id].velocity_index;
+
+    vec2 position = transforms[pos_index].pos;
+    vec2 velocity = velocities[vel_index].vel;
+
     // Check bounds here for now
-    if (entities[id].position.x > 2300)
+    if (position.x > 2300)
     {
-        entities[id].position.x = 2299;
-        entities[id].velocity.x *= -1.0;
+        position.x = 2299;
+        velocity.x *= -1.0;
     }
 
-    if (entities[id].position.x < 300)
+    if (position.x < 300)
     {
-        entities[id].position.x = 301;
-        entities[id].velocity.x *= -1.0;
+        position.x = 301;
+        velocity.x *= -1.0;
     }
 
-    if (entities[id].position.y > 1400)
+    if (position.y > 1400)
     {
-        entities[id].position.y = 1399;
-        entities[id].velocity.y *= -1.0;
+        position.y = 1399;
+        velocity.y *= -1.0;
     }
 
-    if (entities[id].position.y < 50)
+    if (position.y < 50)
     {
-        entities[id].position.y = 51;
-        entities[id].velocity.y *= -1.0;
+        position.y = 51;
+        velocity.y *= -1.0;
     }
 
-    entities[id].position += entities[id].velocity * uDeltaTime;
-    entities[id].rotation += entities[id].angular_velocity * uDeltaTime;
+    transforms[pos_index].pos += velocity * uDeltaTime;
+    velocities[vel_index].vel = velocity;
 }

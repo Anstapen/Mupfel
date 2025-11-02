@@ -6,7 +6,7 @@ namespace Mupfel {
 	{
 	public:
 		void OnInit() override;
-		void OnUpdate(float timestep) override;
+		void OnUpdate(double timestep) override;
 		void OnRender() override;
 	private:
 		void DrawDebugInfo();

@@ -23,17 +23,22 @@ namespace Mupfel {
 		template<typename... Components> friend class View;
 		friend class Registry;
 		friend class MovementSystem;
+		friend class Renderer;
+		friend class CollisionSystem;
 	public:
 		ComponentArray(StorageType t = StorageType::CPU);
-		void Insert(Entity e, const T& component);
-		void Remove(Entity e) override;
+	private:
+		
 		bool Has(Entity e) const override;
-		T& Get(Entity e);
-		void Set(Entity e, const T& val);
+		T Get(Entity e);
+		//void Set(Entity e, const T& val);
+		void Set(Entity e, T val);
 		void MarkDirty(Entity e);
+		uint32_t Id() const;
 		const std::vector<Entity>& GetDirtyEntities() const;
 		void ClearDirtyList();
-	private:
+		void Insert(Entity e, T component);
+		void Remove(Entity e) override;
 		static constexpr size_t invalid_entry = std::numeric_limits<size_t>::max();
 
 		std::vector<size_t> sparse;
@@ -44,7 +49,7 @@ namespace Mupfel {
 
 
 	template<typename T>
-	inline void ComponentArray<T>::Insert(Entity e, const T& component)
+	inline void ComponentArray<T>::Insert(Entity e, T component)
 	{
 		/*
 			If the sparse array is too small, we resize it using the invalid_index as value.
@@ -105,15 +110,23 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline T& ComponentArray<T>::Get(Entity e)
+	inline T ComponentArray<T>::Get(Entity e)
 	{
 		assert(Has(e) && "Given Entity does not currently have a component of this type!");
 
 		return components->Read(sparse[e.Index()]);
 	}
 
+#if 0
 	template<typename T>
 	inline void ComponentArray<T>::Set(Entity e, const T& val)
+	{
+		assert(Has(e) && "Given Entity does not currently have a component of this type!");
+		components->Write(sparse[e.Index()], val);
+	}
+#endif
+	template<typename T>
+	inline void ComponentArray<T>::Set(Entity e, T val)
 	{
 		assert(Has(e) && "Given Entity does not currently have a component of this type!");
 		components->Write(sparse[e.Index()], val);
@@ -147,5 +160,11 @@ namespace Mupfel {
 			components = std::make_unique<CPUComponentStorage<T>>();
 		}
 		
+	}
+
+	template<typename T>
+	inline uint32_t ComponentArray<T>::Id() const
+	{
+		return components->Id();
 	}
 }

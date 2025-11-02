@@ -11,16 +11,11 @@ namespace Mupfel {
 	 * @brief Simple Event that gets emitted after run of the Movement Compute Shader
 	 * to notify other systems.
 	 */
-	class MovementSystemUpdateEvent : public Event<MovementSystemUpdateEvent> {
+	class MovementSystemUpdateEvent : public Event {
 	public:
 		MovementSystemUpdateEvent() : ssbo_id(0), ssbo_size(0) {};
 		MovementSystemUpdateEvent(uint32_t in_ssbo_id, uint32_t in_ssbo_size) : ssbo_id(in_ssbo_id), ssbo_size(in_ssbo_size) {};
 		virtual ~MovementSystemUpdateEvent() = default;
-
-
-		static constexpr uint64_t GetGUIDStatic() {
-			return Hash::Compute("MovementSystemUpdateEvent");
-		}
 
 	public:
 		/**

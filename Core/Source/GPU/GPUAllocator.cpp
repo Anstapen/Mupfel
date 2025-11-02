@@ -9,16 +9,18 @@ static constexpr GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | G
 
 GPUAllocator::Handle GPUAllocator::allocateGPUBuffer(uint32_t size)
 {
+
 	Handle new_handle;
 	glGenBuffers(1, &new_handle.id);
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, new_handle.id);
 
-	
 
 	glBufferStorage(GL_SHADER_STORAGE_BUFFER, size, nullptr, flags);
 
 	new_handle.mapped_ptr = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size, flags);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	if (!new_handle.mapped_ptr)
 	{
@@ -27,26 +29,17 @@ GPUAllocator::Handle GPUAllocator::allocateGPUBuffer(uint32_t size)
 
 	new_handle.capacity = size;
 
-	GLenum err;
-	while ((err = glGetError()) != GL_NO_ERROR)
-	{
-		TraceLog(LOG_ERROR, "### GPU Allocator Error!", size);
-	}
-
 	return new_handle;
 }
 
 void GPUAllocator::freeGPUBuffer(GPUAllocator::Handle& h)
 {
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, h.id);
-	
-	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-	glDeleteBuffers(1, &h.id);
 
-	GLenum err;
-	while ((err = glGetError()) != GL_NO_ERROR)
-	{
-		TraceLog(LOG_ERROR, "### GPU Allocator Error!");
+	if (h.id != 0) {
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, h.id);
+		if (h.mapped_ptr)
+			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+		glDeleteBuffers(1, &h.id);
 	}
 
 	h.id = 0;
@@ -61,28 +54,16 @@ void GPUAllocator::reallocateGPUBuffer(Handle& h, uint32_t new_size)
 		return;
 	}
 
-	/* create a temporary copy of the contents */
-	std::vector<uint8_t> tmp;
-	uint8_t *buff = static_cast<uint8_t*>(h.mapped_ptr);
+	GLuint oldID = h.id;
+	uint32_t oldBytes = h.capacity;
 
-	for (uint32_t i = 0; i < h.capacity; i++)
-	{
-		tmp.push_back(buff[i]);
-	}
+	Handle newH = allocateGPUBuffer(new_size);
 
-	/* Free old Buffer */
+	glCopyNamedBufferSubData(oldID, newH.id, 0, 0, oldBytes);
+
 	freeGPUBuffer(h);
+	h = newH;
 
-	/* Allocate new Buffer */
-	h = allocateGPUBuffer(new_size);
-
-	/* Copy back the memory */
-	buff = static_cast<uint8_t*>(h.mapped_ptr);
-
-	for (uint32_t i = 0; i < tmp.size(); i++)
-	{
-		buff[i] = tmp[i];
-	}
 }
 
 void Mupfel::GPUAllocator::MemBarrier()

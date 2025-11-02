@@ -7,9 +7,12 @@ Mupfel::EventSystem::EventSystem() : current(0), next(1)
 void Mupfel::EventSystem::Update()
 {
 	/* Tick is over, clear the current EventBuffers */
-	for (const auto& e : event_map[current])
+	for (auto& e : event_buffer_array[current])
 	{
-		e.second->Clear();
+		if (e)
+		{
+			e->Clear();
+		}
 	}
 
 	/* Update the index */

@@ -11,7 +11,7 @@ namespace Mupfel {
 		virtual void OnEvent() {}
 
 		virtual void OnInit() {}
-		virtual void OnUpdate(float timestep) {}
+		virtual void OnUpdate(double timestep) {}
 		virtual void OnRender() {}
 	};
 

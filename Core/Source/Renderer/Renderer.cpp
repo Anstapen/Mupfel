@@ -29,7 +29,12 @@ static unsigned int quadVBO = 0;
 static unsigned int EBO = 0;
 static unsigned int SSBO = 0;
 
-static uint32_t ent_count = 0;
+struct Indices {
+    uint32_t transform_index;
+    uint32_t texture_index;
+};
+
+static std::unique_ptr<GPUComponentStorage<Indices>> indices = nullptr;
 
 // static Unit-Quad (centered) with pos+uv
 static const float QUAD_VERTS[] = {
@@ -71,14 +76,10 @@ void Renderer::Init()
     /* Load the texture */
     t = new Texture("Resources/simple_ball.png");
 
-    /* Register a listener to get updated */
-    Application::GetCurrentEventSystem().RegisterListener<MovementSystemUpdateEvent>(
-        [](const MovementSystemUpdateEvent& evt)
-        {
-            SSBO = evt.ssbo_id;
-            ent_count = evt.ssbo_size;
-        }
-    );
+    indices.reset(new GPUComponentStorage<Indices>(5000));
+
+    auto& reg = Application::GetCurrentRegistry();
+    reg.CreateLinkedComponentArray<Mupfel::TextureComponent>(StorageType::GPU);
 
 }
 
@@ -86,43 +87,85 @@ void Renderer::Render()
 {
     ProfilingSample prof("Renderer custom Draw Batching");
 
-    auto entity_view = Application::GetCurrentRegistry().view<TextureComponent, Transform>();
+    unsigned int transform_ssbo = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>().Id();
 
-    UpdateScreenSize();
-
-    rlEnableShader(shader.id);
-
-    int viewlLoc = glGetUniformLocation(shader.id, "view");
-    if (viewlLoc == -1)
     {
-        TraceLog(LOG_ERROR, "Could not find uniform");
-    }
-    glUniformMatrix4fv(viewlLoc, 1, GL_FALSE, glm::value_ptr(view));
+        ProfilingSample prof("Creating indices");
+        std::vector<Entity> changed_entities;
 
-    int projLoc = glGetUniformLocation(shader.id, "projection");
-    if (projLoc == -1)
+        indices->clear();
+
+        auto& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
+        auto& texture_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::TextureComponent>();
+
+        Application::GetCurrentRegistry().ParallelForEach<Mupfel::Transform, Mupfel::TextureComponent>(
+            [&transform_array, &texture_array](Entity ent, Mupfel::Transform t, Mupfel::TextureComponent tex) -> bool {
+                //Indices i = { static_cast<uint32_t>(transform_array.sparse[ent.Index()]),
+                                        //static_cast<uint32_t>(texture_array.sparse[ent.Index()]) };
+                //indices->push_back(i);
+                return true;
+            },
+            changed_entities
+        );
+
+        for (auto& e : changed_entities)
+        {
+            Indices i = { static_cast<uint32_t>(transform_array.sparse[e.Index()]),
+                                    static_cast<uint32_t>(texture_array.sparse[e.Index()]) };
+            indices->push_back(std::move(i));
+        }
+    }
+
     {
-        TraceLog(LOG_ERROR, "Could not find uniform");
+        ProfilingSample prof("Running Graphics Pipeline");
+        uint32_t entity_count = indices->size();
+
+        if (entity_count == 0)
+        {
+            return;
+        }
+
+        UpdateScreenSize();
+
+        unsigned int t_ssbo = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>().Id();
+
+        rlEnableShader(shader.id);
+
+        int viewlLoc = glGetUniformLocation(shader.id, "view");
+        if (viewlLoc == -1)
+        {
+            TraceLog(LOG_ERROR, "Could not find uniform");
+        }
+        glUniformMatrix4fv(viewlLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        int projLoc = glGetUniformLocation(shader.id, "projection");
+        if (projLoc == -1)
+        {
+            TraceLog(LOG_ERROR, "Could not find uniform");
+        }
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Textur binden:
+        // A) Einzel-Textur:
+        rlActiveTextureSlot(0);
+        rlEnableTexture(t->id);
+        int uTex = glGetUniformLocation(shader.id, "uTex");
+        if (uTex >= 0) glUniform1i(uTex, 0);
+
+        /* Update the Vertex Array Buffer and index buffer */
+        rlEnableVertexArray(VAO);
+
+        rlEnableVertexBuffer(quadVBO);
+        rlEnableVertexBufferElement(EBO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, t_ssbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, indices->Id());
+        rlDrawVertexArrayElementsInstanced(0, 6, 0, entity_count);
+
+        //rlDisableVertexArray();
+        //rlDisableShader();
     }
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Textur binden:
-    // A) Einzel-Textur:
-    rlActiveTextureSlot(0);
-    rlEnableTexture(t->id);
-    int uTex = glGetUniformLocation(shader.id, "uTex");
-    if (uTex >= 0) glUniform1i(uTex, 0);
-
-    /* Update the Vertex Array Buffer and index buffer */
-    rlEnableVertexArray(VAO);
-
-    rlEnableVertexBuffer(quadVBO);
-    rlEnableVertexBufferElement(EBO);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
-    rlDrawVertexArrayElementsInstanced(0, 6, 0, ent_count);
-
-    //rlDisableVertexArray();
-    //rlDisableShader();
+    
     
 }
 
