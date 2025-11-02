@@ -2,69 +2,91 @@
 #include "ComponentStorage.h"
 #include <vector>
 
-template <typename T>
-class CPUComponentStorage :
-    public Mupfel::ComponentStorage<T>
-{
-public:
-	CPUComponentStorage() = default;
-	virtual ~CPUComponentStorage() = default;
-	size_t size() const override;
-	void push_back(T item) override;
-	void pop_back() override;
-	const T& Read(size_t index) const override;
-	T& Read(size_t index) override;
-	void Write(size_t pos, T val) override;
-	void clear() override;
-	uint32_t Id() const override;
-private:
-	std::vector<T> vector;
-};
+namespace Mupfel {
 
-template<typename T>
-inline size_t CPUComponentStorage<T>::size() const
-{
-	return vector.size();
+	template <typename T>
+	class CPUComponentStorage :
+		public Mupfel::ComponentStorage<T>
+	{
+	public:
+		CPUComponentStorage() = default;
+		virtual ~CPUComponentStorage() = default;
+		size_t size() const override;
+		void push_back(T item) override;
+		void pop_back() override;
+		const T& Read(size_t index) const override;
+		T& Read(size_t index) override;
+		void Write(size_t pos, T val) override;
+		void clear() override;
+		uint32_t Id() const override;
+		void resize(size_t new_size) override;
+		void swap(size_t first, size_t second) override;
+	private:
+		std::vector<T> vector;
+	};
+
+	template<typename T>
+	inline size_t CPUComponentStorage<T>::size() const
+	{
+		return vector.size();
+	}
+
+	template<typename T>
+	inline void CPUComponentStorage<T>::push_back(T item)
+	{
+		vector.push_back(item);
+	}
+
+	template<typename T>
+	inline void CPUComponentStorage<T>::pop_back()
+	{
+		vector.pop_back();
+	}
+
+	template<typename T>
+	inline const T& CPUComponentStorage<T>::Read(size_t index) const
+	{
+		return vector[index];
+	}
+
+	template<typename T>
+	inline T& CPUComponentStorage<T>::Read(size_t index)
+	{
+		return vector[index];
+	}
+
+	template<typename T>
+	inline void CPUComponentStorage<T>::Write(size_t pos, T val)
+	{
+		vector[pos] = val;
+	}
+
+	template<typename T>
+	inline void CPUComponentStorage<T>::clear()
+	{
+		vector.clear();
+	}
+
+	template<typename T>
+	inline uint32_t CPUComponentStorage<T>::Id() const
+	{
+		return 0;
+	}
+
+	template<typename T>
+	inline void CPUComponentStorage<T>::resize(size_t new_size)
+	{
+		vector.resize(new_size);
+	}
+
+	template<typename T>
+	inline void CPUComponentStorage<T>::swap(size_t first, size_t second)
+	{
+		T tmp = vector[first];
+
+		vector[first] = vector[second];
+		vector[second] = tmp;
+	}
+
 }
 
-template<typename T>
-inline void CPUComponentStorage<T>::push_back(T item)
-{
-	vector.push_back(item);
-}
-
-template<typename T>
-inline void CPUComponentStorage<T>::pop_back()
-{
-	vector.pop_back();
-}
-
-template<typename T>
-inline const T& CPUComponentStorage<T>::Read(size_t index) const
-{
-	return vector[index];
-}
-
-template<typename T>
-inline T& CPUComponentStorage<T>::Read(size_t index)
-{
-	return vector[index];
-}
-
-template<typename T>
-inline void CPUComponentStorage<T>::Write(size_t pos, T val)
-{
-	vector[pos] = val;
-}
-
-template<typename T>
-inline void CPUComponentStorage<T>::clear()
-{
-	vector.clear();
-}
-
-template<typename T>
-inline uint32_t CPUComponentStorage<T>::Id() const
-{
-	return 0;
-}

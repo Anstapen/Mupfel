@@ -23,10 +23,10 @@ Entity Registry::CreateEntity() {
 	/* Update the Archetype Signature of the Entity */
 	if (entityToArchetype.size() <= e.Index()) [[unlikely]]
 	{
-		entityToArchetype.resize((entityToArchetype.size() + 1) * 2, Archetype::Signature(0x0));
+		entityToArchetype.resize((entityToArchetype.size() + 1) * 2);
 	}
 	else {
-		entityToArchetype[e.Index()] = 0x0;
+		entityToArchetype[e.Index()] = { 0x0, 0 };
 	}
 
 	/* Entity is created successfully, notify everyone */
@@ -52,7 +52,7 @@ void Registry::DestroyEntity(Entity e) {
 
 	entity_manager.DestroyEntity(e);
 	signatures[e.Index()].reset();
-	entityToArchetype[e.Index()].reset();
+	entityToArchetype[e.Index()].sig.reset();
 }
 
 uint32_t Registry::GetCurrentEntities() const {
@@ -66,6 +66,11 @@ Entity::Signature Registry::GetSignature(uint32_t index) const
 	return signatures[index];
 }
 
+uint32_t Mupfel::Registry::GetArchetypeCount(const Archetype& arch) const
+{
+	return archetypeToEntities[arch.handle].size();
+}
+
 void Mupfel::Registry::UpdateEntityArchetypes(Entity e)
 {
 	const auto& entitySig = signatures[e.Index()];
@@ -75,19 +80,20 @@ void Mupfel::Registry::UpdateEntityArchetypes(Entity e)
 		const auto& arch = archetypes[i];
 
 		bool fulfills = (entitySig & arch.comp_signature) == arch.comp_signature;
-		bool currentlyIn = entityToArchetype[e.Index()].test(i);
+		bool currentlyIn = entityToArchetype[e.Index()].sig.test(i);
 
 		if (fulfills && !currentlyIn)
 		{
-			entityToArchetype[e.Index()].set(i);
+
+			entityToArchetype[e.Index()].sig.set(i);
 			archetypeToEntities[i].push_back(e);
 
 			//evt_system.AddImmediateEvent<ArchetypeCompletedEvent>({ e, i });
-			TraceLog(LOG_INFO, "Archetype completed");
+			TraceLog(LOG_INFO, "Archetype completed, Arch Index: %u", entityToArchetype[e.Index()].index);
 		}
 		else if (!fulfills && currentlyIn)
 		{
-			entityToArchetype[e.Index()].reset(i);
+			entityToArchetype[e.Index()].sig.reset(i);
 
 			auto& vec = archetypeToEntities[i];
 			vec.erase(std::remove(vec.begin(), vec.end(), e), vec.end());

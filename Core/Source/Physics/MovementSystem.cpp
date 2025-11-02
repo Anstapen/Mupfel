@@ -22,9 +22,9 @@ struct ComponentIndices {
 
 static std::unique_ptr<GPUComponentStorage<ComponentIndices>> indices = nullptr;
 
+static Archetype *movement_archetype = nullptr;
 
-
-MovementSystem::MovementSystem(uint32_t in_max_entities)
+MovementSystem::MovementSystem(uint32_t in_max_entities) : shader_id(0)
 {
 }
 
@@ -43,11 +43,7 @@ void Mupfel::MovementSystem::Init()
 	/* Create the component buffers on the GPU */
 	auto& reg = Application::GetCurrentRegistry();
 
-	reg.SetArchetype<Transform, Velocity>();
-
-	reg.CreateLinkedComponentArray<Mupfel::Transform>(StorageType::GPU);
-
-	reg.CreateLinkedComponentArray<Mupfel::Velocity>(StorageType::GPU);
+	movement_archetype = new Archetype(reg.SetArchetype<Transform, Velocity>());
 
 	indices.reset( new GPUComponentStorage<ComponentIndices>(5000));
 }
@@ -60,6 +56,7 @@ void MovementSystem::Update(double elapsedTime)
 {
 	ProfilingSample prof("GPU based physics update");
 
+#if 0
 	{
 		ProfilingSample prof("Creating indices");
 		std::vector<Entity> changed_entities;
@@ -86,7 +83,8 @@ void MovementSystem::Update(double elapsedTime)
 			indices->push_back(std::move(ci));
 		}
 	}
-
+#endif
+#if 0
 	{
 		ProfilingSample prof("Running Movement Shader");
 		uint32_t entity_count = indices->size();
@@ -122,5 +120,5 @@ void MovementSystem::Update(double elapsedTime)
 		/* Send an Event to notify other Systems */
 		//Application::GetCurrentEventSystem().AddImmediateEvent<MovementSystemUpdateEvent>({ kinematic_ssbo, entity_count });
 	}
-	
+#endif
 }

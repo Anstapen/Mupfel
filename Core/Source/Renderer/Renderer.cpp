@@ -29,13 +29,6 @@ static unsigned int quadVBO = 0;
 static unsigned int EBO = 0;
 static unsigned int SSBO = 0;
 
-struct Indices {
-    uint32_t transform_index;
-    uint32_t texture_index;
-};
-
-static std::unique_ptr<GPUComponentStorage<Indices>> indices = nullptr;
-
 // static Unit-Quad (centered) with pos+uv
 static const float QUAD_VERTS[] = {
     //  x      y      z     u     v
@@ -76,45 +69,17 @@ void Renderer::Init()
     /* Load the texture */
     t = new Texture("Resources/simple_ball.png");
 
-    indices.reset(new GPUComponentStorage<Indices>(5000));
-
-    auto& reg = Application::GetCurrentRegistry();
-    reg.CreateLinkedComponentArray<Mupfel::TextureComponent>(StorageType::GPU);
-
 }
 
 void Renderer::Render()
 {
     ProfilingSample prof("Renderer custom Draw Batching");
 
+    
+
+#if 0
+
     unsigned int transform_ssbo = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>().Id();
-
-    {
-        ProfilingSample prof("Creating indices");
-        std::vector<Entity> changed_entities;
-
-        indices->clear();
-
-        auto& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-        auto& texture_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::TextureComponent>();
-
-        Application::GetCurrentRegistry().ParallelForEach<Mupfel::Transform, Mupfel::TextureComponent>(
-            [&transform_array, &texture_array](Entity ent, Mupfel::Transform t, Mupfel::TextureComponent tex) -> bool {
-                //Indices i = { static_cast<uint32_t>(transform_array.sparse[ent.Index()]),
-                                        //static_cast<uint32_t>(texture_array.sparse[ent.Index()]) };
-                //indices->push_back(i);
-                return true;
-            },
-            changed_entities
-        );
-
-        for (auto& e : changed_entities)
-        {
-            Indices i = { static_cast<uint32_t>(transform_array.sparse[e.Index()]),
-                                    static_cast<uint32_t>(texture_array.sparse[e.Index()]) };
-            indices->push_back(std::move(i));
-        }
-    }
 
     {
         ProfilingSample prof("Running Graphics Pipeline");
@@ -165,7 +130,7 @@ void Renderer::Render()
         //rlDisableShader();
     }
 
-    
+#endif
     
 }
 

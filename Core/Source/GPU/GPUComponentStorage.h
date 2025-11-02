@@ -18,6 +18,8 @@ namespace Mupfel {
 		void Write(size_t pos, T val) override;
 		void clear() override;
 		uint32_t Id() const override;
+		void resize(size_t new_size) override;
+		void swap(size_t first, size_t second) override;
 	private:
 		void realloc(uint32_t new_size);
 	private:
@@ -105,6 +107,27 @@ namespace Mupfel {
 	inline uint32_t GPUComponentStorage<T>::Id() const
 	{
 		return h.id;
+	}
+
+	template<typename T>
+	inline void GPUComponentStorage<T>::resize(size_t new_size)
+	{
+		if (new_size < m_size)
+		{
+			return;
+		}
+
+		realloc((new_size + 1) * sizeof(T));
+
+		m_size = new_size;
+	}
+
+	template<typename T>
+	inline void GPUComponentStorage<T>::swap(size_t first, size_t second)
+	{
+		T tmp = mem[first];
+		mem[first] = mem[second];
+		mem[second] = tmp;
 	}
 
 }

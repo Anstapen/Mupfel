@@ -10,7 +10,10 @@
 #include <vector>
 #include <algorithm>
 
+#include "ECS/Components/ComponentIndex.h"
+
 #include "Archetype.h"
+#include "ArchetypeArray.h"
 
 namespace Mupfel {
 
@@ -73,6 +76,8 @@ namespace Mupfel {
 		template<typename... Components>
 		Archetype SetArchetype();
 
+		uint32_t GetArchetypeCount(const Archetype& arch) const;
+
 		template<typename T, typename... Args>
 		void AddComponent(Entity e, Args&&... args);
 
@@ -90,40 +95,48 @@ namespace Mupfel {
 
 		template<typename T>
 		bool HasComponent(Entity e);
+
+		
+
+	private:
+
+		struct ArchetypeInfo {
+			Archetype::Signature sig = 0;
+			uint32_t index = 0;
+		};
 		
 	private:
-		template<typename T>
-		ComponentArray<T>& GetComponentArray();
-
-		template<typename T>
-		void CreateLinkedComponentArray(StorageType t);
-
 		template<typename ...Components>
 		static inline std::bitset<128> ComponentSignature()
 		{
 			std::bitset<128> sig;
-			(sig.set(ComponentIndex<Components>()), ...);
+			(sig.set(ComponentIndex::Index<Components>()), ...);
 			return sig;
 		}
 
-		template<typename T>
-		static size_t ComponentIndex() noexcept {
-			static const size_t id = comp_counter++;
-			return id;
+		static inline size_t GetComponentIndexFromSignature(const std::bitset<128>& sig)
+		{
+			for (size_t i = 0; i < sig.size(); ++i)
+			{
+				if (sig.test(i))
+					return i;
+			}
+
+			assert(false);
+			return static_cast<size_t>(-1);
 		}
 
 		template<typename T>
-		void resizeComponentBuffer();
+		ComponentArray<T>& GetComponentArray();
 
 		template<typename T>
-		void AddArchetypeToComponent(Archetype::Signature sig);
+		void resizeComponentBuffer();
 
 		void UpdateEntityArchetypes(Entity e);
 
 	private:
 		EventSystem& evt_system;
 		EntityManager entity_manager;
-		static inline size_t comp_counter = 0;
 		std::vector<Entity::Signature> signatures;
 		Entity::Signature linked_components;
 		std::vector<SafeComponentArrayPtr> component_buffer;
@@ -133,11 +146,13 @@ namespace Mupfel {
 		/* a vector of the currently registered archetypes */
 		std::vector<Archetype> archetypes;
 
+		std::vector<std::unique_ptr<IArchetypeArray>> archetype_arrays;
+
 		/* a vector for each archetype that holds the entities that currently have this archetype */
 		std::vector<std::vector<Entity>> archetypeToEntities;
 
 		/* This vector holds the Archetype signature for each entity */
-		std::vector<Archetype::Signature> entityToArchetype;
+		std::vector<ArchetypeInfo> entityToArchetype;
 
 		std::vector<Archetype::Signature> componentToArchetype;
 	};
@@ -230,11 +245,12 @@ namespace Mupfel {
 		/* Add it to the archetype vector */
 		archetypes.push_back(arch);
 
+		/* Add a new Archetype Array */
+		archetype_arrays.emplace_back(std::make_unique<ArchetypeArray>());
+
 		/* Add a new entity list for the new archetype */
 		archetypeToEntities.emplace_back();
 
-		/* Add the archetype to the components */
-		(..., (AddArchetypeToComponent<Components>(arch.arch_signature), 0));
 
 		return arch;
 	}
@@ -253,7 +269,7 @@ namespace Mupfel {
 		storage.Insert(e, component);
 
 		/* Update the Entity Signature */
-		uint32_t id = ComponentIndex<T>();
+		uint32_t id = ComponentIndex::Index<T>();
 		signatures[e.Index()].set(id);
 
 		/* Check Archetypes */
@@ -267,7 +283,7 @@ namespace Mupfel {
 	template<typename T>
 	inline void Registry::RemoveComponent(Entity e)
 	{
-		uint32_t id = ComponentIndex<T>();
+		uint32_t id = ComponentIndex::Index<T>();
 		/* Send a ComponentRemoved Event */
 		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, id, signatures[e.Index()] });
 
@@ -303,7 +319,7 @@ namespace Mupfel {
 	template<typename T>
 	inline ComponentArray<T>& Registry::GetComponentArray()
 	{
-		size_t comp_index = ComponentIndex<T>();
+		size_t comp_index = ComponentIndex::Index<T>();
 		
 		resizeComponentBuffer<T>();
 
@@ -318,23 +334,9 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline void Registry::CreateLinkedComponentArray(StorageType t)
-	{
-		size_t comp_index = ComponentIndex<T>();
-
-		resizeComponentBuffer<T>();
-
-		assert(!component_buffer[comp_index]);
-
-		SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(StorageType::GPU);
-		component_buffer[comp_index] = std::move(new_array);
-
-	}
-
-	template<typename T>
 	inline void Registry::resizeComponentBuffer()
 	{
-		size_t comp_index = ComponentIndex<T>();
+		size_t comp_index = ComponentIndex::Index<T>();
 
 		if (comp_index >= component_buffer.size())
 		{
@@ -345,17 +347,6 @@ namespace Mupfel {
 		{
 			componentToArchetype.resize(comp_index + 1);
 		}
-	}
-
-	template<typename T>
-	inline void Registry::AddArchetypeToComponent(Archetype::Signature sig)
-	{
-		size_t comp_index = ComponentIndex<T>();
-		
-		/* resize the component vectors if they are not big enough */
-		resizeComponentBuffer<T>();
-
-		componentToArchetype[comp_index] |= sig;
 	}
 
 }

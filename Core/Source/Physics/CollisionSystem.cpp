@@ -54,7 +54,7 @@ void CollisionSystem::Init()
 void CollisionSystem::Update()
 {
 
-
+#if 0
 	/* Currently we are only interested in changed positions */
 	auto& transform_array = registry.GetComponentArray<Transform>();
 
@@ -156,6 +156,7 @@ void CollisionSystem::Update()
 	}
 
 	transform_array.ClearDirtyList();
+#endif
 }
 
 void Mupfel::CollisionSystem::ToggleMultiThreading()

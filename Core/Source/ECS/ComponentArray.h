@@ -6,7 +6,6 @@
 #include "Entity.h"
 #include "Core/GUID.h"
 #include "CPUComponentStorage.h"
-#include "GPU/GPUComponentStorage.h"
 
 namespace Mupfel {
 
@@ -31,20 +30,14 @@ namespace Mupfel {
 		
 		bool Has(Entity e) const override;
 		T Get(Entity e);
-		//void Set(Entity e, const T& val);
 		void Set(Entity e, T val);
-		void MarkDirty(Entity e);
-		uint32_t Id() const;
-		const std::vector<Entity>& GetDirtyEntities() const;
-		void ClearDirtyList();
 		void Insert(Entity e, T component);
 		void Remove(Entity e) override;
 		static constexpr size_t invalid_entry = std::numeric_limits<size_t>::max();
 
 		std::vector<size_t> sparse;
 		std::vector<uint32_t> dense;
-		std::unique_ptr<ComponentStorage<T>> components;
-		std::vector<Entity> dirty_entities;
+		std::unique_ptr<CPUComponentStorage<T>> components;
 	};
 
 
@@ -117,14 +110,6 @@ namespace Mupfel {
 		return components->Read(sparse[e.Index()]);
 	}
 
-#if 0
-	template<typename T>
-	inline void ComponentArray<T>::Set(Entity e, const T& val)
-	{
-		assert(Has(e) && "Given Entity does not currently have a component of this type!");
-		components->Write(sparse[e.Index()], val);
-	}
-#endif
 	template<typename T>
 	inline void ComponentArray<T>::Set(Entity e, T val)
 	{
@@ -133,38 +118,8 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline void ComponentArray<T>::MarkDirty(Entity e)
-	{
-		dirty_entities.push_back(e);
-	}
-
-	template<typename T>
-	inline const std::vector<Entity>& ComponentArray<T>::GetDirtyEntities() const
-	{
-		return dirty_entities;
-	}
-
-	template<typename T>
-	inline void ComponentArray<T>::ClearDirtyList()
-	{
-		dirty_entities.clear();
-	}
-	template<typename T>
 	inline ComponentArray<T>::ComponentArray(StorageType t)
 	{
-		if (t == StorageType::GPU)
-		{
-			components = std::make_unique<GPUComponentStorage<T>>();
-		}
-		else {
-			components = std::make_unique<CPUComponentStorage<T>>();
-		}
-		
-	}
-
-	template<typename T>
-	inline uint32_t ComponentArray<T>::Id() const
-	{
-		return components->Id();
+		components = std::make_unique<CPUComponentStorage<T>>();
 	}
 }
