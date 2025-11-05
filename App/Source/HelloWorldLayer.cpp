@@ -57,7 +57,7 @@ void HelloWorldLayer::OnInit()
 		reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
 		reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 		reg.AddComponent<SpatialInfo>(ent, {});
-		reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
+		//reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
 	}
 
 }
@@ -124,7 +124,7 @@ void HelloWorldLayer::ProcessEvents()
 				reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
 				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 				reg.AddComponent<SpatialInfo>(ent, {});
-				reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
+				//reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
 			}
 		}
 

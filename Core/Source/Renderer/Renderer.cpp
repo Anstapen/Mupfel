@@ -6,6 +6,7 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Velocity.h"
 #include "ECS/View.h"
+#include "ECS/Registry.h"
 #include <vector>
 
 #include "glm.hpp"
@@ -19,6 +20,8 @@
 #include <algorithm>
 
 #include "Physics/MovementSystem.h"
+
+#include "Renderer/Texture.h"
 
 using namespace Mupfel;
 
@@ -75,7 +78,10 @@ void Renderer::Render()
 {
     ProfilingSample prof("Renderer custom Draw Batching");
 
-    
+    for (auto [entity, transform] : Application::GetCurrentRegistry().view<Transform>())
+    {
+        Texture::RaylibDrawTexture(*t, transform.pos.x, transform.pos.y);
+    }
 
 #if 0
 

@@ -4,14 +4,14 @@
 namespace Mupfel {
 
 	template <typename T>
-	class GPUComponentStorage;
+	class GPUComponentArray;
 
 	/**
 	 * @brief This class wraps the OpenGL Shader Buffer operations.
 	 */
 	class GPUAllocator
 	{
-		template<typename T> friend class GPUComponentStorage;
+		template<typename T> friend class GPUComponentArray;
 	public:
 		struct Handle {
 			uint32_t id;

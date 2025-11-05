@@ -1,6 +1,4 @@
 #pragma once
-#include <bitset>
-#include <cassert>
 
 namespace Mupfel {
 	class ComponentIndex

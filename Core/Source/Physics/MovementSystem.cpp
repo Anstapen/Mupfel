@@ -9,7 +9,6 @@
 #include "ECS/Registry.h"
 #include "Core/Profiler.h"
 #include <cassert>
-#include "GPU/GPUComponentStorage.h"
 #include <memory>
 
 using namespace Mupfel;
@@ -18,11 +17,6 @@ struct ComponentIndices {
 	uint32_t transform_index;
 	uint32_t velocity_index;
 };
-
-
-static std::unique_ptr<GPUComponentStorage<ComponentIndices>> indices = nullptr;
-
-static Archetype *movement_archetype = nullptr;
 
 MovementSystem::MovementSystem(uint32_t in_max_entities) : shader_id(0)
 {
@@ -43,9 +37,6 @@ void Mupfel::MovementSystem::Init()
 	/* Create the component buffers on the GPU */
 	auto& reg = Application::GetCurrentRegistry();
 
-	movement_archetype = new Archetype(reg.SetArchetype<Transform, Velocity>());
-
-	indices.reset( new GPUComponentStorage<ComponentIndices>(5000));
 }
 
 void MovementSystem::DeInit()

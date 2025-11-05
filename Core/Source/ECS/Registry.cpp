@@ -20,15 +20,6 @@ Entity Registry::CreateEntity() {
 		signatures[e.Index()] = 0x0;
 	}
 
-	/* Update the Archetype Signature of the Entity */
-	if (entityToArchetype.size() <= e.Index()) [[unlikely]]
-	{
-		entityToArchetype.resize((entityToArchetype.size() + 1) * 2);
-	}
-	else {
-		entityToArchetype[e.Index()] = { 0x0, 0 };
-	}
-
 	/* Entity is created successfully, notify everyone */
 	evt_system.AddImmediateEvent<EntityCreatedEvent>(e);
 
@@ -52,7 +43,6 @@ void Registry::DestroyEntity(Entity e) {
 
 	entity_manager.DestroyEntity(e);
 	signatures[e.Index()].reset();
-	entityToArchetype[e.Index()].sig.reset();
 }
 
 uint32_t Registry::GetCurrentEntities() const {
@@ -64,42 +54,4 @@ Entity::Signature Registry::GetSignature(uint32_t index) const
 	assert((index < signatures.size()) && "Given Entity was not created correctly!");
 
 	return signatures[index];
-}
-
-uint32_t Mupfel::Registry::GetArchetypeCount(const Archetype& arch) const
-{
-	return archetypeToEntities[arch.handle].size();
-}
-
-void Mupfel::Registry::UpdateEntityArchetypes(Entity e)
-{
-	const auto& entitySig = signatures[e.Index()];
-
-	for (size_t i = 0; i < archetypes.size(); ++i)
-	{
-		const auto& arch = archetypes[i];
-
-		bool fulfills = (entitySig & arch.comp_signature) == arch.comp_signature;
-		bool currentlyIn = entityToArchetype[e.Index()].sig.test(i);
-
-		if (fulfills && !currentlyIn)
-		{
-
-			entityToArchetype[e.Index()].sig.set(i);
-			archetypeToEntities[i].push_back(e);
-
-			//evt_system.AddImmediateEvent<ArchetypeCompletedEvent>({ e, i });
-			TraceLog(LOG_INFO, "Archetype completed, Arch Index: %u", entityToArchetype[e.Index()].index);
-		}
-		else if (!fulfills && currentlyIn)
-		{
-			entityToArchetype[e.Index()].sig.reset(i);
-
-			auto& vec = archetypeToEntities[i];
-			vec.erase(std::remove(vec.begin(), vec.end(), e), vec.end());
-
-			//evt_system.AddImmediateEvent<ArchetypeBrokenEvent>({ e, i });
-			TraceLog(LOG_INFO, "Archetype broken");
-		}
-	}
 }
