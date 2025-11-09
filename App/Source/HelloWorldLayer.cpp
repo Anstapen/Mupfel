@@ -33,35 +33,8 @@ void HelloWorldLayer::OnInit()
 	cursor = new Entity(reg.CreateEntity());
 
 	/* Add the Kinematic component to it */
-	reg.AddComponent<Transform>(*cursor, {});
-
-
-	int screen_height = Application::GetCurrentRenderHeight();
-	int screen_width = Application::GetCurrentRenderWidth();
-
-	for (uint32_t i = 0; i < 10; i++)
-	{
-		Mupfel::Entity ent = reg.CreateEntity();
-
-		current_entities.push_back(ent);
-
-		//float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
-		//float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
-
-		float pos_x = 123.0f;
-		float pos_y = 321.0f;
-
-		float ang_vel = (float)Application::GetRandomNumber(1, 1000) / 200 + 1.0f;
-
-		/* Add velocity component to the entity */
-		float vel_x = (float)Application::GetRandomNumber(50, 200);
-		float vel_y = (float)Application::GetRandomNumber(50, 200);
-		reg.AddComponent<Transform>(ent, { {pos_x, pos_y}, 32.0f, 32.0f, ang_vel });
-		reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
-		reg.AddComponent<BroadCollider>(ent, { 15, 15 });
-		reg.AddComponent<SpatialInfo>(ent, {});
-		reg.AddComponent<TextureComponent>(ent, {0});
-	}
+	reg.AddComponent<Transform>(*cursor, { 0, 0, 32.0f, 32.0f, 0.0f});
+	reg.AddComponent<TextureComponent>(*cursor, { 0 });
 
 }
 
@@ -128,8 +101,8 @@ void HelloWorldLayer::ProcessEvents()
 				/* Add velocity component to the entity */
 				float vel_x = (float)Application::GetRandomNumber(50, 200);
 				float vel_y = (float)Application::GetRandomNumber(50, 200);
-				reg.AddComponent<Transform>(ent, { {pos_x, pos_y}, 32.0f, 32.0f, ang_vel });
-				reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
+				reg.AddComponent<Transform>(ent, { {pos_x, pos_y}, 32.0f, 32.0f, 0.0f });
+				reg.AddComponent<Velocity>(ent, { vel_x, vel_y, ang_vel });
 				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 				reg.AddComponent<SpatialInfo>(ent, {});
 				reg.AddComponent<TextureComponent>(ent, {0});

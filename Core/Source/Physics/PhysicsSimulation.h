@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
 #include "CollisionSystem.h"
-#include "MovementSystem.h"
 #include "ECS/Registry.h"
 #include "Core/EventSystem.h"
 
@@ -25,7 +24,6 @@ namespace Mupfel {
 	private:
 		Registry& reg;
 		EventSystem& evt_system;
-		std::unique_ptr<MovementSystem> movement_system;
 		std::unique_ptr<CollisionSystem> collision_system;
 	};
 }

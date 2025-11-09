@@ -12,6 +12,7 @@ struct TransformData {
 
 struct VelocityData {
     vec2 vel;
+    vec2 angular; // y component of angular is padding on cpu side! dont use!
 };
 
 struct ProgramParams {
@@ -60,6 +61,9 @@ void main()
     vec2 position = transforms[tIndex].pos;
     vec2 velocity = velocities[vIndex].vel;
 
+    float angular_velocity = velocities[vIndex].angular.x;
+
+
     // Check bounds here for now
     if (position.x > 2300)
     {
@@ -86,6 +90,8 @@ void main()
     }
     velocities[vIndex].vel = velocity;
     transforms[tIndex].pos = position;
+
+    transforms[tIndex].rotation.x += angular_velocity * params.delta_time;
 
     transforms[tIndex].pos += velocities[vIndex].vel * params.delta_time;
 }

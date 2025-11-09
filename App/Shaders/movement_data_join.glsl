@@ -1,19 +1,13 @@
 #version 460
 #extension GL_ARB_gpu_shader_int64 : require
 
-// This shader fills a SSBO with the necessary data to process entities which have both a transform and veloctiy component
+// This shader is responsible to update the buffer of entities
+// that need a movement update (Entities with a Transform and Velocity component)
+// This shader gets called, when there were Transform or Velocity components removed
+// from entities this frame
+
 
 layout(local_size_x = 256) in;
-
-struct TransformData {
-    vec2 pos;
-    vec2 scale;
-    vec2 rotation; // y component of rotation is padding on cpu side! dont use!
-};
-
-struct VelocityData {
-    vec2 vel;
-};
 
 struct ProgramParams {
 	uint64_t component_mask;
@@ -23,34 +17,16 @@ struct ProgramParams {
 	float delta_time;
 };
 
-// --- Entity Signaturen (128 Bit pro Entity) ---
 layout(std430, binding = 0) readonly buffer EntitySignatures {
     uint64_t signatures[];
 };
 
-// --- Transform Arrays ---
 layout(std430, binding = 1) readonly buffer TransformSparse {
     uint transformSparse[];
 };
 
-layout(std430, binding = 2) readonly buffer TransformDense {
-    uint transformDense[];
-};
-
-layout(std430, binding = 3) readonly buffer TransformComponents {
-    TransformData transforms[];
-};
-
 layout(std430, binding = 4) readonly buffer VelocitySparse {
     uint velocitySparse[]; 
-};
-
-layout(std430, binding = 5) readonly buffer VelocityDense {
-    uint velocityDense[]; 
-};
-
-layout(std430, binding = 6) readonly buffer VelocityComponents {
-    VelocityData velocities[];
 };
 
 layout(std430, binding = 10) readonly buffer AddedEntities {
@@ -61,7 +37,6 @@ layout(std430, binding = 11) readonly buffer DeletedEntities {
     uint deleted_entities[];
 };
 
-// --- Output: Join-Ergebnisse ---
 struct ActiveEntity {
     uint e;   // Entity ID
     uint ti;  // Transform dense index
