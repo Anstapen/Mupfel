@@ -1,4 +1,5 @@
 #include "PhysicsSimulation.h"
+#include "Core/Profiler.h"
 
 
 using namespace Mupfel;
@@ -26,6 +27,14 @@ void PhysicsSimulation::DeInit()
 
 void PhysicsSimulation::Update(double elapsedTime)
 {
-	movement_system->Update(elapsedTime);
-	collision_system->Update();
+	{
+		ProfilingSample prof("Movement Update");
+		movement_system->Update(elapsedTime);
+	}
+	{
+		ProfilingSample prof("Collision Update");
+		collision_system->Update();
+	}
+	
+	
 }

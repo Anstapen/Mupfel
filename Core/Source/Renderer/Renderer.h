@@ -10,6 +10,7 @@ namespace Mupfel {
 		static void DeInit();
 	private:
 		static void UpdateScreenSize();
+		static void JoinAndRender();
 	};
 
 }

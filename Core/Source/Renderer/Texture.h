@@ -20,7 +20,8 @@ namespace Mupfel {
 	typedef std::shared_ptr< Texture> SafeTexturePointer;
 
 	struct TextureComponent {
-		SafeTexturePointer texture;
+		TextureComponent(uint64_t in_id = 0) : id(in_id) {}
+		uint64_t id;
 	};
 }
 

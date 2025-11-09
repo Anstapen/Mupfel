@@ -12,6 +12,7 @@ namespace Mupfel {
 	class GPUAllocator
 	{
 		template<typename T> friend class GPUComponentArray;
+		template<typename T> friend class GPUVector;
 	public:
 		struct Handle {
 			uint32_t id;

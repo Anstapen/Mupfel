@@ -55,17 +55,17 @@ void GPUAllocator::reallocateGPUBuffer(Handle& h, uint32_t new_size)
 		return;
 	}
 
-	GLuint oldID = h.id;
-	uint32_t oldBytes = h.capacity;
-
-	std::vector<uint8_t> tmp;
-	tmp.resize(h.capacity);
-
-	std::memcpy(tmp.data(), h.mapped_ptr, h.capacity);
-
 	Handle newH = allocateGPUBuffer(new_size);
 
-	std::memcpy(newH.mapped_ptr, tmp.data(), h.capacity);
+	/* Only copy if the previous buffer was not empty */
+	if (h.capacity > 0)
+	{
+		std::vector<uint8_t> tmp;
+		tmp.resize(h.capacity);
+
+		std::memcpy(tmp.data(), h.mapped_ptr, h.capacity);
+		std::memcpy(newH.mapped_ptr, tmp.data(), h.capacity);
+	}
 
 	//glCopyNamedBufferSubData(oldID, newH.id, 0, 0, oldBytes);
 
@@ -76,5 +76,5 @@ void GPUAllocator::reallocateGPUBuffer(Handle& h, uint32_t new_size)
 
 void Mupfel::GPUAllocator::MemBarrier()
 {
-	glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+	//glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 }

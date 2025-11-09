@@ -89,9 +89,31 @@ double Application::GetCurrentTime()
 	return GetTime();
 }
 
+void Mupfel::Application::StartFrameTime()
+{
+	Get().start_time = GetTime();
+}
+
+void Mupfel::Application::EndFrameTime()
+{
+	double current_time = GetTime();
+	double frame_time = current_time - Get().start_time;
+
+	double wait_time = (1.0f / 144.0f) - frame_time;
+
+	if (wait_time > 0.0f)
+	{
+		WaitTime((float)wait_time);
+		current_time = GetTime();
+		frame_time = (float)(current_time - Get().start_time);
+	}
+
+	Get().last_frame_time = frame_time;
+}
+
 float Mupfel::Application::GetLastFrameTime()
 {
-	return GetFrameTime();
+	return Get().last_frame_time;
 }
 
 int Mupfel::Application::GetRandomNumber(int min, int max)
@@ -134,11 +156,17 @@ ThreadPool& Mupfel::Application::GetCurrentThreadPool()
 	return Get().thread_pool;
 }
 
+
+static GLuint gpuTimerQuery = 0;
+
+
 void Application::Run()
 {
 	running = true;
 
 	double lastTime = Application::GetCurrentTime();
+
+	glGenQueries(1, &gpuTimerQuery);
 
 	/* Main Loop */
 	while (running)
@@ -148,34 +176,31 @@ void Application::Run()
 			Stop();
 			break;
 		}
+		Application::StartFrameTime();
 		ProfilingSample prof("Application::Run()");
 
 		double currentTime = Application::GetCurrentTime();
 		double timestep = std::clamp<double>(currentTime - lastTime, 0.001f, 0.1f);
 		lastTime = currentTime;
 
-		/* Check for Application related changes */
-		for (const auto& evt : evt_system.GetEvents<Mupfel::UserInputEvent>())
 		{
-			if (evt.input == UserInput::WINDOW_FULLSCREEN)
+			ProfilingSample prof("Application::Run(): Check ");
+			/* Check for Application related changes */
+			for (const auto& evt : evt_system.GetEvents<Mupfel::UserInputEvent>())
 			{
-				window.ToggleFS();
-			}
+				if (evt.input == UserInput::WINDOW_FULLSCREEN)
+				{
+					window.ToggleFS();
+				}
 
-			if (evt.input == UserInput::TOGGLE_DEBUG_MODE)
-			{
-				std::cout << "Toggled Debug Mode!" << std::endl;
-				debugModeEnabled = !debugModeEnabled;
+				if (evt.input == UserInput::TOGGLE_DEBUG_MODE)
+				{
+					std::cout << "Toggled Debug Mode!" << std::endl;
+					debugModeEnabled = !debugModeEnabled;
+				}
 			}
-		}
-
-		{
-			ProfilingSample prof("Physics Update");
-			/* Update the Collision System */
-			physics.Update(timestep);
 		}
 		
-
 		{
 			ProfilingSample prof("Layers - OnUpdate ");
 			/* Update all layers */
@@ -186,12 +211,17 @@ void Application::Run()
 			debug_layer.OnUpdate(timestep);
 		}
 		
-		
+		{
+			ProfilingSample prof("Physics Update");
+			/* Update the Collision System */
+			physics.Update(timestep);
+		}
 
-		window.StartFrame();
+		
 
 		{
 			ProfilingSample prof("Engine Renderer");
+			window.StartFrame();
 			Renderer::Render();
 		}
 		
@@ -202,22 +232,37 @@ void Application::Run()
 				layer->OnRender();
 			}
 		}
-		
 
-
-		if (debugModeEnabled)
 		{
-			/* Make sure the debug Layer is Rendered last */
-			debug_layer.OnRender();
+			ProfilingSample prof1("DebugLayer");
+
+			if (debugModeEnabled)
+			{
+				/* Make sure the debug Layer is Rendered last */
+				debug_layer.OnRender();
+				Profiler::Clear();
+			}
+
+		}
+
+		{
+			ProfilingSample prof2("EndFrame");
+			window.EndFrame();
+			
+		}
+
+		{
+			ProfilingSample prof2("Event System Update");
+			/* Update the EventSystem */
+			evt_system.Update();
 		}
 		
-
-		window.EndFrame();
-
-		/* Update the EventSystem */
-		evt_system.Update();
-		input_manager.Update(timestep);
-		Profiler::Clear();
+		{
+			ProfilingSample prof2("Input Manager Update");
+			input_manager.Update(timestep);
+		}
+		
+		Application::EndFrameTime();
 	}
 
 	/* Exited Main Loop, clean everything up */

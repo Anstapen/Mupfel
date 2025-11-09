@@ -186,6 +186,7 @@ namespace Mupfel {
 		requires std::derived_from<T, Event>
 	inline void EventSystem::AddImmediateEvent(T&& event)
 	{
+		AddEvent<T>(T(event));
 		size_t evt_index = EventIndex<T>();
 
 		auto it = listeners.find(evt_index);

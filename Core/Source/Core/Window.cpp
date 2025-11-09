@@ -1,5 +1,6 @@
 #include "Window.h"
 #include "raylib.h"
+#include "Core/Profiler.h"
 
 using namespace Mupfel;
 
@@ -28,7 +29,7 @@ bool Window::Init(const WindowSpecification& spec)
 	this->spec = spec;
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
 	InitWindow(spec.width, spec.height, spec.title.c_str());
-	SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
+	SetTargetFPS(0);
 
 	current_height = spec.height;
 	current_width = spec.width;
@@ -67,5 +68,18 @@ void Mupfel::Window::StartFrame()
 
 void Mupfel::Window::EndFrame()
 {
-	EndDrawing();
+	{
+		ProfilingSample prof("EndDrawing()");
+		EndDrawing();
+	}
+	
+	{
+		ProfilingSample prof("SwapScreenBuffer()");
+		SwapScreenBuffer();
+	}
+
+	{
+		ProfilingSample prof("PollInputEvents()");
+		PollInputEvents();
+	}
 }

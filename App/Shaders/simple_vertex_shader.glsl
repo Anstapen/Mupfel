@@ -1,31 +1,36 @@
-#version 430 core
+#version 460 core
+#extension GL_ARB_gpu_shader_int64 : require
 
 layout (location = 0) in vec3 aPos;    // Quad-Vertex (statisch)
 layout (location = 1) in vec2 aUV;     // Quad-UV (statisch)
 
-struct Transform {
+struct TransformData {
     vec2 pos;
-	vec2 scale;
-	vec2 rotation;
+    vec2 scale;
+    vec2 rotation; // y component of rotation is padding on cpu side! dont use!
 };
 
-struct Indices {
-    uint transform_index;
-    uint texture_index;
+struct TextureData {
+    uint64_t tex_id;
 };
 
-layout(std430, binding = 0) readonly buffer TransformBuffer {
-    Transform transforms[];
+layout(std430, binding = 3) readonly buffer TransformComponents {
+    TransformData transforms[];
 };
 
-layout(std430, binding = 1) readonly buffer IndexBuffer {
-    Indices indices[];
+layout(std430, binding = 6) readonly buffer TextureComponents {
+    TextureData textures[];
 };
 
-// Instance data
-//layout (location = 2) in vec2 iPos;
-//layout (location = 3) in vec2 iScale;
-//layout (location = 4) in vec2 iRotation;
+struct ActiveEntity {
+    uint e;   // Entity ID
+    uint ti;  // Transform dense index
+    uint tei;  // Texture dense index
+};
+
+layout(std430, binding = 7) buffer ActiveEntities {
+    ActiveEntity pairs[];
+};
 
 uniform mat4 view;
 uniform mat4 projection;
@@ -36,7 +41,9 @@ void main()
 {
     uint instanceID = gl_InstanceID;
 
-    uint transform_index = indices[instanceID].transform_index;
+    if(pairs[instanceID].e == 0) return;
+
+    uint transform_index = pairs[instanceID].ti;
     //uint texture_index = indices[instanceID].texture_index;
     
     vec2 rotation = transforms[transform_index].rotation;

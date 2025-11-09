@@ -10,7 +10,7 @@ namespace Mupfel {
 	class Entity
 	{
 	public:
-		using Signature = std::bitset<128>;
+		using Signature = std::bitset<64>;
 	public:
 		Entity() : index(0) {}
 		Entity(uint32_t in_index) : index(in_index) {}

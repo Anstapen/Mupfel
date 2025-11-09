@@ -33,6 +33,8 @@ namespace Mupfel {
 		void Stop();
 
 		static double GetCurrentTime();
+		static void StartFrameTime();
+		static void EndFrameTime();
 		static float GetLastFrameTime();
 		static int GetRandomNumber(int min, int max);
 		static int GetCurrentRenderWidth();
@@ -65,6 +67,8 @@ namespace Mupfel {
 		PhysicsSimulation physics;
 		ThreadPool thread_pool;
 		DebugLayer debug_layer;
+		double start_time;
+		double last_frame_time;
 	};
 }
 

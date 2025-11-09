@@ -10,6 +10,7 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+#include "GPU/GPUVector.h"
 
 #include "ECS/Components/ComponentIndex.h"
 
@@ -24,7 +25,7 @@ namespace Mupfel {
 	class ComponentAddedEvent : public Event {
 	public:
 		ComponentAddedEvent() = default;
-		ComponentAddedEvent(Entity in_e, size_t in_comp_id, Entity::Signature in_sig) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
+		ComponentAddedEvent(Entity in_e, Entity::Signature in_sig, size_t in_comp_id) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
 		virtual ~ComponentAddedEvent() = default;
 
 	public:
@@ -36,7 +37,7 @@ namespace Mupfel {
 	class ComponentRemovedEvent : public Event {
 	public:
 		ComponentRemovedEvent() = default;
-		ComponentRemovedEvent(Entity in_e, size_t in_comp_id, Entity::Signature in_sig) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
+		ComponentRemovedEvent(Entity in_e, Entity::Signature in_sig, size_t in_comp_id) : e(in_e), comp_id(in_comp_id), sig(in_sig) {};
 		virtual ~ComponentRemovedEvent() = default;
 
 	public:
@@ -88,30 +89,18 @@ namespace Mupfel {
 
 		template<typename T>
 		bool HasComponent(Entity e);
-		
-	private:
+
 		template<typename ...Components>
-		static inline std::bitset<128> ComponentSignature()
+		static inline std::bitset<64> ComponentSignature()
 		{
-			std::bitset<128> sig;
+			std::bitset<64> sig;
 			(sig.set(ComponentIndex::Index<Components>()), ...);
 			return sig;
 		}
-
-		static inline size_t GetComponentIndexFromSignature(const std::bitset<128>& sig)
-		{
-			for (size_t i = 0; i < sig.size(); ++i)
-			{
-				if (sig.test(i))
-					return i;
-			}
-
-			assert(false);
-			return static_cast<size_t>(-1);
-		}
-
+		
+	private:
 		template<typename T>
-		ComponentArray<T>& GetComponentArray();
+		GPUComponentArray<T>& GetComponentArray();
 
 		template<typename T>
 		void resizeComponentBuffer();
@@ -119,8 +108,7 @@ namespace Mupfel {
 	private:
 		EventSystem& evt_system;
 		EntityManager entity_manager;
-		std::vector<Entity::Signature> signatures;
-		Entity::Signature linked_components;
+		GPUVector<Entity::Signature> signatures;
 		std::vector<SafeComponentArrayPtr> component_buffer;
 	};
 
@@ -219,7 +207,7 @@ namespace Mupfel {
 		signatures[e.Index()].set(id);
 
 		/* Send a ComponentAdded Event */
-		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, id, signatures[e.Index()] });
+		evt_system.AddImmediateEvent<ComponentAddedEvent>({ e, signatures[e.Index()], id });
 
 	}
 
@@ -228,7 +216,7 @@ namespace Mupfel {
 	{
 		uint32_t id = ComponentIndex::Index<T>();
 		/* Send a ComponentRemoved Event */
-		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, id, signatures[e.Index()] });
+		evt_system.AddImmediateEvent<ComponentRemovedEvent>({ e, signatures[e.Index()], id });
 
 		ComponentArray<T>& storage = GetComponentArray<T>();
 		storage.Remove(e);
@@ -257,7 +245,7 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline ComponentArray<T>& Registry::GetComponentArray()
+	inline GPUComponentArray<T>& Registry::GetComponentArray()
 	{
 		size_t comp_index = ComponentIndex::Index<T>();
 		
@@ -270,7 +258,7 @@ namespace Mupfel {
 			component_buffer[comp_index] = std::move(new_array);
 		}
 
-		return *static_cast<ComponentArray<T>*>(component_buffer[comp_index].get());
+		return *static_cast<GPUComponentArray<T>*>(component_buffer[comp_index].get());
 	}
 
 	template<typename T>

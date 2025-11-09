@@ -74,13 +74,19 @@ namespace Mupfel {
 		using dense_type = uint32_t;
 		using component_type = T;
 		
-		GPUComponentArray(uint32_t capacity = 16);
+		GPUComponentArray(uint32_t capacity = 100000);
 		~GPUComponentArray() override;
 		virtual void Remove(Entity e) override;
 		virtual bool Has(Entity e) const override;
-		T Get(Entity e) override;
+		T& Get(Entity e) override;
 		void Set(Entity e, T val) override;
 		void Insert(Entity e, T component) override;
+		virtual uint32_t* GetDense() override;
+		virtual uint32_t GetDenseSize() override;
+		uint32_t GetDenseOffsetInBytes() const;
+		uint32_t GetComponentOffsetInBytes() const;
+		uint32_t GetSizeInBytes() const;
+		uint32_t GetSSBO() const;
 	private:
 		void realloc(uint32_t new_size);
 		void resizeDense(uint32_t new_capacity);
@@ -92,7 +98,8 @@ namespace Mupfel {
 		void SetSparseEntry(uint32_t index, sparse_type value);
 		uint32_t GetDenseEntry(uint32_t index) const;
 		void SetDenseEntry(uint32_t index, dense_type value);
-		const T& GetComponentEntry(uint32_t index) const;
+		T GetComponentEntry(uint32_t index) const;
+		T* GetComponentEntryPtr(uint32_t index);
 		void SetComponentEntry(uint32_t index, const component_type& comp);
 		void PushBackComponent(Entity e, const component_type& comp);
 		void PopBackComponent();
@@ -172,14 +179,16 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline T GPUComponentArray<T>::Get(Entity e)
+	inline T& GPUComponentArray<T>::Get(Entity e)
 	{
 		assert(e.Index() < SparseCapacity());
 		assert(GetSparseEntry(e.Index()) != invalid_entry_32bit && "Entity does not have a component!");
 
 		uint32_t dense_index = GetSparseEntry(e.Index());
 
-		return GetComponentEntry(dense_index);
+		T& value = *GetComponentEntryPtr(dense_index);
+
+		return *GetComponentEntryPtr(dense_index);
 	}
 
 	template<typename T>
@@ -212,6 +221,44 @@ namespace Mupfel {
 		assert(GetSparseEntry(e.Index()) == invalid_entry_32bit && "Entity already has a component of this type!");
 
 		PushBackComponent(e, component);
+	}
+
+	template<typename T>
+	inline uint32_t* GPUComponentArray<T>::GetDense()
+	{
+		uint8_t* base_ptr = static_cast<uint8_t*>(h.mapped_ptr);
+		base_ptr += dense_offset_in_bytes;
+		return reinterpret_cast<uint32_t*>(base_ptr);
+	}
+
+	template<typename T>
+	inline uint32_t GPUComponentArray<T>::GetDenseSize()
+	{
+		return dense_size;
+	}
+
+	template<typename T>
+	inline uint32_t GPUComponentArray<T>::GetDenseOffsetInBytes() const
+	{
+		return dense_offset_in_bytes;
+	}
+
+	template<typename T>
+	inline uint32_t GPUComponentArray<T>::GetComponentOffsetInBytes() const
+	{
+		return component_offset_in_bytes;
+	}
+
+	template<typename T>
+	inline uint32_t GPUComponentArray<T>::GetSizeInBytes() const
+	{
+		return array_size_in_bytes;
+	}
+
+	template<typename T>
+	inline uint32_t GPUComponentArray<T>::GetSSBO() const
+	{
+		return h.id;
 	}
 
 	template<typename T>
@@ -383,7 +430,7 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline const T& GPUComponentArray<T>::GetComponentEntry(uint32_t index) const
+	inline T GPUComponentArray<T>::GetComponentEntry(uint32_t index) const
 	{
 		assert(index < dense_size);
 		uint8_t* base_ptr = static_cast<uint8_t*>(h.mapped_ptr);
@@ -394,6 +441,16 @@ namespace Mupfel {
 	}
 
 	template<typename T>
+	inline T* GPUComponentArray<T>::GetComponentEntryPtr(uint32_t index)
+	{
+		assert(index < dense_size);
+		uint8_t* base_ptr = static_cast<uint8_t*>(h.mapped_ptr);
+		base_ptr += component_offset_in_bytes;
+		auto ptr = reinterpret_cast<component_type*>(base_ptr);
+		return &ptr[index];
+	}
+
+	template<typename T>
 	inline void GPUComponentArray<T>::SetComponentEntry(uint32_t index, const component_type& comp)
 	{
 		assert(index <= dense_size);
@@ -401,6 +458,8 @@ namespace Mupfel {
 		base_ptr += component_offset_in_bytes;
 		component_type* component_ptr = reinterpret_cast<component_type*>(base_ptr);
 
+		//component_type* tmp_comp = const_cast<component_type*>(&comp);
+		//std::memcpy(tmp_comp, &component_ptr[index], sizeof(component_type));
 		component_ptr[index] = comp;
 	}
 

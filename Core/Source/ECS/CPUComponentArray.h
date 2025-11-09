@@ -14,7 +14,9 @@ namespace Mupfel {
 		~CPUComponentArray() override = default;
 		virtual void Remove(Entity e) override;
 		virtual bool Has(Entity e) const override;
-		T Get(Entity e) override;
+		virtual uint32_t* GetDense() override;
+		virtual uint32_t GetDenseSize() override;
+		T& Get(Entity e) override;
 		void Set(Entity e, T val) override;
 		void Insert(Entity e, T component) override;
 	private:
@@ -85,7 +87,19 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline T CPUComponentArray<T>::Get(Entity e)
+	inline uint32_t* CPUComponentArray<T>::GetDense()
+	{
+		return dense.data();
+	}
+
+	template<typename T>
+	inline uint32_t CPUComponentArray<T>::GetDenseSize()
+	{
+		return dense.size();
+	}
+
+	template<typename T>
+	inline T& CPUComponentArray<T>::Get(Entity e)
 	{
 		assert(Has(e) && "Given Entity does not currently have a component of this type!");
 

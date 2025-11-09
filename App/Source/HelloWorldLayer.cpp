@@ -45,8 +45,11 @@ void HelloWorldLayer::OnInit()
 
 		current_entities.push_back(ent);
 
-		float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
-		float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
+		//float pos_x = (float)Application::GetRandomNumber(1, screen_width - 1);
+		//float pos_y = (float)Application::GetRandomNumber(1, screen_height - 1);
+
+		float pos_x = 123.0f;
+		float pos_y = 321.0f;
 
 		float ang_vel = (float)Application::GetRandomNumber(1, 1000) / 200 + 1.0f;
 
@@ -57,7 +60,7 @@ void HelloWorldLayer::OnInit()
 		reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
 		reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 		reg.AddComponent<SpatialInfo>(ent, {});
-		//reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
+		reg.AddComponent<TextureComponent>(ent, {0});
 	}
 
 }
@@ -91,11 +94,16 @@ void HelloWorldLayer::ProcessEvents()
 		/* If Left-Mouseclick is pressed, iterate over the entities */
 		if (evt.input == Mupfel::UserInput::LEFT_MOUSE_CLICK)
 		{
-			if (current_entities.size() > 0)
+			
+			for (uint32_t i = 0; i < entities_per_frame; i++)
 			{
+				if (current_entities.size() <= 0)
+				{
+					break;
+				}
 				Entity ent = current_entities.back();
 				current_entities.pop_back();
-				reg.RemoveComponent<Velocity>(ent);
+				reg.DestroyEntity(ent);
 			}
 		}
 
@@ -112,7 +120,7 @@ void HelloWorldLayer::ProcessEvents()
 
 				current_entities.push_back(ent);
 
-				float pos_x = (float)Application::GetRandomNumber(300, 2300);
+				float pos_x = (float)Application::GetRandomNumber(500, 2300);
 				float pos_y = (float)Application::GetRandomNumber(50, 1400);
 
 				float ang_vel = (float)Application::GetRandomNumber(1, 1000) / 200 + 1.0f;
@@ -124,7 +132,7 @@ void HelloWorldLayer::ProcessEvents()
 				reg.AddComponent<Velocity>(ent, { vel_x, vel_y });
 				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 				reg.AddComponent<SpatialInfo>(ent, {});
-				//reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
+				reg.AddComponent<TextureComponent>(ent, {0});
 			}
 		}
 
