@@ -9,7 +9,7 @@ namespace Mupfel {
 	
     /**
      * @brief This class provides Compile-Time Hashing of
-     * Strings which is used to a great extend in this library.
+     * Strings.
      */
     class Hash {
     public:

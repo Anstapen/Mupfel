@@ -30,7 +30,7 @@ namespace Mupfel {
 	/**
 	 * @brief The EventBuffer class that actually be instantiated.
 	 * It basically just wraps a vector of the given type T.
-	 * @tparam T 
+	 * @tparam T The Event type that the buffer should hold.
 	 */
 	template<typename T>
 		requires std::derived_from<T, Event>
@@ -50,7 +50,16 @@ namespace Mupfel {
 		 */
 		void Add(T &&event);
 
+		/**
+		 * @brief Retrieve the begin iterator of the underlying vector.
+		 * @return begin iterator.
+		 */
 		const_iterator begin() const { return event_buf.begin(); }
+
+		/**
+		 * @brief Retrieve the end iterator of the underlying vector.
+		 * @return end iterator.
+		 */
 		const_iterator end() const { return event_buf.end(); }
 
 		/**

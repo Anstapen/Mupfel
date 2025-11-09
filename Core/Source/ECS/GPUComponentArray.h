@@ -341,14 +341,6 @@ namespace Mupfel {
 		std::memset(sparse_ptr + old_sparse_bytes, invalid_entry_8bit, new_sparse_bytes);
 
 		auto test_ptr = static_cast<uint32_t*>(h.mapped_ptr);
-		/* Check memory */
-		for (uint32_t i = (old_sparse_bytes / 4) - 1000; i < (old_sparse_bytes / 4) + 1000; i++)
-		{
-			if (test_ptr[i] != invalid_entry_32bit)
-			{
-				//printf("Entry %u: %u\n", i, test_ptr[i]);
-			}
-		}
 
 		/* Copy the dense and component data back */
 		mapped_ptr_in_bytes = static_cast<uint8_t*>(h.mapped_ptr);
@@ -392,8 +384,6 @@ namespace Mupfel {
 		sparse_type* sparse_ptr = static_cast<sparse_type*>(h.mapped_ptr);
 
 		uint32_t value = sparse_ptr[index];
-
-		//printf("GetSparseEntry: %u\n", value);
 
 		return sparse_ptr[index];
 	}
@@ -458,8 +448,6 @@ namespace Mupfel {
 		base_ptr += component_offset_in_bytes;
 		component_type* component_ptr = reinterpret_cast<component_type*>(base_ptr);
 
-		//component_type* tmp_comp = const_cast<component_type*>(&comp);
-		//std::memcpy(tmp_comp, &component_ptr[index], sizeof(component_type));
 		component_ptr[index] = comp;
 	}
 

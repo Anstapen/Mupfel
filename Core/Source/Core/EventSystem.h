@@ -24,7 +24,9 @@ namespace Mupfel {
 	 * Every Event only exists for one frame, specifically the frame after the one in
 	 * which it gets added.
 	 * 
-	 * Support for synchronous event handling will probably be added in the future.
+	 * Also, the Event System supports synchronous Events, that other systems can
+	 * subscribe to. Whenever an Event gets issued using AddImmediateEvent, all 
+	 * registered callbacks for that Event are executed.
 	 */
 	class EventSystem {
 	public:
@@ -46,6 +48,10 @@ namespace Mupfel {
 		 */
 		void Update();
 
+		/**
+		 * @brief Retrieve the number of events that were issued last frame.
+		 * @return events last frame.
+		 */
 		uint64_t GetLastEventCount() const;
 
 		/**
@@ -58,6 +64,12 @@ namespace Mupfel {
 			requires std::derived_from<T, Event>
 		void AddEvent(T &&event);
 
+		/**
+		 * @brief Add an Immediate Event which synchronously calls all registered
+		 * callbacks. Additionally, the Event is queued in the Event Queue.
+		 * @tparam T The event type.
+		 * @param event The event that will be added.
+		 */
 		template<typename T>
 			requires std::derived_from<T, Event>
 		void AddImmediateEvent(T&& event);
@@ -103,20 +115,42 @@ namespace Mupfel {
 			-> std::ranges::subrange<typename EventBuffer<T>::const_iterator,
 			typename EventBuffer<T>::const_iterator>;
 
+		/**
+		 * @brief Register an event callback for the given event type.
+		 * @tparam T the event type for which the callback shall be registered.
+		 * @param callback the callback.
+		 */
 		template<typename T>
 		void RegisterListener(std::function<void(const T&)> callback);
 
+		/**
+		 * @brief Retrieve the ID for the given Event type.
+		 * @tparam T the event type.
+		 * @return The ID of the given Event Type.
+		 */
 		template<typename T>
 			requires std::derived_from<T, Event>
 		size_t EventTypeToID();
 
 	private:
+
+		/**
+		 * @brief Returns the index for the given event type.
+		 * @tparam T event type.
+		 * @return index.
+		 */
 		template<typename T>
 		static size_t EventIndex() noexcept {
 			static const size_t id = evt_counter++;
 			return id;
 		}
 
+		/**
+		 * @brief Check whether the given buffer entry exists.
+		 * @tparam T the buffer to check.
+		 * @param buffer_index the index to check.
+		 * @return true if the entry exists, false otherwise
+		 */
 		template<typename T>
 			requires std::derived_from<T, Event>
 		bool EventBufferEntryExists(uint32_t buffer_index) const;
@@ -154,8 +188,14 @@ namespace Mupfel {
 		 */
 		static inline size_t evt_counter = 0;
 
+		/**
+		 * @brief The type of callback that can be registered for event.
+		 */
 		using EventCallback = std::function<void(const Event&)>;
 
+		/**
+		 * @brief A map of callbacks for all given events.
+		 */
 		std::unordered_map<uint64_t, std::vector<EventCallback>> listeners;
 	};
 

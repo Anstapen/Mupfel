@@ -5,8 +5,16 @@
 
 using namespace Mupfel;
 
+/**
+ * @brief Thread-local variable that tracks current nesting depth
+ * of profiling samples per thread. Each nested ProfilingSample increases
+ * this value; it is decremented when samples go out of scope.
+ */
 thread_local uint32_t scope = 0;
 
+/**
+ * @brief Global sample counter used to assign unique IDs to profiling samples.
+ */
 static uint32_t sample_id = 0;
 
 ProfilingSample::ProfilingSample(std::string_view in_name) : name(in_name), active(true), depth(0), end_time(0.0f), id(0)

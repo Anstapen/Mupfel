@@ -216,25 +216,43 @@ namespace Mupfel {
         TOGGLE_DEBUG_MODE
 	};
 
-	/**
-	 * @brief This Event class is used to propagate events that
-     * are triggered by User input (Mouse, Keyboard or Gamepad).
-	 */
+    /**
+     * @brief Event class representing an input action triggered by the user.
+     *
+     * This event type is generated whenever a mapped key, mouse button,
+     * or gamepad button is pressed, or when the cursor position changes.
+     */
 	class UserInputEvent : public Event {
 	public:
+        /**
+         * @brief Default constructor. Creates a UserInputEvent with no active input.
+         */
 		UserInputEvent();
+
+        /**
+         * @brief Constructs a UserInputEvent for the given user input.
+         * @param in_input The type of user input that occurred.
+         */
 		UserInputEvent(UserInput in_input);
+
+		/**
+		 * @brief Default Destructor.
+		 */
 		virtual ~UserInputEvent() = default;
 
 	public:
+        /** @brief The user input action represented by this event. */
         UserInput input;
 	};
 
-	/**
-	 * @brief The Input Manager is responsible for scanning the User
-     * Input Devices every frame and issuing UserInputEvents depending on
-     * the stored Mapping.
-	 */
+    /**
+     * @brief The InputManager handles user input from the keyboard, mouse, and gamepad.
+     *
+     * It scans input devices each frame and generates corresponding
+     * UserInputEvent instances that are pushed into the EventSystem.
+     * 
+     * Which UserInputEvent is issued is based on a mapping that can be edited at runtime.
+     */
 	class InputManager {
 	public:
 		/**
@@ -246,11 +264,11 @@ namespace Mupfel {
 		};
 
 	public:
-		/**
-		 * @brief Constructor.
-		 * @param evt_system The Event System to which new events shall be added.
-		 * @param in_mode The Mode of the Input Manager, default is Mouse + Keyboard.
-		 */
+        /**
+         * @brief Constructs the Input Manager and initializes default mappings.
+         * @param evt_system Reference to the global EventSystem.
+         * @param in_mode The active input mode (default: Mouse + Keyboard).
+         */
 		InputManager(EventSystem& evt_system, Mode in_mode = Mode::MOUSE_KEYBOARD);
 
 		/**
@@ -258,23 +276,30 @@ namespace Mupfel {
 		 */
 		virtual ~InputManager() = default;
 
-		/**
-		 * @brief Scans the Input devices and creates events.
-         * @note This function should be called once every frame.
-		 * @param elapsedTime Time since the last frame.
-		 */
+        /**
+         * @brief Scans all input devices and issues input events accordingly.
+         * @note This should be called once per frame.
+         * @param elapsedTime The time (in seconds) since the previous frame.
+         */
 		void Update(double elapsedTime);
 
+        /**
+         * @brief Returns the current X position of the mouse cursor.
+         * @return The X coordinate of the cursor in screen space.
+         */
         float GetCurrentCursorX() const;
 
+        /**
+         * @brief Returns the current Y position of the mouse cursor.
+         * @return The Y coordinate of the cursor in screen space.
+         */
         float GetCurrentCursorY() const;
 
-		/**
-		 * @brief Maps the given key so that the given UserInputEvent is triggered
-         * when the key is pressed.
-		 * @param key The key that should trigger the event.
-		 * @param new_input The event to be triggered.
-		 */
+        /**
+         * @brief Maps a keyboard key to trigger a specific UserInput event.
+         * @param key The keyboard key to map.
+         * @param new_input The user input event to trigger when the key is pressed.
+         */
 		void MapKeyboardButton(Key key, UserInput new_input);
 
 		/**
@@ -304,16 +329,38 @@ namespace Mupfel {
 		 */
 		void UpdateCursor();
 
+        /**
+         * @brief Updates the state of all mouse buttons.
+         *
+         * Iterates through all supported mouse buttons and triggers
+         * corresponding input events for any button presses detected.
+         */
         void UpdateMouseButtons();
 
+        /**
+         * @brief Updates the state of a specific mouse button.
+         * @param b The mouse button to check.
+         *
+         * If the given mouse button is pressed or held, the corresponding
+         * mapped UserInput event is triggered.
+         */
         void UpdateMouseButton(MouseButton b);
 
 	private:
-		Mode current_mode;
-		EventSystem& event_system;
-		std::array<UserInputEvent, 512> keyboard_map;
-		std::array<UserInputEvent, 16> mouse_map;
-		std::array<UserInputEvent, 32> gamepad_map;
+        /** @brief The active input mode (Mouse + Keyboard or Gamepad). */
+        Mode current_mode;
+
+        /** @brief Reference to the EventSystem used to dispatch input events. */
+        EventSystem& event_system;
+
+        /** @brief Mapping of keyboard keys to input events. */
+        std::array<UserInputEvent, 512> keyboard_map;
+
+        /** @brief Mapping of mouse buttons to input events. */
+        std::array<UserInputEvent, 16> mouse_map;
+
+        /** @brief Mapping of gamepad buttons to input events. */
+        std::array<UserInputEvent, 32> gamepad_map;
 	};
 
 }

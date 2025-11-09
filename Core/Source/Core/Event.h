@@ -13,9 +13,20 @@ namespace Mupfel {
 	class Event
 	{
 	public:
+		/**
+		 * @brief Destructor.
+		 */
 		virtual ~Event() = default;
+
+		/**
+		 * @brief Returns the event timestamp.
+		 * @return event timestamp.
+		 */
 		float GetTimeStamp() const;
 	protected:
+		/**
+		 * @brief Timestamp of the Event.
+		 */
 		float ts= 0.0f;
 	};
 

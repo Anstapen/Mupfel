@@ -68,18 +68,5 @@ void Mupfel::Window::StartFrame()
 
 void Mupfel::Window::EndFrame()
 {
-	{
-		ProfilingSample prof("EndDrawing()");
-		EndDrawing();
-	}
-	
-	{
-		ProfilingSample prof("SwapScreenBuffer()");
-		SwapScreenBuffer();
-	}
-
-	{
-		ProfilingSample prof("PollInputEvents()");
-		PollInputEvents();
-	}
+	EndDrawing();
 }
