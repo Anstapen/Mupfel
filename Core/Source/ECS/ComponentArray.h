@@ -1,5 +1,6 @@
 #pragma once
 #include "Entity.h"
+#include <cstdint>
 
 namespace Mupfel {
 
@@ -8,8 +9,7 @@ namespace Mupfel {
 		virtual ~IComponentArray() = default;
 		virtual void Remove(Entity e) = 0;
 		virtual bool Has(Entity e) const = 0;
-		virtual uint32_t * GetDense() = 0;
-		virtual uint32_t GetDenseSize() = 0;
+		virtual uint32_t Size() = 0;
 		static constexpr size_t invalid_entry = std::numeric_limits<size_t>::max();
 	};
 

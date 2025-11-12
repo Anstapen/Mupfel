@@ -5,7 +5,7 @@
 
 using namespace Mupfel;
 
-static constexpr GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+static constexpr GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_READ_BIT;
 
 GPUAllocator::Handle GPUAllocator::allocateGPUBuffer(uint32_t size)
 {

@@ -58,38 +58,7 @@ void main()
     uint tIndex = pairs[idx].ti;
     uint vIndex = pairs[idx].vi;
 
-    vec2 position = transforms[tIndex].pos;
-    vec2 velocity = velocities[vIndex].vel;
-
     float angular_velocity = velocities[vIndex].angular.x;
-
-
-    // Check bounds here for now
-    if (position.x > 2300)
-    {
-        position.x = 2299;
-        velocity.x *= -1.0;
-    }
-
-    if (position.x < 500)
-    {
-        position.x = 501;
-        velocity.x *= -1.0;
-    }
-
-    if (position.y > 1400)
-    {
-        position.y = 1399;
-        velocity.y *= -1.0;
-    }
-
-    if (position.y < 50)
-    {
-        position.y = 51;
-        velocity.y *= -1.0;
-    }
-    velocities[vIndex].vel = velocity;
-    transforms[tIndex].pos = position;
 
     transforms[tIndex].rotation.x += angular_velocity * params.delta_time;
 

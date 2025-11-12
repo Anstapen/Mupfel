@@ -12,8 +12,6 @@ struct TransformData {
 
 struct TextureData {
     uint64_t tex_id;
-    uint64_t pad1;
-    uint64_t pad2;
 };
 
 layout(std430, binding = 3) readonly buffer TransformComponents {

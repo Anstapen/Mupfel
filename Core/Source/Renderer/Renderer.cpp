@@ -295,25 +295,21 @@ void Mupfel::Renderer::UpdateScreenSize()
 
 void Mupfel::Renderer::JoinAndRender()
 {
-    GPUComponentArray<Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Transform>();
+    GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
     GPUComponentArray<TextureComponent>& texture_array = Application::GetCurrentRegistry().GetComponentArray<TextureComponent>();
 
     ProgramParams params{};
     glGetNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
-    params.active_entities = transform_array.GetDenseSize();
+    params.active_entities = transform_array.Size();
     glNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, frameParamsSSBO);
 
     /* Bind the Transform Component Array to slot 3 */
-    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetSSBO(),
-        transform_array.GetComponentOffsetInBytes(),
-        transform_array.GetSizeInBytes() - transform_array.GetComponentOffsetInBytes());
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
 
     /* Bind the Texture Component Array to slot 6 */
-    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 6, texture_array.GetSSBO(),
-        texture_array.GetComponentOffsetInBytes(),
-        texture_array.GetSizeInBytes() - texture_array.GetComponentOffsetInBytes());
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, texture_array.GetComponentSSBO());
 
     /* Bind the Active Pairs Array to slot 7 */
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
@@ -332,11 +328,11 @@ void Mupfel::Renderer::JoinAndRender()
                 As an active entity needs to have both transform and veloctiy,
                 the min of both arrays is the maximum number of active entities this frame.
             */
-            uint32_t max_active_pairs = std::min<uint32_t>(transform_array.GetDenseSize(), texture_array.GetDenseSize());
+            uint32_t max_active_pairs = std::min<uint32_t>(transform_array.Size(), texture_array.Size());
 
-            if (transform_array.GetDenseSize() >= active_entities->size())
+            if (transform_array.Size() >= active_entities->size())
             {
-                active_entities->resize(transform_array.GetDenseSize() * 2, { 0, 0, 0 });
+                active_entities->resize(transform_array.Size() * 2, { 0, 0, 0 });
             }
 
             ProgramParams params{};
@@ -351,22 +347,16 @@ void Mupfel::Renderer::JoinAndRender()
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, signatureBuffer);
 
             /* Bind the Transform Sparse Array to slot 1 */
-            glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSSBO(),
-                0, transform_array.GetDenseOffsetInBytes());
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSparseSSBO());
 
             /* Bind the Transform Dense Array to slot 2 */
-            glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 2, transform_array.GetSSBO(),
-                transform_array.GetDenseOffsetInBytes(),
-                transform_array.GetComponentOffsetInBytes() - transform_array.GetDenseOffsetInBytes());
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, transform_array.GetDenseSSBO());
 
             /* Bind the Texture Sparse Array to slot 4 */
-            glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 4, texture_array.GetSSBO(),
-                0, texture_array.GetDenseOffsetInBytes());
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, texture_array.GetSparseSSBO());
 
             /* Bind the Texture Dense Array to slot 5 */
-            glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 5, texture_array.GetSSBO(),
-                texture_array.GetDenseOffsetInBytes(),
-                texture_array.GetComponentOffsetInBytes() - texture_array.GetDenseOffsetInBytes());
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, texture_array.GetDenseSSBO());
 
             /* Bind the Added Entities Array to slot 10 */
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, added_entities->GetSSBOID());

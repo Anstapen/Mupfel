@@ -235,26 +235,24 @@ void Mupfel::MovementSystem::Join()
 
 	/* Get the needed buffers from the current Registry */
 	uint32_t signatureBuffer = Application::GetCurrentRegistry().signatures.GetSSBOID();
-	GPUComponentArray<Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Transform>();
-	GPUComponentArray<Velocity>& velocity_array = Application::GetCurrentRegistry().GetComponentArray<Velocity>();
+	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
+	GPUComponentArray<Mupfel::Velocity>& velocity_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Velocity>();
 
 	/* Do we need to resize the active entity buffer? */
-	if (transform_array.GetDenseSize() >= active_entities->size())
+	if (transform_array.Size() >= active_entities->size())
 	{
 		/* Resize the active entity buffer */
-		active_entities->resize(transform_array.GetDenseSize() * 2, { 0, 0, 0 });
+		active_entities->resize(transform_array.Size() * 2, { 0, 0, 0 });
 	}
 
 	/* Bind the Entity Signature Array to slot 0 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, signatureBuffer);
 
 	/* Bind the Transform Sparse Array to slot 1 */
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSSBO(),
-		0, transform_array.GetDenseOffsetInBytes());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSparseSSBO());
 
 	/* Bind the Velocity Sparse Array to slot 4 */
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 4, velocity_array.GetSSBO(),
-		0, velocity_array.GetDenseOffsetInBytes());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, velocity_array.GetSparseSSBO());
 
 	/* Bind the Active Pairs Array to slot 7 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
@@ -287,18 +285,14 @@ void Mupfel::MovementSystem::Move(double elapsedTime)
 	glUseProgram(movement_update_shader_id);
 
 	/* Get the needed buffers from the current Registry */
-	GPUComponentArray<Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Transform>();
-	GPUComponentArray<Velocity>& velocity_array = Application::GetCurrentRegistry().GetComponentArray<Velocity>();
+	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
+	GPUComponentArray<Mupfel::Velocity>& velocity_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Velocity>();
 
 	/* Bind the Transform Component Array to slot 3 */
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetSSBO(),
-		transform_array.GetComponentOffsetInBytes(),
-		transform_array.GetSizeInBytes() - transform_array.GetComponentOffsetInBytes());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
 
 	/* Bind the Velocity Component Array to slot 6 */
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 6, velocity_array.GetSSBO(),
-		velocity_array.GetComponentOffsetInBytes(),
-		velocity_array.GetSizeInBytes() - velocity_array.GetComponentOffsetInBytes());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, velocity_array.GetComponentSSBO());
 
 	/* Bind the Active Pairs Array to slot 7 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
@@ -307,14 +301,14 @@ void Mupfel::MovementSystem::Move(double elapsedTime)
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, programParamsSSBO);
 
 	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-	GLuint moveGroups = (transform_array.GetDenseSize() + 255) / 256;
+	GLuint moveGroups = (transform_array.Size() + 255) / 256;
 	glDispatchCompute(moveGroups, 1, 1);
 	glFinish();
 }
 
 void Mupfel::MovementSystem::SetProgramParams(double elapsedTime)
 {
-	GPUComponentArray<Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Transform>();
+	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
 
 	/* Update the Shader Program parameters for the GPU */
 	ProgramParams params{};
@@ -323,7 +317,7 @@ void Mupfel::MovementSystem::SetProgramParams(double elapsedTime)
 	params.component_mask = static_cast<uint64_t>(wanted_comp_sig.to_ulong());
 	params.entities_added = entities_added_this_frame;
 	params.entities_deleted = entities_deleted_this_frame;
-	params.active_entities = transform_array.GetDenseSize();
+	params.active_entities = transform_array.Size();
 	params.delta_time = elapsedTime;
 
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);

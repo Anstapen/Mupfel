@@ -34,7 +34,7 @@ void HelloWorldLayer::OnInit()
 
 	/* Add the Kinematic component to it */
 	reg.AddComponent<Transform>(*cursor, { 0, 0, 32.0f, 32.0f, 0.0f});
-	reg.AddComponent<TextureComponent>(*cursor, TextureManager::LoadTextureFromFile(ball_texture_path));
+	reg.AddComponent<TextureComponent>(*cursor, {});
 
 }
 
@@ -105,7 +105,7 @@ void HelloWorldLayer::ProcessEvents()
 				reg.AddComponent<Velocity>(ent, { vel_x, vel_y, ang_vel });
 				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 				reg.AddComponent<SpatialInfo>(ent, {});
-				reg.AddComponent<TextureComponent>(ent, TextureManager::LoadTextureFromFile(ball_texture_path));
+				reg.AddComponent<TextureComponent>(ent, {});
 			}
 		}
 
