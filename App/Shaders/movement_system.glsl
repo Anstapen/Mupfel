@@ -7,12 +7,12 @@ layout(local_size_x = 256) in;
 struct TransformData {
     vec3 pos;
     vec2 scale;
-    float rotation; // y component of rotation is padding on cpu side! dont use!
+    float rotation;
 };
 
 struct VelocityData {
     vec3 vel;
-    float angular; // y component of angular is padding on cpu side! dont use!
+    float angular; 
 };
 
 struct ProgramParams {
