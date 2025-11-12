@@ -5,9 +5,9 @@
 layout(local_size_x = 256) in;
 
 struct TransformData {
-    vec2 pos;
+    vec3 pos;
     vec2 scale;
-    vec2 rotation; // y component of rotation is padding on cpu side! dont use!
+    float rotation; // y component of rotation is padding on cpu side! dont use!
 };
 
 struct VelocityData {
@@ -60,7 +60,7 @@ void main()
 
     float angular_velocity = velocities[vIndex].angular.x;
 
-    transforms[tIndex].rotation.x += angular_velocity * params.delta_time;
+    transforms[tIndex].rotation += angular_velocity * params.delta_time;
 
-    transforms[tIndex].pos += velocities[vIndex].vel * params.delta_time;
+    transforms[tIndex].pos.xy += velocities[vIndex].vel * params.delta_time;
 }

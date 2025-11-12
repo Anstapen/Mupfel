@@ -5,9 +5,9 @@ layout (location = 0) in vec3 aPos;    // Quad-Vertex (statisch)
 layout (location = 1) in vec2 aUV;     // Quad-UV (statisch)
 
 struct TransformData {
-    vec2 pos;
+    vec3 pos;
     vec2 scale;
-    vec2 rotation; // y component of rotation is padding on cpu side! dont use!
+    float rotation;
 };
 
 struct TextureData {
@@ -46,8 +46,8 @@ void main()
     uint transform_index = pairs[instanceID].ti;
     //uint texture_index = indices[instanceID].texture_index;
     
-    vec2 rotation = transforms[transform_index].rotation;
-    vec2 position = transforms[transform_index].pos;
+    float rotation = transforms[transform_index].rotation;
+    vec2 position = transforms[transform_index].pos.xy;
     vec2 scale = transforms[transform_index].scale;
     // 2D Rotation Matrix
     float c = cos(rotation.x);

@@ -33,7 +33,13 @@ void HelloWorldLayer::OnInit()
 	cursor = new Entity(reg.CreateEntity());
 
 	/* Add the Kinematic component to it */
-	reg.AddComponent<Transform>(*cursor, { 0, 0, 32.0f, 32.0f, 0.0f});
+	Transform t;
+	t.pos_x = 0.0f;
+	t.pos_y = 0.0f;
+	t.scale_x = 32.0f;
+	t.scale_y = 32.0f;
+	t.rotation = 0.0f;
+	reg.AddComponent<Transform>(*cursor, t);
 	reg.AddComponent<TextureComponent>(*cursor, {});
 
 }
@@ -101,7 +107,13 @@ void HelloWorldLayer::ProcessEvents()
 				/* Add velocity component to the entity */
 				float vel_x = (float)Application::GetRandomNumber(50, 200);
 				float vel_y = (float)Application::GetRandomNumber(50, 200);
-				reg.AddComponent<Transform>(ent, { {pos_x, pos_y}, 32.0f, 32.0f, 0.0f });
+				Transform t;
+				t.pos_x = pos_x;
+				t.pos_y = pos_y;
+				t.scale_x = 32.0f;
+				t.scale_y = 32.0f;
+				t.rotation = 0.0f;
+				reg.AddComponent<Transform>(ent, t);
 				reg.AddComponent<Velocity>(ent, { vel_x, vel_y, ang_vel });
 				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 				reg.AddComponent<SpatialInfo>(ent, {});
@@ -114,8 +126,8 @@ void HelloWorldLayer::ProcessEvents()
 		if (evt.input == Mupfel::UserInput::CURSOR_POS_CHANGED)
 		{
 			auto kinematic = reg.GetComponent<Transform>(*cursor);
-			kinematic.pos.x = Application::GetCurrentInputManager().GetCurrentCursorX();
-			kinematic.pos.y = Application::GetCurrentInputManager().GetCurrentCursorY();
+			kinematic.pos_x = Application::GetCurrentInputManager().GetCurrentCursorX();
+			kinematic.pos_y = Application::GetCurrentInputManager().GetCurrentCursorY();
 			reg.SetComponent(*cursor, kinematic);
 		}
 

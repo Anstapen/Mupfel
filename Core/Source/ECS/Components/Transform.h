@@ -1,11 +1,13 @@
 #pragma once
-#include "Core/Coordinate.h"
 
 namespace Mupfel {
 
 	struct Transform
 	{
-		Coordinate<float> pos;
+		float pos_x = 0.0f;
+		float pos_y = 0.0f;
+		float pos_z = 0.0f;
+		float _pad0 = 0.0f;
 		float scale_x = 1.0f;
 		float scale_y = 1.0f;
 		float rotation = 0.0f;
