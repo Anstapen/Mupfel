@@ -1,9 +1,8 @@
 #pragma once
 
 namespace Mupfel {
-	struct Velocity {
-		float x, y;
-		float angular;
-		float padding;
+	struct alignas(16) Velocity {
+		float x, y, z = 0.0f;
+		float angular = 0.0f;
 	};
 }

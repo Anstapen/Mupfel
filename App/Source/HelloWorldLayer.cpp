@@ -113,8 +113,12 @@ void HelloWorldLayer::ProcessEvents()
 				t.scale_x = 32.0f;
 				t.scale_y = 32.0f;
 				t.rotation = 0.0f;
+				Velocity v;
+				v.x = vel_x;
+				v.y = vel_y;
+				v.angular = ang_vel;
 				reg.AddComponent<Transform>(ent, t);
-				reg.AddComponent<Velocity>(ent, { vel_x, vel_y, ang_vel });
+				reg.AddComponent<Velocity>(ent, v);
 				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
 				reg.AddComponent<SpatialInfo>(ent, {});
 				reg.AddComponent<TextureComponent>(ent, {});

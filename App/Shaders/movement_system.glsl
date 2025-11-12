@@ -11,8 +11,8 @@ struct TransformData {
 };
 
 struct VelocityData {
-    vec2 vel;
-    vec2 angular; // y component of angular is padding on cpu side! dont use!
+    vec3 vel;
+    float angular; // y component of angular is padding on cpu side! dont use!
 };
 
 struct ProgramParams {
@@ -58,9 +58,7 @@ void main()
     uint tIndex = pairs[idx].ti;
     uint vIndex = pairs[idx].vi;
 
-    float angular_velocity = velocities[vIndex].angular.x;
+    transforms[tIndex].rotation += velocities[vIndex].angular * params.delta_time;
 
-    transforms[tIndex].rotation += angular_velocity * params.delta_time;
-
-    transforms[tIndex].pos.xy += velocities[vIndex].vel * params.delta_time;
+    transforms[tIndex].pos += velocities[vIndex].vel * params.delta_time;
 }
