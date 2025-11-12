@@ -11,6 +11,7 @@ namespace Mupfel {
 	private:
 		static void UpdateScreenSize();
 		static void JoinAndRender();
+		static void SetProgramParams();
 	};
 
 }

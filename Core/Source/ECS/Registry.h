@@ -254,7 +254,7 @@ namespace Mupfel {
 		/* Create a new Component Array for the given Type if there is none */
 		if (!component_buffer[comp_index])
 		{
-			SafeComponentArrayPtr new_array = std::make_unique<GPUComponentArray<T>>();
+			SafeComponentArrayPtr new_array = std::make_unique<GPUComponentArray<T>>(50000);
 			component_buffer[comp_index] = std::move(new_array);
 		}
 

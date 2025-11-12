@@ -312,7 +312,6 @@ void Mupfel::MovementSystem::SetProgramParams(double elapsedTime)
 
 	/* Update the Shader Program parameters for the GPU */
 	ProgramParams params{};
-	glGetNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);
 
 	params.component_mask = static_cast<uint64_t>(wanted_comp_sig.to_ulong());
 	params.entities_added = entities_added_this_frame;

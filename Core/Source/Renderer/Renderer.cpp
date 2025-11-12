@@ -247,6 +247,8 @@ void Renderer::Render()
 
     auto view = Application::GetCurrentRegistry().view<Transform>();
 
+    SetProgramParams();
+
     JoinAndRender();
     
 }
@@ -298,11 +300,6 @@ void Mupfel::Renderer::JoinAndRender()
     GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
     GPUComponentArray<TextureComponent>& texture_array = Application::GetCurrentRegistry().GetComponentArray<TextureComponent>();
 
-    ProgramParams params{};
-    glGetNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
-    params.active_entities = transform_array.Size();
-    glNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
-
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, frameParamsSSBO);
 
     /* Bind the Transform Component Array to slot 3 */
@@ -334,14 +331,6 @@ void Mupfel::Renderer::JoinAndRender()
             {
                 active_entities->resize(transform_array.Size() * 2, { 0, 0, 0 });
             }
-
-            ProgramParams params{};
-            glGetNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
-
-            params.entities_added = entities_added_this_frame;
-            params.entities_deleted = entities_deleted_this_frame;
-
-            glNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
 
             /* Bind the Entity Signature Array to slot 0 */
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, signatureBuffer);
@@ -423,6 +412,21 @@ void Mupfel::Renderer::JoinAndRender()
         //rlDisableVertexArray();
         //rlDisableShader();
     }
-
     
+}
+
+void Mupfel::Renderer::SetProgramParams()
+{
+    GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
+
+    /* Update the Shader Program parameters for the GPU */
+    ProgramParams params{};
+
+    params.component_mask = static_cast<uint64_t>(wanted_comp_sig.to_ulong());
+    params.entities_added = entities_added_this_frame;
+    params.entities_deleted = entities_deleted_this_frame;
+    params.active_entities = transform_array.Size();
+    params.delta_time = 0;
+
+    glNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
 }
