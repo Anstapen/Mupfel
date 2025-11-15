@@ -8,10 +8,13 @@
 
 namespace Mupfel {
 
+	template<typename... Components> class View;
+
 	template<typename T>
 		requires std::is_trivially_copyable_v<T>
 	class GPUComponentArray : public ComponentArray<T>
 	{
+	template<typename... Components> friend class View;
 	public:
 		using sparse_type = uint32_t;
 		using dense_type = uint32_t;

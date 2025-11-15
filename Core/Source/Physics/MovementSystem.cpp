@@ -110,11 +110,6 @@ struct ProgramParams {
 static std::unique_ptr<GPUVector<ActiveEntity>> active_entities = nullptr;
 
 /**
- * @brief GPU buffer that stores global parameters for the movement compute shader (entity count, delta time, etc.).
- */
-static std::unique_ptr<GPUVector<ProgramParams>> program_params = nullptr;
-
-/**
  * @brief GPU buffer containing entities that were added this frame and need to be processed by the join shader.
  */
 static std::unique_ptr<GPUVector<Entity>> added_entities = nullptr;
@@ -179,10 +174,6 @@ void Mupfel::MovementSystem::Init()
 	/* Create a GPUVector for the active pairs */
 	active_entities = std::make_unique<GPUVector<ActiveEntity>>();
 	active_entities->resize(10000, { 0, 0, 0 });
-
-	/* Create a GPUVector for the program parameters */
-	program_params = std::make_unique<GPUVector<ProgramParams>>();
-	program_params->resize(1, { static_cast<uint64_t>(wanted_comp_sig.to_ulong()), 0 , 0, 0, 0.0f});
 
 	/* Create a GPUVector for the added entities every frame */
 	added_entities = std::make_unique<GPUVector<Entity>>();

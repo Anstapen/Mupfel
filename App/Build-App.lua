@@ -22,6 +22,8 @@ project "App"
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
+   includedirs {"../" .. raygui_dir .."/src"}
+   includedirs {"../" .. raylib_dir .. "/src"}
 
    filter "system:windows"
        systemversion "latest"

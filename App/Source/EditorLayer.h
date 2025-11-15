@@ -1,13 +1,13 @@
 #pragma once
-
 #include "Core/Layer.h"
 
-class HelloWorldLayer : public Mupfel::Layer
+class EditorLayer : public Mupfel::Layer
 {
+private:
 	void OnInit() override;
 	void OnUpdate(double timestep) override;
 	void OnRender() override;
-private:
 	void ProcessEvents();
+	void CreateNewEntity();
 };
 

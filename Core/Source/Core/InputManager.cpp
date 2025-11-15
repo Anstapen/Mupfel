@@ -129,7 +129,7 @@ void Mupfel::InputManager::UpdateMouseButtons()
 void Mupfel::InputManager::UpdateMouseButton(MouseButton b)
 {
 	/* After that the Mouse presses */
-	if (IsMouseButtonPressed(b) || IsMouseButtonDown(b))
+	if (IsMouseButtonPressed(b)) //|| IsMouseButtonDown(b))
 	{
 		if (mouse_map.at(b).input != UserInput::NONE)
 		{

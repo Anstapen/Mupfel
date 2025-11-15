@@ -6,6 +6,8 @@
 
 namespace Mupfel {
 
+	class DebugLayer;
+
 	/**
 	 * @brief This is the class that is responsible for simulating several things:
 	 * 
@@ -14,6 +16,7 @@ namespace Mupfel {
 	 */
 	class PhysicsSimulation
 	{
+	friend class DebugLayer;
 	public:
 		PhysicsSimulation(Registry& in_reg, EventSystem& in_evt_system);
 		virtual ~PhysicsSimulation() = default;

@@ -1,5 +1,6 @@
 #include "Core/Application.h"
 #include "HelloWorldLayer.h"
+#include "EditorLayer.h"
 
 int main()
 {
@@ -12,6 +13,7 @@ int main()
 	if (app.Init(app_spec))
 	{
 		app.PushLayer<HelloWorldLayer>();
+		app.PushLayer<EditorLayer>();
 
 		app.Run();
 	}

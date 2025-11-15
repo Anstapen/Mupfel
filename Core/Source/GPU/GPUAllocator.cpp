@@ -64,7 +64,9 @@ void GPUAllocator::reallocateGPUBuffer(Handle& h, uint32_t new_size)
 		tmp.resize(h.capacity);
 
 		std::memcpy(tmp.data(), h.mapped_ptr, h.capacity);
-		std::memcpy(newH.mapped_ptr, tmp.data(), h.capacity);
+		/* Depending if the new buffer is larger or smaller, we choose the size */
+		uint32_t min_cap = std::min<uint32_t>(h.capacity, newH.capacity);
+		std::memcpy(newH.mapped_ptr, tmp.data(), min_cap);
 	}
 
 	//glCopyNamedBufferSubData(oldID, newH.id, 0, 0, oldBytes);

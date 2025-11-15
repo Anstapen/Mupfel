@@ -10,6 +10,7 @@ namespace Mupfel {
 		void OnRender() override;
 	private:
 		void DrawDebugInfo();
+		void DrawCollisionGrid();
 	};
 }
 

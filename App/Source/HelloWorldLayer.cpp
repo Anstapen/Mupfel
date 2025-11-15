@@ -15,40 +15,17 @@
 #include "ECS/Components/Velocity.h"
 
 #include "Renderer/Renderer.h"
+#include "EditorLayer.h"
 
 using namespace Mupfel;
 
-static Entity *cursor = nullptr;
-
-static const std::string ball_texture_path = "Resources/simple_ball.png";
-
-static uint64_t entities_per_frame = 1;
-
-static std::vector<Entity> current_entities;
 
 void HelloWorldLayer::OnInit()
 {
-	Registry& reg = Mupfel::Application::GetCurrentRegistry();
-	/* Create an Entity for the Cursor */
-	cursor = new Entity(reg.CreateEntity());
-
-	/* Add the Kinematic component to it */
-	Transform t;
-	t.pos_x = 0.0f;
-	t.pos_y = 0.0f;
-	t.scale_x = 32.0f;
-	t.scale_y = 32.0f;
-	t.rotation = 0.0f;
-	reg.AddComponent<Transform>(*cursor, t);
-	reg.AddComponent<TextureComponent>(*cursor, {});
-
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)
 {
-	
-	ProcessEvents();
-	
 }
 
 void HelloWorldLayer::OnRender()
@@ -59,86 +36,4 @@ void HelloWorldLayer::OnRender()
 void HelloWorldLayer::ProcessEvents()
 {
 
-	auto& evt_system = Mupfel::Application::GetCurrentEventSystem();
-	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
-
-	int screen_height = Application::GetCurrentRenderHeight();
-	int screen_width = Application::GetCurrentRenderWidth();
-
-	/*
-		Retrieve all the UserInputEvents that were issued the last frame.
-	*/
-	for (const auto& evt : evt_system.GetEvents<Mupfel::UserInputEvent>())
-	{
-		/* If Left-Mouseclick is pressed, iterate over the entities */
-		if (evt.input == Mupfel::UserInput::LEFT_MOUSE_CLICK)
-		{
-			
-			for (uint32_t i = 0; i < entities_per_frame; i++)
-			{
-				if (current_entities.size() <= 0)
-				{
-					break;
-				}
-				Entity ent = current_entities.back();
-				current_entities.pop_back();
-				reg.DestroyEntity(ent);
-			}
-		}
-
-		if (evt.input == Mupfel::UserInput::WINDOW_FULLSCREEN)
-		{
-		}
-
-		/* If Right-Mouseclick is pressed, create new entites */
-		if (evt.input == Mupfel::UserInput::RIGHT_MOUSE_CLICK)
-		{
-			for (uint32_t i = 0; i < entities_per_frame; i++)
-			{
-				Mupfel::Entity ent = reg.CreateEntity();
-
-				current_entities.push_back(ent);
-
-				float pos_x = (float)Application::GetRandomNumber(500, 2300);
-				float pos_y = (float)Application::GetRandomNumber(50, 1400);
-
-				float ang_vel = (float)Application::GetRandomNumber(1, 1000) / 200 + 1.0f;
-
-				/* Add velocity component to the entity */
-				float vel_x = (float)Application::GetRandomNumber(50, 200);
-				float vel_y = (float)Application::GetRandomNumber(50, 200);
-				Transform t;
-				t.pos_x = pos_x;
-				t.pos_y = pos_y;
-				t.scale_x = 32.0f;
-				t.scale_y = 32.0f;
-				t.rotation = 0.0f;
-				Velocity v;
-				v.x = vel_x;
-				v.y = vel_y;
-				v.angular = ang_vel;
-				reg.AddComponent<Transform>(ent, t);
-				reg.AddComponent<Velocity>(ent, v);
-				reg.AddComponent<BroadCollider>(ent, { 15, 15 });
-				reg.AddComponent<SpatialInfo>(ent, {});
-				reg.AddComponent<TextureComponent>(ent, {});
-			}
-		}
-
-
-		/* If the Cursor Position changed, we update our entity */
-		if (evt.input == Mupfel::UserInput::CURSOR_POS_CHANGED)
-		{
-			auto kinematic = reg.GetComponent<Transform>(*cursor);
-			kinematic.pos_x = Application::GetCurrentInputManager().GetCurrentCursorX();
-			kinematic.pos_y = Application::GetCurrentInputManager().GetCurrentCursorY();
-			reg.SetComponent(*cursor, kinematic);
-		}
-
-		if (evt.input == Mupfel::UserInput::MOVE_FORWARD)
-		{
-			entities_per_frame = std::clamp<uint64_t>((entities_per_frame + 50), 1, 10000000);
-		}
-
-	}
 }
