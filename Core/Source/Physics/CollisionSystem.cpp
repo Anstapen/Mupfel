@@ -92,6 +92,14 @@ struct ProgramParams {
 	 * lost one or more required components.
 	 */
 	uint64_t entities_deleted = 0;
+
+	uint32_t cell_size_pow;
+
+	uint32_t num_cells_x;
+
+	uint32_t num_cells_y;
+
+	uint32_t entities_per_cell;
 };
 
 /**
@@ -262,8 +270,6 @@ void Mupfel::CollisionSystem::ClearOldCells(Entity e, SpatialInfo info)
 		return;
 	}
 
-	ComponentArray<SpatialInfo>& spatial_info_array = registry.GetComponentArray<SpatialInfo>();
-
 	uint32_t ref_count = 0;
 	for (uint32_t y = info.old_cell_min.y; y <= info.old_cell_max.y; y++)
 	{
@@ -430,21 +436,34 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	params.entities_added = entities_added_this_frame;
 	params.entities_deleted = entities_deleted_this_frame;
 	params.active_entities = transform_array.Size();
+	params.cell_size_pow = 6;
+	params.num_cells_x = 64;
+	params.num_cells_y = 64;
+	params.entities_per_cell = 2048;
 
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);
 }
 
 void Mupfel::CollisionSystem::UpdateCells()
 {
-#if 0
+#if 1
 	glUseProgram(cell_update_shader_id);
 
 	/* Get the needed buffers from the current Registry */
 	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
 	GPUComponentArray<Mupfel::SpatialInfo>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::SpatialInfo>();
 
+	/* Bind the Collision Grid Cell Array to slot 1 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.cells.GetSSBOID());
+
+	/* Bind the Collision Grid Entity Array to slot 1 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.entities.GetSSBOID());
+
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
+
+	/* Bind the Spatial Info Sparse Array to slot 4 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, spatial_info_array.GetSparseSSBO());
 
 	/* Bind the Spatial Info Component Array to slot 6 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, spatial_info_array.GetComponentSSBO());
@@ -460,7 +479,7 @@ void Mupfel::CollisionSystem::UpdateCells()
 
 	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	glFinish();
-#endif
+#else
 		ComponentArray<Transform>& transform_array = registry.GetComponentArray<Transform>();
 		ComponentArray<SpatialInfo>& spatial_info_array = registry.GetComponentArray<SpatialInfo>();
 		Entity e;
@@ -499,6 +518,7 @@ void Mupfel::CollisionSystem::UpdateCells()
 
 			UpdateCells(e, spatial_info, cell_min, cell_max);
 		}
+#endif
 }
 
 void Mupfel::CollisionSystem::UpdateCells(Entity e, SpatialInfo info, Coordinate<uint32_t> cell_min, Coordinate<uint32_t> cell_max)

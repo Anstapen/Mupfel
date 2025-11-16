@@ -14,6 +14,10 @@ struct ProgramParams {
 	uint64_t active_entities;
 	uint64_t entities_added;
     uint64_t entities_deleted;
+    uint cell_size_pow;
+	uint num_cells_x;
+	uint num_cells_y;
+	uint entities_per_cell;
 };
 
 layout(std430, binding = 0) readonly buffer EntitySignatures {
