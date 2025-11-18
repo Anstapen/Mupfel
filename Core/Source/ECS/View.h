@@ -3,82 +3,81 @@
 #include "Entity.h"
 #include <tuple>
 #include <functional>
+#include "Components/ComponentIndex.h"
 
 namespace Mupfel {
 
     template<typename... Components>
     class View {
     public:
+        using component_types = std::tuple<Components...>;
+        using BaseComponent = std::tuple_element_t<0, component_types>;
+
         explicit View(Registry& in_reg)
-            : reg(in_reg),
-            component_arrays(std::make_tuple(&reg.GetComponentArray<Components>()...)) {
+            : reg(in_reg)
+        {
+            // Erzeuge die benötigte Components-Signatur
+            required_signature = ((1ull << ComponentIndex::Index<Components>()) | ...);
         }
 
         struct Iterator {
             Registry& registry;
-            const uint32_t *entities;
-            const uint32_t num_entities;
-            size_t index = 0;
-            const Entity::Signature required;
-            std::tuple<ComponentArray<Components>*...> arrays;
+            size_t index;
+            Entity::Signature required_signature;
 
-            Iterator(Registry& in_reg,
-                const uint32_t* ents,
-                const uint32_t num_ents,
-                Entity::Signature req,
-                std::tuple<ComponentArray<Components>*...> arrs,
+            Iterator(Registry& reg,
+                uint64_t req,
                 size_t idx)
-                : registry(in_reg), entities(ents), index(idx), required(req), arrays(arrs), num_entities(num_ents)
+                : registry(reg), index(idx), required_signature(req)
             {
                 SkipInvalid();
             }
 
             void SkipInvalid() {
-                while (index < num_entities) {
-                    uint32_t eIndex = entities[index];
-                    const auto& sig = registry.GetSignature(eIndex);
-                    if ((sig & required) == required)
+                auto& comp_array = registry.GetComponentArray<BaseComponent>();
+                while (index < comp_array.dense_size) {
+                    Entity e{ comp_array.dense[index] };
+                    Entity::Signature sig = registry.GetSignature(e.Index());
+
+                    if ((sig & required_signature) == required_signature)
                         break;
+
                     ++index;
                 }
             }
 
-            bool operator!=(const Iterator& other) const { return index != other.index; }
+            bool operator!=(const Iterator& o) const { return index != o.index; }
 
             void operator++() {
                 ++index;
                 SkipInvalid();
             }
 
-            // liefert tuple: (Entity, Component&...)
             auto operator*() {
-                Entity e{ entities[index] };
-                auto tuple_of_refs = std::apply(
-                    [&](auto*... arr) {
-                        return std::tie(arr->Get(e)...); // echte Referenzen
-                    },
-                    arrays
-                );
+                auto& comp_array = registry.GetComponentArray<BaseComponent>();
+                Entity e{ comp_array.dense[index] };
+
+                // Fold-Expression: tuple of references erzeugen
+                auto tuple_of_refs =
+                    std::tuple<Components&...>(registry.GetComponent<Components>(e)...);
+
                 return std::tuple_cat(std::make_tuple(e), tuple_of_refs);
             }
         };
 
     public:
         Iterator begin() {
-            using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
-            auto& array = reg.GetComponentArray<BaseComponent>();
-            return Iterator(reg, array.GetDense(), array.Size(), Registry::ComponentSignature(), component_arrays, 0);
+            return Iterator(reg, required_signature, 0);
         }
 
         Iterator end() {
-            using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
             auto& array = reg.GetComponentArray<BaseComponent>();
-            return Iterator(reg, array.GetDense(), array.Size(), Registry::ComponentSignature(), component_arrays, array.GetDenseSize());
+            return Iterator(reg, required_signature, array.dense_size);
         }
 
     private:
         Registry& reg;
-        std::tuple<ComponentArray<Components>*...> component_arrays;
+        uint64_t required_signature = 0;
     };
 
 }

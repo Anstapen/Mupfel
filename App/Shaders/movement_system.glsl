@@ -12,7 +12,11 @@ struct TransformData {
 
 struct VelocityData {
     vec3 vel;
-    float angular; 
+    float angular;
+    float initial_acceleration;
+    float acceleration_decay;
+    float friction;
+    float _pad0;
 };
 
 struct ProgramParams {
@@ -58,7 +62,38 @@ void main()
     uint tIndex = pairs[idx].ti;
     uint vIndex = pairs[idx].vi;
 
+    VelocityData velo = velocities[vIndex];
+
+    // Reduce the acceleration
+    if(velo.initial_acceleration > 0)
+    {
+        velo.initial_acceleration = clamp(velo.initial_acceleration - (velo.acceleration_decay * params.delta_time), 0, velo.initial_acceleration);
+    }
+
+    // apply the acceleration
+    //velo.vel = velo.vel + (velo.initial_acceleration * params.delta_time);
+
+    float speed = length(velo.vel);
+
+    if (speed > 0.001)
+    {
+        vec2 dir = velo.vel.xy / speed;    // normalize
+        speed += velo.initial_acceleration * params.delta_time;
+        speed -= ((velo.friction / 100) * speed) * params.delta_time;
+        clamp(speed, 0, speed);
+        velo.vel.xy = dir * speed;
+    }
+    else
+    {
+        velo.vel = vec3(0);
+    }
+
+    // apply friction
+    //velo.vel = velo.vel - (velo.friction * params.delta_time);
+
+    velocities[vIndex] = velo;
+
     transforms[tIndex].rotation += velocities[vIndex].angular * params.delta_time;
 
-    transforms[tIndex].pos += velocities[vIndex].vel * params.delta_time;
+    transforms[tIndex].pos += velo.vel * params.delta_time;
 }

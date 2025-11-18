@@ -82,7 +82,7 @@ namespace Mupfel {
 		void RemoveComponent(Entity e);
 
 		template<typename T>
-		T GetComponent(Entity e);
+		T& GetComponent(Entity e);
 
 		template<typename T>
 		void SetComponent(Entity e, T comp);
@@ -227,7 +227,7 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-	inline T Registry::GetComponent(Entity e)
+	inline T& Registry::GetComponent(Entity e)
 	{
 		return GetComponentArray<T>().Get(e);
 	}

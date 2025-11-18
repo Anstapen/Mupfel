@@ -3,9 +3,10 @@
 #include "Core/Application.h"
 #include "ECS/Registry.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Velocity.h"
+#include "ECS/Components/Movement.h"
 #include "ECS/Components/SpatialInfo.h"
 #include "Renderer/Texture.h"
+#include "Renderer/Rectangle.h"
 
 
 static Mupfel::Entity* cursor = nullptr;
@@ -18,6 +19,7 @@ static float angular_velocity = 0;
 static bool spatial_info_wanted = false;
 static int entity_count = 1;
 static bool entity_count_edit = false;
+static float collider_size = 1.0f;
 
 void EditorLayer::OnInit()
 {
@@ -65,7 +67,8 @@ void EditorLayer::OnRender()
 	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 140, 120, 24), "Vel:", NULL, &angular_velocity, 0, PI * 2 * 10);
     GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 170, 120, 24), "Scale", NULL, &scale, 1, 100);
     GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 230, 24, 24), "SpatialInfo", &spatial_info_wanted);
-	if (GuiValueBox(Rectangle(anchor01.x + 50, anchor01.y + 260, 120, 24), "No.", & entity_count, 1, 100000, entity_count_edit)) entity_count_edit = !entity_count_edit;
+	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 260, 120, 24), "Size", NULL, &collider_size, 1, 100);
+	if (GuiValueBox(Rectangle(anchor01.x + 50, anchor01.y + 290, 120, 24), "No.", & entity_count, 1, 100000, entity_count_edit)) entity_count_edit = !entity_count_edit;
 	GuiGroupBox(Rectangle(anchor01.x + 85, anchor01.y + 400, 100, 100), "Preview");
     //----------------------------------------------------------------------------------
 
@@ -77,6 +80,12 @@ void EditorLayer::OnRender()
 
 	/* Reposition the entity */
 	reg.SetComponent<Mupfel::Transform>(*preview, t);
+
+	/* Draw the Spatial collider if enabled */
+	if (spatial_info_wanted)
+	{
+		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - collider_size / 2.0f, t.pos_y - collider_size / 2.0f, collider_size, collider_size, 102, 191, 255, 255);
+	}
 
 }
 
@@ -134,12 +143,19 @@ void EditorLayer::ProcessEvents()
 
 	if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
 	{
-		Mupfel::Velocity v;
-		v.x = velocity_x;
-		v.y = velocity_y;
-		v.angular = angular_velocity;
-		reg.AddComponent<Mupfel::Velocity>(currently_created_entity, v);
-		reg.AddComponent<Mupfel::SpatialInfo>(currently_created_entity, {});
+		Mupfel::Movement movement;
+		movement.velocity_x = velocity_x;
+		movement.velocity_y = velocity_y;
+		movement.angular_velocity = angular_velocity;
+		movement.friction = 75.0f;
+		reg.AddComponent<Mupfel::Movement>(currently_created_entity, movement);
+
+		if (spatial_info_wanted)
+		{
+			Mupfel::SpatialInfo s;
+			s.collider_size = collider_size;
+			reg.AddComponent<Mupfel::SpatialInfo>(currently_created_entity, s);
+		}
 	}
 
 }

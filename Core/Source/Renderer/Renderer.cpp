@@ -4,7 +4,7 @@
 #include "rlgl.h"
 #include "Core/Application.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Velocity.h"
+#include "ECS/Components/Movement.h"
 #include "ECS/View.h"
 #include "ECS/Registry.h"
 #include <vector>

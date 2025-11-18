@@ -11,16 +11,16 @@ struct TransformData {
 };
 
 struct CellIndex {
-		uint cell_id;
-		uint entity_id;
+	uint cell_id;
+	uint entity_id;
 };
 
 struct SpatialInfo {
-    float collider_size;
 	uvec2 old_cell_min;
 	uvec2 old_cell_max;
-    uint num_cells;
     CellIndex cell_indices[16];
+	uint num_cells;
+	float collider_size;
 };
 
 struct Cell {
@@ -86,77 +86,6 @@ uint PointYtoCell(uint y)
 	return min(cell_y, params.num_cells_y - 1);
 }
 
-void SwapRemoveEntities(uint cell_id, uint new_entity_index)
-{
-	/* Calculate the starting index of the entity array */
-	uint cell_start_index = cells[cell_id].startIndex;
-
-	uint cell_count = cells[cell_id].count;
-
-	uint entity_location = cell_start_index + new_entity_index;
-
-	uint last_entity = cell_start_index + cell_count - 1;
-
-	entities[entity_location] = entities[last_entity];
-	entities[last_entity] = 0;
-	cells[cell_id].count -= 1;
-
-	if (entity_location != last_entity)
-	{
-		/* Update the SpatialInfo component of the swapped entity */
-		/* Removal of destroyed entities is done asynchronously */
-		uint entity_to_be_updated = entities[entity_location];
-		uint comp_index = spatialSparse[entity_to_be_updated];
-		if (comp_index == 0xFFFFFFFF)
-		{
-			return;
-		}
-		SpatialInfo s = spatials[comp_index];
-		for (uint i = 0; i < s.num_cells; i++)
-		{
-			/* We need to find the cell with the correct index */
-			if (cell_id == s.cell_indices[i].cell_id)
-			{
-				s.cell_indices[i].entity_id = new_entity_index;
-				break;
-			}
-		}
-	}
-}
-
-void ClearOldCells(uint e, uint comp_index)
-{
-	SpatialInfo info = spatials[comp_index];
-	if (info.num_cells == 0)
-	{
-		/* Nothing to do */
-		return;
-	}
-
-	uint ref_count = 0;
-
-	for (uint y = info.old_cell_min.y; y <= info.old_cell_max.y; y++)
-	{
-		for (uint x = info.old_cell_min.x; x <= info.old_cell_max.x; x++)
-		{
-
-			/* Calculate the index of the wanted cell in the cell array */
-			uint cell_index = y * params.num_cells_x + x;
-
-			/* The entity component holds the index into the entity array of the current cell */
-			uint entity_index = info.cell_indices[ref_count].entity_id;
-			/* Swap-Remove */
-			SwapRemoveEntities(cell_index, entity_index);
-
-			ref_count++;
-		}
-	}
-
-	/* Removed Entity from the Cells */
-	info.num_cells = 0;
-	spatials[comp_index] = info;
-}
-
 void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max)
 {
 	/* TODO: Update the min and max cells and add the entity to the cells */
@@ -176,7 +105,7 @@ void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max
 			/* Calculate the starting index of the entity array */
 			uint cell_start_index = cells[cell_index].startIndex;
 
-			uint cell_count = cells[cell_index].count;
+			uint cell_count = atomicAdd(cells[cell_index].count, 1);
 
 			entities[cell_start_index + cell_count] = e;
 
@@ -184,9 +113,6 @@ void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max
 			info.cell_indices[ref_count].cell_id = cell_index;
 			info.cell_indices[ref_count].entity_id = cell_count;
 			info.num_cells++;
-
-			/* Increment the cell entity counter */
-			cells[cell_index].count++;
 
 			ref_count++;
 		}
@@ -214,11 +140,12 @@ void main()
 
 	TransformData t = transforms[tIndex];
 	SpatialInfo s = spatials[sIndex];
+	float collider_half = s.collider_size / 2;
 
-	float min_x = t.pos.x - s.collider_size;
-	float min_y = t.pos.y - s.collider_size;
-	float max_x = t.pos.x + s.collider_size;
-	float max_y = t.pos.y + s.collider_size;
+	float min_x = t.pos.x - collider_half;
+	float min_y = t.pos.y - collider_half;
+	float max_x = t.pos.x + collider_half;
+	float max_y = t.pos.y + collider_half;
 
 	/* Update the Grid */
 	uint cell_min_x = PointXtoCell(uint(floor(min_x)));
@@ -228,13 +155,6 @@ void main()
 
 	uvec2 cell_min = { cell_min_x, cell_min_y };
 	uvec2 cell_max = { cell_max_x,  cell_max_y };
-
-	if (s.old_cell_max == cell_max && s.old_cell_min == cell_min)
-	{
-		return;
-	}
-
-	ClearOldCells(e, sIndex);
 
 	UpdateCellsOfEntity(e, sIndex, cell_min, cell_max);
 }

@@ -12,7 +12,7 @@
 #include <algorithm>
 
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Velocity.h"
+#include "ECS/Components/Movement.h"
 
 #include "Renderer/Renderer.h"
 #include "EditorLayer.h"

@@ -6,7 +6,9 @@
 #include <format>
 #include "ECS/Registry.h"
 #include "ECS/View.h"
-#include "ECS/Components/BroadCollider.h"
+#include "ECS/Components/SpatialInfo.h"
+#include "ECS/Components/Transform.h"
+#include "ECS/Components/Movement.h"
 #include "Core/Profiler.h"
 #include "raylib.h"
 
@@ -104,7 +106,7 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 				break;
 			}
 
-			uint32_t cell_index = CollisionSystem::WorldtoCell({ pos_x, pos_y });
+			uint32_t cell_index = Application::Get().physics.collision_system->WorldtoCell({ pos_x, pos_y });
 
 			if (Application::Get().physics.collision_system->collision_grid.cells[cell_index].count == 0)
 			{
@@ -133,15 +135,27 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 		pos_y += cell_size;
 	}
 
-	/* Draw the BroadColliders of each entity */
+	
 	Registry& reg = Application::GetCurrentRegistry();
 
-#if 0
-	auto position_view = reg.view<BroadCollider>();
+#if 1
+	auto spatial_view = reg.view<Mupfel::Transform, Mupfel::SpatialInfo>();
 
-	for (auto [entity, broad] : position_view)
+	for (auto [entity, t, spatial] : spatial_view)
 	{
-		Rectangle::RaylibDrawRect(broad.min.x, broad.min.y, broad.max.x - broad.min.x, broad.max.y - broad.min.y, 102, 191, 255, 255);
+		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - spatial.collider_size / 2.0f, t.pos_y - spatial.collider_size / 2.0f, spatial.collider_size, spatial.collider_size, 102, 191, 255, 255);
+	}
+
+	auto movement_view = reg.view<Mupfel::Transform, Mupfel::Movement>();
+
+	for (auto [entity, transform, movement] : movement_view)
+	{
+		if (fabs(movement.velocity_x) > 0.0f || fabs(movement.velocity_y) > 0.0f)
+		{
+			std::string text1 = std::vformat("{:.0f}{:.0f}", std::make_format_args(movement.velocity_x, movement.velocity_x));
+			Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x, transform.pos_y, 15);
+		}
+		
 	}
 #endif
 }

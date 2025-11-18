@@ -4,7 +4,7 @@
 #include "glad.h"
 #include "Core/Application.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Velocity.h"
+#include "ECS/Components/Movement.h"
 #include "ECS/Registry.h"
 #include "Core/Profiler.h"
 #include <algorithm>
@@ -137,7 +137,7 @@ static GLuint programParamsSSBO = 0;
 /**
  * @brief Component signature mask describing which components the system requires (Transform + Velocity).
  */
-static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::Velocity>();
+static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::Movement>();
 
 /**
  * @brief OpenGL shader program ID for the main movement update compute shader.
@@ -227,7 +227,7 @@ void Mupfel::MovementSystem::Join()
 	/* Get the needed buffers from the current Registry */
 	uint32_t signatureBuffer = Application::GetCurrentRegistry().signatures.GetSSBOID();
 	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-	GPUComponentArray<Mupfel::Velocity>& velocity_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Velocity>();
+	GPUComponentArray<Mupfel::Movement>& movement_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Movement>();
 
 	/* Do we need to resize the active entity buffer? */
 	if (transform_array.Size() >= active_entities->size())
@@ -243,7 +243,7 @@ void Mupfel::MovementSystem::Join()
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSparseSSBO());
 
 	/* Bind the Velocity Sparse Array to slot 4 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, velocity_array.GetSparseSSBO());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, movement_array.GetSparseSSBO());
 
 	/* Bind the Active Pairs Array to slot 7 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
@@ -277,13 +277,13 @@ void Mupfel::MovementSystem::Move(double elapsedTime)
 
 	/* Get the needed buffers from the current Registry */
 	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-	GPUComponentArray<Mupfel::Velocity>& velocity_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Velocity>();
+	GPUComponentArray<Mupfel::Movement>& movement_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Movement>();
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
 
 	/* Bind the Velocity Component Array to slot 6 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, velocity_array.GetComponentSSBO());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, movement_array.GetComponentSSBO());
 
 	/* Bind the Active Pairs Array to slot 7 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
@@ -358,7 +358,7 @@ void Mupfel::MovementSystem::SetEventCallbacks()
 			transform_sig.set(ComponentIndex::Index<Mupfel::Transform>());
 
 			Entity::Signature velocity_sig;
-			velocity_sig.set(ComponentIndex::Index<Mupfel::Velocity>());
+			velocity_sig.set(ComponentIndex::Index<Mupfel::Movement>());
 
 			uint32_t has_transform_component = (event.sig & transform_sig) != 0 ? 1 : 0;
 			uint32_t has_velocity_component = (event.sig & velocity_sig) != 0 ? 1 : 0;

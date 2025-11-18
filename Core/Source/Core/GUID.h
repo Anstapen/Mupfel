@@ -61,7 +61,4 @@ namespace Mupfel {
 
     };
 
-
-    
-
 }
