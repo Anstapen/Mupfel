@@ -16,35 +16,33 @@ struct CellIndex {
 };
 
 struct Collider {
-    // --- ColliderInfo / Meta ---
-    uint type;         // 0
-    uint layer;        // 4
-    uint mask;         // 8
-    uint flags;        // 12
+    // general info, not used by the shader currently
+	// with padding, this occupies 32 bytes
+    uint type;
+    uint layer;
+    uint mask;
+    uint flags;
+    uint callback_id;
+    uint padA;
+    uint padB;
+    uint padC;
 
-    uint callback_id;  // 16
-    uint padA;         // 20
-    uint padB;         // 24
-    uint padC;         // 28
+    // Shape data, currently only circle
+	// with padding, this occupies 16 bytes
+    float radius;
+    float padShape1;
+    float padShape2;
+    float padShape3;
 
-    // --- Shape-Daten (Circle) ---
-    float radius;      // 32
-    float padShape1;   // 36
-    float padShape2;   // 40
-    float padShape3;   // 44
-
-    // --- Spatial/Broadphase-Daten ---
-    // Achtung: wir nehmen hier explizit 4 uints, kein uvec2,
-    // damit das Layout 1:1 wie auf der CPU bleibt.
-    uvec2 old_cell_min; // 48
-    uvec2 old_cell_max; // 56
+    // Spatial data for the broadphase
+	// this occupies 152 bytes
+    uvec2 old_cell_min;
+    uvec2 old_cell_max;
 
     CellIndex cell_indices[16];
 
-    uint  num_cells;         // 192
-    float bounding_box_size; // 196
-    uint  padSpatial1;       // 200
-    uint  padSpatial2;       // 204
+    uint  num_cells;
+    float bounding_box_size;
 };
 
 struct Cell {
