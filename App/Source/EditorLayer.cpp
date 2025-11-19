@@ -4,7 +4,7 @@
 #include "ECS/Registry.h"
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Movement.h"
-#include "ECS/Components/SpatialInfo.h"
+#include "ECS/Components/Collider.h"
 #include "Renderer/Texture.h"
 #include "Renderer/Rectangle.h"
 
@@ -16,7 +16,7 @@ static Mupfel::Entity* preview = nullptr;
 static float scale = 32.0f;
 static bool angular_velocity_wanted = false;
 static float angular_velocity = 0;
-static bool spatial_info_wanted = false;
+static bool collider_wanted = false;
 static int entity_count = 1;
 static bool entity_count_edit = false;
 static float collider_size = 1.0f;
@@ -66,7 +66,7 @@ void EditorLayer::OnRender()
 	GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 110, 24, 24), "Angular Velocity", &angular_velocity_wanted);
 	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 140, 120, 24), "Vel:", NULL, &angular_velocity, 0, PI * 2 * 10);
     GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 170, 120, 24), "Scale", NULL, &scale, 1, 100);
-    GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 230, 24, 24), "SpatialInfo", &spatial_info_wanted);
+    GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 230, 24, 24), "Collider", &collider_wanted);
 	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 260, 120, 24), "Size", NULL, &collider_size, 1, 100);
 	if (GuiValueBox(Rectangle(anchor01.x + 50, anchor01.y + 290, 120, 24), "No.", & entity_count, 1, 100000, entity_count_edit)) entity_count_edit = !entity_count_edit;
 	GuiGroupBox(Rectangle(anchor01.x + 85, anchor01.y + 400, 100, 100), "Preview");
@@ -82,7 +82,7 @@ void EditorLayer::OnRender()
 	reg.SetComponent<Mupfel::Transform>(*preview, t);
 
 	/* Draw the Spatial collider if enabled */
-	if (spatial_info_wanted)
+	if (collider_wanted)
 	{
 		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - collider_size / 2.0f, t.pos_y - collider_size / 2.0f, collider_size, collider_size, 102, 191, 255, 255);
 	}
@@ -150,11 +150,11 @@ void EditorLayer::ProcessEvents()
 		movement.friction = 75.0f;
 		reg.AddComponent<Mupfel::Movement>(currently_created_entity, movement);
 
-		if (spatial_info_wanted)
+		if (collider_wanted)
 		{
-			Mupfel::SpatialInfo s;
-			s.collider_size = collider_size;
-			reg.AddComponent<Mupfel::SpatialInfo>(currently_created_entity, s);
+			Mupfel::Collider col;
+			col.SetCircle(collider_size / 2);
+			reg.AddComponent<Mupfel::Collider>(currently_created_entity, col);
 		}
 	}
 

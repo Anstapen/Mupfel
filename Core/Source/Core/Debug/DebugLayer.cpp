@@ -6,7 +6,7 @@
 #include <format>
 #include "ECS/Registry.h"
 #include "ECS/View.h"
-#include "ECS/Components/SpatialInfo.h"
+#include "ECS/Components/Collider.h"
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Movement.h"
 #include "Core/Profiler.h"
@@ -139,11 +139,11 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 	Registry& reg = Application::GetCurrentRegistry();
 
 #if 1
-	auto spatial_view = reg.view<Mupfel::Transform, Mupfel::SpatialInfo>();
+	auto spatial_view = reg.view<Mupfel::Transform, Mupfel::Collider>();
 
-	for (auto [entity, t, spatial] : spatial_view)
+	for (auto [entity, t, collider] : spatial_view)
 	{
-		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - spatial.collider_size / 2.0f, t.pos_y - spatial.collider_size / 2.0f, spatial.collider_size, spatial.collider_size, 102, 191, 255, 255);
+		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - collider.GetBoundingBox() / 2.0f, t.pos_y - collider.GetBoundingBox() / 2.0f, collider.GetBoundingBox(), collider.GetBoundingBox(), 102, 191, 255, 255);
 	}
 
 	auto movement_view = reg.view<Mupfel::Transform, Mupfel::Movement>();

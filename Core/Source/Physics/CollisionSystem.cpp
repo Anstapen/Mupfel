@@ -6,9 +6,8 @@
 #include "Core/Application.h"
 
 /* Needed Component types for collision detection/resolution */
-#include "ECS/Components/SpatialInfo.h"
+#include "ECS/Components/Collider.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/BroadCollider.h"
 #include "ECS/Components/Movement.h"
 
 /* Raylib/OpenGL */
@@ -140,7 +139,7 @@ static GLuint programParamsSSBO = 0;
 /**
  * @brief Component signature mask describing which components the system requires (Transform + Velocity).
  */
-static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::SpatialInfo>();
+static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::Collider>();
 
 /**
  * @brief OpenGL shader program ID for the main movement update compute shader.
@@ -221,7 +220,7 @@ void CollisionSystem::Join()
 	/* Get the needed buffers from the current Registry */
 	uint32_t signatureBuffer = Application::GetCurrentRegistry().signatures.GetSSBOID();
 	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-	GPUComponentArray<Mupfel::SpatialInfo>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::SpatialInfo>();
+	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Do we need to resize the active entity buffer? */
 	if (transform_array.Size() >= active_entities->size())
@@ -312,7 +311,7 @@ void Mupfel::CollisionSystem::UpdateCells()
 
 	/* Get the needed buffers from the current Registry */
 	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-	GPUComponentArray<Mupfel::SpatialInfo>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::SpatialInfo>();
+	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Bind the Collision Grid Cell Array to slot 1 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.cells.GetSSBOID());
@@ -381,25 +380,12 @@ void Mupfel::CollisionSystem::CheckEntityInteraction(uint32_t start, uint32_t nu
 		{
 			Entity first_entity = collision_grid.entities[start + first];
 			Entity second_entity = collision_grid.entities[start + second];
-			SpatialInfo first_spatial = registry.GetComponent<SpatialInfo>(first_entity);
-			SpatialInfo second_spatial = registry.GetComponent<SpatialInfo>(second_entity);
+			Collider first_collider = registry.GetComponent<Collider>(first_entity);
+			Collider second_collider = registry.GetComponent<Collider>(second_entity);
 			Transform first_transform = registry.GetComponent<Transform>(first_entity);
 			Transform second_transform = registry.GetComponent<Transform>(second_entity);
 
-			/* Create Rectangles */
-			float first_x = first_transform.pos_x - first_spatial.collider_size;
-			float first_y = first_transform.pos_y - first_spatial.collider_size;
-			Rectangle first_rect = {first_x, first_y, first_spatial.collider_size * 2, first_spatial.collider_size  * 2};
-
-			float second_x = second_transform.pos_x - second_spatial.collider_size;
-			float second_y = second_transform.pos_y - second_spatial.collider_size;
-			Rectangle second_rect = { second_x, second_y, second_spatial.collider_size * 2, second_spatial.collider_size * 2 };
-
-			bool collided = CheckCollisionRecs(first_rect, second_rect);
-
-			if (collided)
-			{
-			}
+			
 		}
 	}
 }
@@ -474,7 +460,7 @@ void Mupfel::CollisionSystem::SetCallbacks()
 			transform_sig.set(ComponentIndex::Index<Mupfel::Transform>());
 
 			Entity::Signature spatial_info_sig;
-			spatial_info_sig.set(ComponentIndex::Index<Mupfel::SpatialInfo>());
+			spatial_info_sig.set(ComponentIndex::Index<Mupfel::Collider>());
 
 			uint32_t has_transform_component = (event.sig & transform_sig) != 0 ? 1 : 0;
 			uint32_t has_spatial_component = (event.sig & spatial_info_sig) != 0 ? 1 : 0;

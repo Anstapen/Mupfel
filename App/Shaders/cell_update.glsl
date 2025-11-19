@@ -15,12 +15,36 @@ struct CellIndex {
 	uint entity_id;
 };
 
-struct SpatialInfo {
-	uvec2 old_cell_min;
-	uvec2 old_cell_max;
+struct Collider {
+    // --- ColliderInfo / Meta ---
+    uint type;         // 0
+    uint layer;        // 4
+    uint mask;         // 8
+    uint flags;        // 12
+
+    uint callback_id;  // 16
+    uint padA;         // 20
+    uint padB;         // 24
+    uint padC;         // 28
+
+    // --- Shape-Daten (Circle) ---
+    float radius;      // 32
+    float padShape1;   // 36
+    float padShape2;   // 40
+    float padShape3;   // 44
+
+    // --- Spatial/Broadphase-Daten ---
+    // Achtung: wir nehmen hier explizit 4 uints, kein uvec2,
+    // damit das Layout 1:1 wie auf der CPU bleibt.
+    uvec2 old_cell_min; // 48
+    uvec2 old_cell_max; // 56
+
     CellIndex cell_indices[16];
-	uint num_cells;
-	float collider_size;
+
+    uint  num_cells;         // 192
+    float bounding_box_size; // 196
+    uint  padSpatial1;       // 200
+    uint  padSpatial2;       // 204
 };
 
 struct Cell {
@@ -55,8 +79,8 @@ layout(std430, binding = 4) readonly buffer SpatialSparse {
     uint spatialSparse[]; 
 };
 
-layout(std430, binding = 6) buffer SpatialInfoComponents {
-    SpatialInfo spatials[];
+layout(std430, binding = 6) buffer ColliderComponents {
+    Collider colliders[];
 };
 
 // --- Output: Join-Ergebnisse ---
@@ -90,8 +114,8 @@ void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max
 {
 	/* TODO: Update the min and max cells and add the entity to the cells */
 	uint ref_count = 0;
-	SpatialInfo info = spatials[comp_index];
-	info.num_cells = 0;
+	Collider collider = colliders[comp_index];
+	collider.num_cells = 0;
 
 	for (uint y = cell_min.y; y <= cell_max.y; y++)
 	{
@@ -110,19 +134,19 @@ void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max
 			entities[cell_start_index + cell_count] = e;
 
 			/* Update the SpatialInfo component of the entity */
-			info.cell_indices[ref_count].cell_id = cell_index;
-			info.cell_indices[ref_count].entity_id = cell_count;
-			info.num_cells++;
+			collider.cell_indices[ref_count].cell_id = cell_index;
+			collider.cell_indices[ref_count].entity_id = cell_count;
+			collider.num_cells++;
 
 			ref_count++;
 		}
 	}
 	/* Add the new Cell Boundaries to the SpatialInfo component */
-	info.old_cell_max = cell_max;
-	info.old_cell_min = cell_min;
+	collider.old_cell_max = cell_max;
+	collider.old_cell_min = cell_min;
 
 	/* Write the new Spatial info */
-	spatials[comp_index] = info;
+	colliders[comp_index] = collider;
 }
 
 void main()
@@ -139,8 +163,8 @@ void main()
     uint sIndex = pairs[idx].si;
 
 	TransformData t = transforms[tIndex];
-	SpatialInfo s = spatials[sIndex];
-	float collider_half = s.collider_size / 2;
+	Collider collider = colliders[sIndex];
+	float collider_half = collider.bounding_box_size / 2;
 
 	float min_x = t.pos.x - collider_half;
 	float min_y = t.pos.y - collider_half;

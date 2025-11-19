@@ -1,12 +1,11 @@
 #pragma once
-#include "ECS/Components/SpatialInfo.h"
+#include "ECS/Components/Collider.h"
 #include <array>
 #include <vector>
 #include <future>
 #include "Core/Coordinate.h"
 #include "Core/Debug/DebugLayer.h"
 #include "ECS/Entity.h"
-#include "ECS/Components/BroadCollider.h"
 #include "ECS/ComponentArray.h"
 #include "GPUCollisionGrid.h"
 
