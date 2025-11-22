@@ -4,6 +4,7 @@
 #include <array>
 #include <thread>
 #include "Core/Application.h"
+#include "Renderer/Rectangle.h"
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Collider.h"
@@ -14,6 +15,7 @@
 #include "glad.h"
 #include "raylib.h"
 #include "rlgl.h"
+#include "glm.hpp"
 
 using namespace Mupfel;
 
@@ -44,6 +46,11 @@ struct ActiveEntity {
 
 
 	uint32_t spatial_info_index = 0;
+};
+
+struct CollisionPair {
+	uint32_t entity_a = 0;
+	uint32_t entity_b = 0;
 };
 
 /**
@@ -99,6 +106,8 @@ struct ProgramParams {
 	uint32_t num_cells_y;
 
 	uint32_t entities_per_cell;
+
+	uint32_t max_colliding_entities;
 };
 
 /**
@@ -137,9 +146,22 @@ static uint32_t entities_deleted_this_frame = 0;
 static GLuint programParamsSSBO = 0;
 
 /**
+ * @brief GPU buffer containing entities that may be colliding this frame. They will be processed by the CPU later.
+ */
+static std::unique_ptr<GPUVector<CollisionPair>> colliding_entities = nullptr;
+
+/**
+ * @brief GPU buffer containing the number of pairs of entities that may be colliding.
+ */
+static std::unique_ptr<GPUVector<uint32_t>> num_colliding_entities = nullptr;
+
+/**
  * @brief Component signature mask describing which components the system requires (Transform + Velocity).
  */
 static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::Collider>();
+
+
+static const uint32_t max_colliding_entities = 20000;
 
 /**
  * @brief OpenGL shader program ID for the main movement update compute shader.
@@ -150,6 +172,11 @@ static uint32_t cell_update_shader_id = 0;
  * @brief OpenGL shader program ID for the data join compute shader, used to sync active entity lists.
  */
 static uint32_t join_shader_id = 0;
+
+/**
+ * @brief OpenGL shader program ID for the narrow_phase shader, used to detect possible collisions using AABB bounding boxes.
+ */
+static uint32_t narrow_phase_shader_id = 0;
 
 Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) :
 	registry(reg),
@@ -172,6 +199,12 @@ void CollisionSystem::Init()
 	join_shader_id = rlLoadComputeShaderProgram(shader_data);
 	UnloadFileText(shader_code);
 
+	/* Load the Narrow Phase Compute Shader */
+	shader_code = LoadFileText("Shaders/gpu_narrow.glsl");
+	shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
+	narrow_phase_shader_id = rlLoadComputeShaderProgram(shader_data);
+	UnloadFileText(shader_code);
+
 	/* Create a GPUVector for the active pairs */
 	active_entities = std::make_unique<GPUVector<ActiveEntity>>();
 	active_entities->resize(10000, { 0, });
@@ -187,6 +220,14 @@ void CollisionSystem::Init()
 	/* Create a GPUVector for the deleted entities every frame */
 	deleted_entities = std::make_unique<GPUVector<Entity>>();
 	deleted_entities->resize(100, { Entity() });
+
+	/* Create a GPUVector for the colliding entities every frame */
+	colliding_entities = std::make_unique<GPUVector<CollisionPair>>();
+	colliding_entities->resize(max_colliding_entities, { CollisionPair()});
+
+	/* Create a GPUVector for the deleted entities every frame */
+	num_colliding_entities = std::make_unique<GPUVector<uint32_t>>();
+	num_colliding_entities->resize(1, { 0 });
 
 	/* Init the Collision Grid */
 	collision_grid.Init();
@@ -204,7 +245,8 @@ void CollisionSystem::Update()
 	ClearGrid();
 	Join();
 	UpdateCells();
-	CheckInteractions();
+	GPUNarrowPhase();
+	CheckCollisions();
 }
 
 void CollisionSystem::Join()
@@ -301,6 +343,7 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	params.num_cells_x = 64;
 	params.num_cells_y = 64;
 	params.entities_per_cell = 2048;
+	params.max_colliding_entities = max_colliding_entities;
 
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);
 }
@@ -316,14 +359,11 @@ void Mupfel::CollisionSystem::UpdateCells()
 	/* Bind the Collision Grid Cell Array to slot 1 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.cells.GetSSBOID());
 
-	/* Bind the Collision Grid Entity Array to slot 1 */
+	/* Bind the Collision Grid Entity Array to slot 2 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.entities.GetSSBOID());
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
-
-	/* Bind the Spatial Info Sparse Array to slot 4 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, spatial_info_array.GetSparseSSBO());
 
 	/* Bind the Spatial Info Component Array to slot 6 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, spatial_info_array.GetComponentSSBO());
@@ -340,53 +380,81 @@ void Mupfel::CollisionSystem::UpdateCells()
 	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 }
 
-void Mupfel::CollisionSystem::CheckInteractions()
+void Mupfel::CollisionSystem::GPUNarrowPhase()
 {
-	static uint32_t num_rows = collision_grid.num_cells_y;
-	static uint32_t num_columns = collision_grid.num_cells_x;
-	static uint32_t cell_size = 1 << collision_grid.cell_size_pow;
+	glUseProgram(narrow_phase_shader_id);
 
-	uint32_t pos_x = 0;
-	uint32_t pos_y = 0;
+	/* Get the needed buffers from the current Registry */
+	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
+	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
-	for (uint32_t y = 0; y < num_rows; y++)
-	{
-		for (uint32_t x = 0; x < num_columns; x++)
-		{
-			uint32_t cell_index = CollisionSystem::WorldtoCell({ pos_x, pos_y });
-			uint32_t cell_count = collision_grid.cells[cell_index].count;
-		
-			if (cell_count > 1)
-			{
-				/* Check collision */
-				uint32_t cell_start_index = collision_grid.cells[cell_index].startIndex;
-				CheckEntityInteraction(cell_start_index, cell_count);
-			}
+	/* Bind the Collision Grid Cell Array to slot 1 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.cells.GetSSBOID());
 
-			pos_x += cell_size;
-		}
-		pos_x = 0;
-		pos_y += cell_size;
-	}
+	/* Bind the Collision Grid Entity Array to slot 2 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.entities.GetSSBOID());
+
+	/* Bind the Transform Component Array to slot 3 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetSparseSSBO());
+
+	/* Bind the Transform Component Array to slot 4 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, transform_array.GetComponentSSBO());
+
+	/* Bind the Spatial Info Sparse Array to slot 5 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, spatial_info_array.GetSparseSSBO());
+
+	/* Bind the Spatial Info Component Array to slot 6 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, spatial_info_array.GetComponentSSBO());
+
+	/* Bind the Active Pairs Array to slot 7 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
+
+	/* Bind the Shader parameters to slot 8 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, programParamsSSBO);
+
+	/* Bind the Colliding Entities Array to slot 9 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, colliding_entities->GetSSBOID());
+
+	/* Bind buffer for the number of colliding entities to slot 10 */
+	num_colliding_entities->operator[](0) = 0;
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, num_colliding_entities->GetSSBOID());
+
+	GLuint groups = ((64*64) + 255) / 256;
+	glDispatchCompute(groups, 1, 1);
+	glFinish();
+	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 }
 
-void Mupfel::CollisionSystem::CheckEntityInteraction(uint32_t start, uint32_t num_ents)
+void Mupfel::CollisionSystem::CheckCollisions()
 {
-	//TraceLog(LOG_INFO, "Checking collision between %u entities", num_ents);
-
-	for (uint32_t first = 0; first < num_ents; first++)
+	uint32_t num_colliding = num_colliding_entities->operator[](0);
+	if (num_colliding > 0)
 	{
-		for (uint32_t second = first + 1; second < num_ents; second++)
-		{
-			Entity first_entity = collision_grid.entities[start + first];
-			Entity second_entity = collision_grid.entities[start + second];
-			Collider first_collider = registry.GetComponent<Collider>(first_entity);
-			Collider second_collider = registry.GetComponent<Collider>(second_entity);
-			Transform first_transform = registry.GetComponent<Transform>(first_entity);
-			Transform second_transform = registry.GetComponent<Transform>(second_entity);
+		TraceLog(LOG_INFO, "Collisions: %u", num_colliding);
+		/* Iterate through the colliding entities */
 
-			
+		for (uint32_t i = 0; i < num_colliding; i++)
+		{
+			Entity a = colliding_entities->operator[](i).entity_a;
+			Entity b = colliding_entities->operator[](i).entity_b;
+
+			assert(registry.HasComponent<Transform>(a));
+			assert(registry.HasComponent<Movement>(a));
+			assert(registry.HasComponent<Transform>(b));
+			assert(registry.HasComponent<Movement>(b));
+
+			Transform t_a = registry.GetComponent<Transform>(a);
+			Transform t_b = registry.GetComponent<Transform>(b);
+
+			Collider col_a = registry.GetComponent<Collider>(a);
+			Collider col_b = registry.GetComponent<Collider>(b);
+
+			Mupfel::Rectangle::RaylibDrawRectFilled(t_a.pos_x - col_a.GetBoundingBox() / 2.0f, t_a.pos_y - col_a.GetBoundingBox() / 2.0f, col_a.GetBoundingBox(), col_a.GetBoundingBox(), 234, 72, 0, 255);
+			Mupfel::Rectangle::RaylibDrawRectFilled(t_b.pos_x - col_b.GetBoundingBox() / 2.0f, t_b.pos_y - col_b.GetBoundingBox() / 2.0f, col_b.GetBoundingBox(), col_b.GetBoundingBox(), 234, 72, 0, 255);
 		}
+
+		// Draw them
+		
 	}
 }
 

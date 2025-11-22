@@ -18,6 +18,7 @@ struct ProgramParams {
 	uint num_cells_x;
 	uint num_cells_y;
 	uint entities_per_cell;
+    uint max_colliding_ents;
 };
 
 layout(std430, binding = 0) readonly buffer EntitySignatures {
@@ -53,6 +54,7 @@ layout(std430, binding = 7) buffer ActiveEntities {
 layout(std430, binding = 8) readonly buffer ProgramParam {
     ProgramParams params;
 };
+
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;

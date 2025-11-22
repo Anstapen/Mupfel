@@ -1,4 +1,5 @@
 #include "Collider.h"
+#include <cassert>
 
 using namespace Mupfel;
 
@@ -20,4 +21,10 @@ void Mupfel::Collider::SetCircle(float in_radius)
 		Sides are radius times 2.
 	*/
 	spatial.bounding_box_size = radius * 2.0f;
+}
+
+float Mupfel::Collider::GetCircle() const
+{
+	assert(info.type == ShapeType::Circle);
+	return radius;
 }

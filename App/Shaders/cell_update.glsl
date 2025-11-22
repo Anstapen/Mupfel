@@ -59,6 +59,7 @@ struct ProgramParams {
 	uint num_cells_x;
 	uint num_cells_y;
 	uint entities_per_cell;
+	uint max_colliding_ents;
 };
 
 layout(std430, binding = 1) buffer Cells {
@@ -71,10 +72,6 @@ layout(std430, binding = 2) buffer CellEntities {
 
 layout(std430, binding = 3) buffer TransformComponents {
     TransformData transforms[];
-};
-
-layout(std430, binding = 4) readonly buffer SpatialSparse {
-    uint spatialSparse[]; 
 };
 
 layout(std430, binding = 6) buffer ColliderComponents {

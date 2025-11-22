@@ -40,6 +40,7 @@ namespace Mupfel {
 	public:
 		float GetBoundingBox() const;
 		void SetCircle(float in_radius);
+		float GetCircle() const;
 	public:
 		ColliderInfo info;
 	private:

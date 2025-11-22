@@ -31,8 +31,8 @@ namespace Mupfel {
 		void Join();
 		void SetProgramParams();
 		void UpdateCells();
-		void CheckInteractions();
-		void CheckEntityInteraction(uint32_t start, uint32_t num_ents);
+		void GPUNarrowPhase();
+		void CheckCollisions();
 		void ClearGrid();
 	private:
 		Registry& registry;
