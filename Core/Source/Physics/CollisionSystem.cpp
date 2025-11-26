@@ -5,6 +5,7 @@
 #include <thread>
 #include "Core/Application.h"
 #include "Renderer/Rectangle.h"
+#include "CollisionDetector.h"
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Collider.h"
@@ -430,27 +431,68 @@ void Mupfel::CollisionSystem::CheckCollisions()
 	uint32_t num_colliding = num_colliding_entities->operator[](0);
 	if (num_colliding > 0)
 	{
-		TraceLog(LOG_INFO, "Collisions: %u", num_colliding);
 		/* Iterate through the colliding entities */
 
 		for (uint32_t i = 0; i < num_colliding; i++)
 		{
+
 			Entity a = colliding_entities->operator[](i).entity_a;
 			Entity b = colliding_entities->operator[](i).entity_b;
 
-			assert(registry.HasComponent<Transform>(a));
-			assert(registry.HasComponent<Movement>(a));
-			assert(registry.HasComponent<Transform>(b));
-			assert(registry.HasComponent<Movement>(b));
+			CollisionDetector::PossibleCollision collision = CollisionDetector::Colliding(a, b);
 
+			if (collision)
+			{
+				Transform& transform_a = registry.GetComponent<Transform>(a);
+				Transform& transform_b = registry.GetComponent<Transform>(b);
+
+				assert(registry.HasComponent<Movement>(a));
+				assert(registry.HasComponent<Movement>(b));
+				Movement& movement_a = registry.GetComponent<Movement>(a);
+				Movement& movement_b = registry.GetComponent<Movement>(b);
+
+				/* Separation */
+				glm::vec2 scaled_spearation_vector = collision.value().normal * (collision.value().penetration / 2.0f);
+
+				/* Calculate the new positions */
+				glm::vec2 new_pos_a = glm::vec2(transform_a.pos_x, transform_a.pos_y) - scaled_spearation_vector;
+				glm::vec2 new_pos_b = glm::vec2(transform_b.pos_x, transform_b.pos_y) + scaled_spearation_vector;
+
+				/* Update the components */
+				transform_a.pos_x = new_pos_a.x;
+				transform_a.pos_y = new_pos_a.y;
+				transform_b.pos_x = new_pos_b.x;
+				transform_b.pos_y = new_pos_b.y;
+
+				/* Velocity correction */
+				glm::vec2 relative_velocity = glm::vec2(movement_b.velocity_x, movement_b.velocity_y) - glm::vec2(movement_a.velocity_x, movement_a.velocity_y);
+
+				float projection = glm::dot(relative_velocity, collision.value().normal);
+
+				/* We only need to correct the velocity if the two entities are moving towards each other */
+				if (projection < 0.0f)
+				{
+					float e = 1.0f;
+					float invMassA = 1.0f;
+					float invMassB = 1.0f;
+
+					float impulse_magnitude = -(1.0f + e) * projection / (invMassA + invMassB);
+					glm::vec2 impulse_vector = impulse_magnitude * collision.value().normal;
+					movement_a.velocity_x -= impulse_vector.x;
+					movement_a.velocity_y -= impulse_vector.y;
+
+					movement_b.velocity_x += impulse_vector.x;
+					movement_b.velocity_y += impulse_vector.y;
+				}
+				
+			}
+#if 0
 			Transform t_a = registry.GetComponent<Transform>(a);
 			Transform t_b = registry.GetComponent<Transform>(b);
 
-			Collider col_a = registry.GetComponent<Collider>(a);
-			Collider col_b = registry.GetComponent<Collider>(b);
-
 			Mupfel::Rectangle::RaylibDrawRectFilled(t_a.pos_x - col_a.GetBoundingBox() / 2.0f, t_a.pos_y - col_a.GetBoundingBox() / 2.0f, col_a.GetBoundingBox(), col_a.GetBoundingBox(), 234, 72, 0, 255);
 			Mupfel::Rectangle::RaylibDrawRectFilled(t_b.pos_x - col_b.GetBoundingBox() / 2.0f, t_b.pos_y - col_b.GetBoundingBox() / 2.0f, col_b.GetBoundingBox(), col_b.GetBoundingBox(), 234, 72, 0, 255);
+#endif
 		}
 
 		// Draw them

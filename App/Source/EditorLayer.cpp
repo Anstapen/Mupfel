@@ -147,7 +147,7 @@ void EditorLayer::ProcessEvents()
 		movement.velocity_x = velocity_x;
 		movement.velocity_y = velocity_y;
 		movement.angular_velocity = angular_velocity;
-		movement.friction = 75.0f;
+		//movement.friction = 75.0f;
 		reg.AddComponent<Mupfel::Movement>(currently_created_entity, movement);
 
 		if (collider_wanted)
