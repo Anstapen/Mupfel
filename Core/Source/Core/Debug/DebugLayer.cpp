@@ -1,6 +1,7 @@
 #include "DebugLayer.h"
 #include "Core/Application.h"
 #include "Renderer/Rectangle.h"
+#include "Renderer/Circle.h"
 #include "Renderer/Text.h"
 #include <string>
 #include <format>
@@ -143,7 +144,7 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 
 	for (auto [entity, t, collider] : spatial_view)
 	{
-		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - collider.GetBoundingBox() / 2.0f, t.pos_y - collider.GetBoundingBox() / 2.0f, collider.GetBoundingBox(), collider.GetBoundingBox(), 102, 191, 255, 255);
+		Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider.GetCircle(), 102, 191, 255, 255);
 	}
 
 	auto movement_view = reg.view<Mupfel::Transform, Mupfel::Movement>();

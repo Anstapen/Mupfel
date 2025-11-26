@@ -6,7 +6,7 @@
 #include "ECS/Components/Movement.h"
 #include "ECS/Components/Collider.h"
 #include "Renderer/Texture.h"
-#include "Renderer/Rectangle.h"
+#include "Renderer/Circle.h"
 
 
 static Mupfel::Entity* cursor = nullptr;
@@ -81,10 +81,10 @@ void EditorLayer::OnRender()
 	/* Reposition the entity */
 	reg.SetComponent<Mupfel::Transform>(*preview, t);
 
-	/* Draw the Spatial collider if enabled */
+	/* Draw the collider if enabled */
 	if (collider_wanted)
 	{
-		Mupfel::Rectangle::RaylibDrawRect(t.pos_x - collider_size / 2.0f, t.pos_y - collider_size / 2.0f, collider_size, collider_size, 102, 191, 255, 255);
+		Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider_size, 102, 191, 255, 255);
 	}
 
 }
@@ -153,7 +153,7 @@ void EditorLayer::ProcessEvents()
 		if (collider_wanted)
 		{
 			Mupfel::Collider col;
-			col.SetCircle(collider_size / 2);
+			col.SetCircle(collider_size);
 			reg.AddComponent<Mupfel::Collider>(currently_created_entity, col);
 		}
 	}
