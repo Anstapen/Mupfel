@@ -21,8 +21,6 @@ void Mupfel::CollisionProcessor::DetectAndResolve(Entity a, Entity b)
 	assert(registry.HasComponent<Collider>(b));
 	assert(registry.HasComponent<Transform>(b));
 	assert(registry.HasComponent<Transform>(a));
-	assert(registry.HasComponent<Transform>(b));
-	assert(registry.HasComponent<Transform>(a));
 
 	Collider col_a = registry.GetComponent<Collider>(a);
 	Collider col_b = registry.GetComponent<Collider>(b);

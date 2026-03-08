@@ -441,17 +441,7 @@ void Mupfel::CollisionSystem::CheckCollisions()
 
 			/* The CollisionProcessor handles Detection and Resolution of Entities */
 			CollisionProcessor::DetectAndResolve(a, b);
-
-#if 0
-			Transform t_a = registry.GetComponent<Transform>(a);
-			Transform t_b = registry.GetComponent<Transform>(b);
-
-			Mupfel::Rectangle::RaylibDrawRectFilled(t_a.pos_x - col_a.GetBoundingBox() / 2.0f, t_a.pos_y - col_a.GetBoundingBox() / 2.0f, col_a.GetBoundingBox(), col_a.GetBoundingBox(), 234, 72, 0, 255);
-			Mupfel::Rectangle::RaylibDrawRectFilled(t_b.pos_x - col_b.GetBoundingBox() / 2.0f, t_b.pos_y - col_b.GetBoundingBox() / 2.0f, col_b.GetBoundingBox(), col_b.GetBoundingBox(), 234, 72, 0, 255);
-#endif
 		}
-
-		// Draw them
 		
 	}
 }
