@@ -156,6 +156,11 @@ ThreadPool& Mupfel::Application::GetCurrentThreadPool()
 	return Get().thread_pool;
 }
 
+void Mupfel::Application::SetTimeScale(double time_scale)
+{
+	Get().physics.SetTimeMultiplier(time_scale);
+}
+
 
 static GLuint gpuTimerQuery = 0;
 

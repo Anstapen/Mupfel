@@ -141,6 +141,8 @@ namespace Mupfel {
 		 */
 		static ThreadPool& GetCurrentThreadPool();
 
+		static void SetTimeScale(double time_scale);
+
 		/**
 		 * @brief Pushes a new layer onto the application’s layer stack.
 		 *

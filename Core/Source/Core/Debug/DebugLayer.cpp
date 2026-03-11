@@ -194,4 +194,8 @@ void Mupfel::DebugLayer::DrawDebugGUI()
 	GuiCheckBox(Rectangle(anchor_x, anchor_y + 30, 24, 24), "Show Entity Colliders", &show_collider);
 	GuiCheckBox(Rectangle(anchor_x, anchor_y + 60, 24, 24), "Show Grid", &show_grid);
 	GuiCheckBox(Rectangle(anchor_x, anchor_y + 90, 24, 24), "Show Entity Velocity", &show_velocity);
+	static float scale = 1.0f;
+	if (GuiSlider(Rectangle(anchor_x, anchor_y + 120, 100, 20), "", "Time Scale", &scale, 0.01f, 3.0f) != 0) {
+		Application::SetTimeScale(scale);
+	}
 }

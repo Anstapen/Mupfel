@@ -7,7 +7,8 @@ using namespace Mupfel;
 
 PhysicsSimulation::PhysicsSimulation(Registry& in_reg,EventSystem& in_evt_system) :
 	reg(in_reg),
-	evt_system(in_evt_system)
+	evt_system(in_evt_system),
+	time_multi(1.0f)
 {
 	collision_system = std::make_unique<CollisionSystem>(reg, evt_system);
 }
@@ -27,7 +28,7 @@ void PhysicsSimulation::Update(double elapsedTime)
 {
 	{
 		ProfilingSample prof("Movement Update");
-		MovementSystem::Update(elapsedTime);
+		MovementSystem::Update(elapsedTime * time_multi);
 	}
 	{
 		ProfilingSample prof("Collision Update");
@@ -35,4 +36,9 @@ void PhysicsSimulation::Update(double elapsedTime)
 	}
 	
 	
+}
+
+void Mupfel::PhysicsSimulation::SetTimeMultiplier(double multi)
+{
+	time_multi = multi;
 }
