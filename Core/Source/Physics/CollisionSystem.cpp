@@ -340,10 +340,10 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	params.entities_added = entities_added_this_frame;
 	params.entities_deleted = entities_deleted_this_frame;
 	params.active_entities = transform_array.Size();
-	params.cell_size_pow = 6;
-	params.num_cells_x = 64;
-	params.num_cells_y = 64;
-	params.entities_per_cell = 2048;
+	params.cell_size_pow = collision_grid.cell_size_pow;
+	params.num_cells_x = collision_grid.num_cells_x;
+	params.num_cells_y = collision_grid.num_cells_y;
+	params.entities_per_cell = collision_grid.EntitiesPerCell;
 	params.max_colliding_entities = max_colliding_entities;
 
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);

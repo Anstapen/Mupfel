@@ -24,6 +24,7 @@ project "App"
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
    includedirs {"../" .. raygui_dir .."/src"}
    includedirs {"../" .. raylib_dir .. "/src"}
+   includedirs {"../Vendor/Sources/nlohmann"}
 
    filter "system:windows"
        systemversion "latest"

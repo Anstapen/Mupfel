@@ -7,6 +7,12 @@
 #include "ECS/Components/Collider.h"
 #include "Renderer/Texture.h"
 #include "Renderer/Circle.h"
+#include "Renderer/Rectangle.h"
+
+/* Entity load store */
+#include "FS/EntityFileManager.h"
+
+#include <cmath>
 
 
 static Mupfel::Entity* cursor = nullptr;
@@ -39,6 +45,9 @@ void EditorLayer::OnInit()
 	reg.AddComponent<Mupfel::Transform>(*cursor, t);
 	reg.AddComponent<Mupfel::Transform>(*preview, t);
 	reg.AddComponent<Mupfel::TextureComponent>(*preview, {});
+
+
+	
 }
 
 void EditorLayer::OnUpdate(double timestep)
@@ -67,9 +76,15 @@ void EditorLayer::OnRender()
 	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 140, 120, 24), "Vel:", NULL, &angular_velocity, 0, PI * 2 * 10);
     GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 170, 120, 24), "Scale", NULL, &scale, 1, 100);
     GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 230, 24, 24), "Collider", &collider_wanted);
-	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 260, 120, 24), "Size", NULL, &collider_size, 1, 100);
+	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 260, 120, 24), "Size", NULL, &collider_size, 16, 200);
 	if (GuiValueBox(Rectangle(anchor01.x + 50, anchor01.y + 290, 120, 24), "No.", & entity_count, 1, 100000, entity_count_edit)) entity_count_edit = !entity_count_edit;
 	GuiGroupBox(Rectangle(anchor01.x + 85, anchor01.y + 400, 100, 100), "Preview");
+	if (GuiButton(Rectangle(anchor01.x + 85, anchor01.y + 500, 50, 50), "Load Entities")) {
+		/* Try to load entities */
+		Mupfel::EntityFileManager fm;
+
+		fm.Load("Data/entities.json");
+	}
     //----------------------------------------------------------------------------------
 
 	Mupfel::Transform t;

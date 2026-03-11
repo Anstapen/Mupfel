@@ -322,7 +322,7 @@ void Mupfel::Renderer::JoinAndRender()
 
             /*
                 Check if we need to resize the Active Entity buffer.
-                As an active entity needs to have both transform and veloctiy,
+                As an active entity needs to have both transform and texture,
                 the min of both arrays is the maximum number of active entities this frame.
             */
             uint32_t max_active_pairs = std::min<uint32_t>(transform_array.Size(), texture_array.Size());
@@ -330,6 +330,7 @@ void Mupfel::Renderer::JoinAndRender()
             if (transform_array.Size() >= active_entities->size())
             {
                 active_entities->resize(transform_array.Size() * 2, { 0, 0, 0 });
+                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
             }
 
             /* Bind the Entity Signature Array to slot 0 */
@@ -402,15 +403,6 @@ void Mupfel::Renderer::JoinAndRender()
         glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0);
 
         glFinish();
-        // und zeichne GPU-driven:
-        
-        
-        // optional finale Barrier, wenn danach SSBO/VS/DMA liest
-        
-        //rlDrawVertexArrayElementsInstanced(0, 6, 0, active_entities);
-
-        //rlDisableVertexArray();
-        //rlDisableShader();
     }
     
 }

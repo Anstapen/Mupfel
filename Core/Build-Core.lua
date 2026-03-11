@@ -34,6 +34,7 @@ project "Core"
    includedirs {"../" .. raylib_dir .."/src/external/glfw/include"}
    includedirs {"../" .. glm_dir .."/glm"}
    includedirs {"../" .. raygui_dir .."/src"}
+   includedirs {"../Vendor/Sources/nlohmann"}
    
    filter "action:vs*"
        defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}

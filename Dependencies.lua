@@ -69,6 +69,28 @@ function check_glm()
         zip.extract("glm-master.zip", os.getcwd())
         os.remove("glm-master.zip")
     end
+    os.chdir("../../")
+end
+
+function check_nlohmann()
+    print("Checking for nlohmann json...")
+    print(os.getcwd())
+    os.chdir("Vendor")
+    if(os.isdir("Sources") == false) then
+        os.mkdir("Sources")
+    end
+    os.chdir("Sources")
+    if(os.isdir("nlohmann") == false) then
+        os.mkdir("nlohmann")
+        os.chdir("nlohmann")
+        if(not os.isfile("json.hpp")) then
+            print("nlohmann json not found, downloading from https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp")
+            local result_str, response_code = http.download("https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp", "json.hpp", {
+                progress = download_progress,
+                headers = { "From: Premake", "Referer: Premake" }
+            })
+        end
+    end
     os.chdir("../../../")
 end
 
@@ -77,6 +99,7 @@ function build_externals()
      check_raylib()
      check_raygui()
      check_glm()
+     check_nlohmann()
 end
 
 build_externals()
