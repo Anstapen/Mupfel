@@ -161,6 +161,16 @@ void Mupfel::Application::SetTimeScale(double time_scale)
 	Get().physics.SetTimeMultiplier(time_scale);
 }
 
+void Mupfel::Application::TogglePhysicsSingleStep()
+{
+	Get().physics.ToggleSingleStep();
+}
+
+void Mupfel::Application::PhysicsStep()
+{
+	Get().physics.Step();
+}
+
 
 static GLuint gpuTimerQuery = 0;
 

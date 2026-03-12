@@ -24,9 +24,12 @@ namespace Mupfel {
 		void DeInit();
 		void Update(double elapsedTime);
 		void SetTimeMultiplier(double multi);
+		void ToggleSingleStep();
+		void Step();
 
 	private:
 		double time_multi;
+		bool single_step;
 		Registry& reg;
 		EventSystem& evt_system;
 		std::unique_ptr<CollisionSystem> collision_system;

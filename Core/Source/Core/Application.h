@@ -141,7 +141,18 @@ namespace Mupfel {
 		 */
 		static ThreadPool& GetCurrentThreadPool();
 
+		/**
+		 * @brief Set the time scale for the movement system.
+		 * 
+		 * This function is mostly used for debugging purposes.
+		 * 
+		 * @param time_scale Time scale to be applied to the elapsed time
+		 */
 		static void SetTimeScale(double time_scale);
+
+		static void TogglePhysicsSingleStep();
+
+		static void PhysicsStep();
 
 		/**
 		 * @brief Pushes a new layer onto the application’s layer stack.

@@ -25,6 +25,10 @@ void Mupfel::DebugLayer::OnInit()
 
 void Mupfel::DebugLayer::OnUpdate(double timestep)
 {
+	if (single_stepping && IsKeyDown(KEY_SPACE))
+	{
+		Application::PhysicsStep();
+	}
 }
 
 void Mupfel::DebugLayer::OnRender()
@@ -197,5 +201,8 @@ void Mupfel::DebugLayer::DrawDebugGUI()
 	static float scale = 1.0f;
 	if (GuiSlider(Rectangle(anchor_x, anchor_y + 120, 100, 20), "", "Time Scale", &scale, 0.01f, 3.0f) != 0) {
 		Application::SetTimeScale(scale);
+	}
+	if (GuiCheckBox(Rectangle(anchor_x, anchor_y + 150, 24, 24), "Enable Single Stepping", &single_stepping) != 0) {
+		Application::TogglePhysicsSingleStep();
 	}
 }
