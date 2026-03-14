@@ -38,15 +38,6 @@ struct CollisionPair {
  */
 struct ProgramParams {
 	/**
-	 * @brief Bitmask representing the required component signature.
-	 *
-	 * Used to filter which entities the Movement System should process.
-	 * Corresponds to the combined signature of Transform
-	 * and Velocity components.
-	 */
-	uint64_t component_mask = 0;
-
-	/**
 	 * @brief The total number of currently active entities.
 	 *
 	 * For now, this is equal to the number of entities that have a
@@ -54,22 +45,6 @@ struct ProgramParams {
 	 * are more clever ways on how to store the active entity buffers.
 	 */
 	uint64_t active_entities = 0;
-
-	/**
-	 * @brief The number of entities added during the current frame.
-	 *
-	 * Used by the join compute shader to determine how many new
-	 * entities need to be inserted into the active entity list.
-	 */
-	uint64_t entities_added = 0;
-
-	/**
-	 * @brief The number of entities deleted during the current frame.
-	 *
-	 * Used by the join compute shader to remove entities that have
-	 * lost one or more required components.
-	 */
-	uint64_t entities_deleted = 0;
 
 	uint32_t cell_size_pow;
 
@@ -80,6 +55,8 @@ struct ProgramParams {
 	uint32_t entities_per_cell;
 
 	uint32_t max_colliding_entities;
+
+	uint32_t _padding;
 };
 
 /**
@@ -198,9 +175,6 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	/* Update the Shader Program parameters for the GPU */
 	ProgramParams params{};
 
-	params.component_mask = 0;
-	params.entities_added = 0;
-	params.entities_deleted = 0;
 	params.active_entities = active_entities->Size();
 	params.cell_size_pow = collision_grid.cell_size_pow;
 	params.num_cells_x = collision_grid.num_cells_x;

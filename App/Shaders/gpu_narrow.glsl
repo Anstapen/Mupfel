@@ -56,15 +56,13 @@ struct CollisionPair {
 };
 
 struct ProgramParams {
-	uint64_t component_mask;
 	uint64_t active_entities;
-	uint64_t entities_added;
-    uint64_t entities_deleted;
     uint cell_size_pow;
 	uint num_cells_x;
 	uint num_cells_y;
 	uint entities_per_cell;
 	uint max_colliding_ents;
+    uint _padding;
 };
 
 layout(std430, binding = 1) buffer Cells {
