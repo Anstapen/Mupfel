@@ -92,6 +92,9 @@ layout(std430, binding = 6) buffer ColliderComponents {
 // --- Output: Join-Ergebnisse ---
 struct ActiveEntity {
     uint e;   // Entity ID
+    uint num_cells;
+	uint cell_index;
+	uint _padding;
 };
 
 layout(std430, binding = 7) buffer ActiveEntities {

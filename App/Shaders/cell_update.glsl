@@ -84,8 +84,15 @@ layout(std430, binding = 6) buffer ColliderComponents {
     Collider colliders[];
 };
 
+struct ActiveEntity {
+    uint id;
+	uint num_cells;
+	uint cell_index;
+	uint _padding;
+};
+
 layout(std430, binding = 7) buffer ActiveEntities {
-    uint entities[];
+    ActiveEntity entities[];
 };
 
 layout(std430, binding = 8) readonly buffer ProgramParam {
@@ -149,7 +156,7 @@ void main()
     if (idx >= params.active_entities) return;
 
     // If entity is 0, ignore
-	uint e = entities[idx];
+	uint e = entities[idx].id;
 
     if(e == 0) return;
 

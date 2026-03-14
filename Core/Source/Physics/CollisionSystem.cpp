@@ -25,6 +25,13 @@ struct CollisionPair {
 	uint32_t entity_b = 0;
 };
 
+struct ActiveEntity {
+	uint32_t id;
+	uint32_t num_cells;
+	uint32_t cell_index;
+	uint32_t _padding;
+};
+
 /**
  * @brief Contains per-frame parameters for the Collision and Join Compute Shaders.
  *
@@ -62,7 +69,7 @@ struct ProgramParams {
 /**
  * @brief Holds a GPU buffer of all currently active entities that have both Transform and Velocity components.
  */
-static std::unique_ptr<GPUComponentArray<uint32_t>> active_entities = nullptr;
+static std::unique_ptr<GPUComponentArray<ActiveEntity>> active_entities = nullptr;
 
 /**
  * @brief OpenGL Shader Storage Buffer Object that holds the current program parameters for GPU-side computation.
@@ -119,7 +126,7 @@ void CollisionSystem::Init()
 	UnloadFileText(shader_code);
 
 	/* Create a GPUVector for the active pairs */
-	active_entities = std::make_unique<GPUComponentArray<uint32_t>>();
+	active_entities = std::make_unique<GPUComponentArray<ActiveEntity>>();
 
 	/* Create a GPUVector for the colliding entities every frame */
 	colliding_entities = std::make_unique<GPUVector<CollisionPair>>();
@@ -330,7 +337,7 @@ void Mupfel::CollisionSystem::SetCallbacks()
 				return;
 			}
 
-			active_entities->Insert(event.e, event.e.Index());
+			active_entities->Insert(event.e, { event.e.Index() , 0, 0, 0});
 		}
 	);
 
