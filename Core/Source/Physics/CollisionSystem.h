@@ -28,7 +28,6 @@ namespace Mupfel {
 
 
 		void SetCallbacks();
-		void Join();
 		void SetProgramParams();
 		void UpdateCells();
 		void GPUNarrowPhase();

@@ -39,12 +39,6 @@ namespace Mupfel {
 		virtual ~MovementSystem();
 
 		/**
-		 * @brief Performs a GPU-side join between Transform and Velocity
-		 * component arrays to find active entities with both components.
-		 */
-		static void Join();
-
-		/**
 		 * @brief Executes the main movement compute shader to update entity positions.
 		 * @param elapsedTime Delta time used to compute movement updates.
 		 */

@@ -67,26 +67,27 @@ layout(std430, binding = 1) buffer Cells {
 };
 
 layout(std430, binding = 2) buffer CellEntities {
-    uint entities[];
+    uint cell_entities[];
 };
 
 layout(std430, binding = 3) buffer TransformComponents {
     TransformData transforms[];
 };
 
+layout(std430, binding = 4) readonly buffer TransformSparse {
+    uint transformSparse[];
+};
+
+layout(std430, binding = 5) readonly buffer SpatialSparse {
+    uint spatialSparse[]; 
+};
+
 layout(std430, binding = 6) buffer ColliderComponents {
     Collider colliders[];
 };
 
-// --- Output: Join-Ergebnisse ---
-struct ActiveEntity {
-    uint e;   // Entity ID
-    uint ti;  // Transform dense index
-    uint si;  // SpatialInfo dense index
-};
-
 layout(std430, binding = 7) buffer ActiveEntities {
-    ActiveEntity pairs[];
+    uint entities[];
 };
 
 layout(std430, binding = 8) readonly buffer ProgramParam {
@@ -126,7 +127,7 @@ void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max
 
 			uint cell_count = atomicAdd(cells[cell_index].count, 1);
 
-			entities[cell_start_index + cell_count] = e;
+			cell_entities[cell_start_index + cell_count] = e;
 
 			/* Update the SpatialInfo component of the entity */
 			collider.cell_indices[ref_count].cell_id = cell_index;
@@ -150,15 +151,17 @@ void main()
     if (idx >= params.active_entities) return;
 
     // If entity is 0, ignore
-	uint e = pairs[idx].e;
+	uint e = entities[idx];
 
     if(e == 0) return;
 
-    uint tIndex = pairs[idx].ti;
-    uint sIndex = pairs[idx].si;
+    uint tIndex = transformSparse[e];
+    uint sIndex = spatialSparse[e];
 
 	TransformData t = transforms[tIndex];
 	Collider collider = colliders[sIndex];
+
+
 	float collider_half = collider.bounding_box_size / 2;
 
 	float min_x = t.pos.x - collider_half;

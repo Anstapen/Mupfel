@@ -20,35 +20,6 @@
 
 using namespace Mupfel;
 
-/**
- * @brief Represents a mapping of an active entity in the Collision System.
- *
- * The ActiveEntity structure links an entity's unique ID to the
- * corresponding index of its Transform component in its respective
- * GPU buffer.
- */
-struct ActiveEntity {
-	/**
-	 * @brief The unique identifier of the entity.
-	 *
-	 * This ID corresponds to the ECS entity index and allows
-	 * the compute shader to reference entities consistently
-	 * across component arrays.
-	 */
-	uint32_t entity_id = 0;
-
-	/**
-	 * @brief The dense array index of the Transform component for this entity.
-	 *
-	 * Used to locate the Transform data of the entity within
-	 * the Transform GPU buffer.
-	 */
-	uint32_t transform_index = 0;
-
-
-	uint32_t spatial_info_index = 0;
-};
-
 struct CollisionPair {
 	uint32_t entity_a = 0;
 	uint32_t entity_b = 0;
@@ -114,32 +85,7 @@ struct ProgramParams {
 /**
  * @brief Holds a GPU buffer of all currently active entities that have both Transform and Velocity components.
  */
-static std::unique_ptr<GPUVector<ActiveEntity>> active_entities = nullptr;
-
-/**
- * @brief GPU buffer that stores global parameters for the movement compute shader (entity count, delta time, etc.).
- */
-static std::unique_ptr<GPUVector<ProgramParams>> program_params = nullptr;
-
-/**
- * @brief GPU buffer containing entities that were added this frame and need to be processed by the join shader.
- */
-static std::unique_ptr<GPUVector<Entity>> added_entities = nullptr;
-
-/**
- * @brief CPU-side counter of how many entities were added during the current frame.
- */
-static uint32_t entities_added_this_frame = 0;
-
-/**
- * @brief GPU buffer containing entities that lost required components and should be removed from the active list.
- */
-static std::unique_ptr<GPUVector<Entity>> deleted_entities = nullptr;
-
-/**
- * @brief CPU-side counter of how many entities were removed during the current frame.
- */
-static uint32_t entities_deleted_this_frame = 0;
+static std::unique_ptr<GPUComponentArray<uint32_t>> active_entities = nullptr;
 
 /**
  * @brief OpenGL Shader Storage Buffer Object that holds the current program parameters for GPU-side computation.
@@ -170,11 +116,6 @@ static const uint32_t max_colliding_entities = 20000;
 static uint32_t cell_update_shader_id = 0;
 
 /**
- * @brief OpenGL shader program ID for the data join compute shader, used to sync active entity lists.
- */
-static uint32_t join_shader_id = 0;
-
-/**
  * @brief OpenGL shader program ID for the narrow_phase shader, used to detect possible collisions using AABB bounding boxes.
  */
 static uint32_t narrow_phase_shader_id = 0;
@@ -194,12 +135,6 @@ void CollisionSystem::Init()
 	cell_update_shader_id = rlLoadComputeShaderProgram(shader_data);
 	UnloadFileText(shader_code);
 
-	/* Load the Join Compute Shader */
-	shader_code = LoadFileText("Shaders/collision_data_join.glsl");
-	shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
-	join_shader_id = rlLoadComputeShaderProgram(shader_data);
-	UnloadFileText(shader_code);
-
 	/* Load the Narrow Phase Compute Shader */
 	shader_code = LoadFileText("Shaders/gpu_narrow.glsl");
 	shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
@@ -207,32 +142,17 @@ void CollisionSystem::Init()
 	UnloadFileText(shader_code);
 
 	/* Create a GPUVector for the active pairs */
-	active_entities = std::make_unique<GPUVector<ActiveEntity>>();
-	active_entities->resize(10000, { 0, });
-
-	/* Create a GPUVector for the program parameters */
-	program_params = std::make_unique<GPUVector<ProgramParams>>();
-	program_params->resize(1, { static_cast<uint64_t>(wanted_comp_sig.to_ulong()), 0 , 0, 0 });
-
-	/* Create a GPUVector for the added entities every frame */
-	added_entities = std::make_unique<GPUVector<Entity>>();
-	added_entities->resize(100, { Entity() });
-
-	/* Create a GPUVector for the deleted entities every frame */
-	deleted_entities = std::make_unique<GPUVector<Entity>>();
-	deleted_entities->resize(100, { Entity() });
+	active_entities = std::make_unique<GPUComponentArray<uint32_t>>();
 
 	/* Create a GPUVector for the colliding entities every frame */
 	colliding_entities = std::make_unique<GPUVector<CollisionPair>>();
 	colliding_entities->resize(max_colliding_entities, { CollisionPair()});
 
-	/* Create a GPUVector for the deleted entities every frame */
 	num_colliding_entities = std::make_unique<GPUVector<uint32_t>>();
 	num_colliding_entities->resize(1, { 0 });
 
 	/* Init the Collision Grid */
 	collision_grid.Init();
-
 
 	glCreateBuffers(1, &programParamsSSBO);
 	glNamedBufferStorage(programParamsSSBO, sizeof(ProgramParams), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -244,65 +164,9 @@ void CollisionSystem::Update()
 {
 	SetProgramParams();
 	ClearGrid();
-	Join();
 	UpdateCells();
 	GPUNarrowPhase();
 	CheckCollisions();
-}
-
-void CollisionSystem::Join()
-{
-	/* The Join Shader only needs to do work if Tranform or Spatial Info Components were added/deleted */
-	if (entities_added_this_frame == 0 && entities_deleted_this_frame == 0)
-	{
-		return;
-	}
-
-	glUseProgram(join_shader_id);
-
-	/* Get the needed buffers from the current Registry */
-	uint32_t signatureBuffer = Application::GetCurrentRegistry().signatures.GetSSBOID();
-	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
-
-	/* Do we need to resize the active entity buffer? */
-	if (transform_array.Size() >= active_entities->size())
-	{
-		/* Resize the active entity buffer */
-		active_entities->resize(transform_array.Size() * 2, { 0, 0, 0 });
-	}
-
-	/* Bind the Entity Signature Array to slot 0 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, signatureBuffer);
-
-	/* Bind the Transform Sparse Array to slot 1 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSparseSSBO());
-
-	/* Bind the Spatial Info Sparse Array to slot 4 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, spatial_info_array.GetSparseSSBO());
-
-	/* Bind the Active Pairs Array to slot 7 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
-
-	/* Bind the Shader parameters to slot 8 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, programParamsSSBO);
-
-	/* Bind the Added Entities Array to slot 10 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, added_entities->GetSSBOID());
-
-	/* Bind the Deleted Entities Array to slot 11 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, deleted_entities->GetSSBOID());
-
-	uint32_t changed_entities = std::max<uint32_t>(entities_added_this_frame, entities_deleted_this_frame);
-
-	GLuint groups = (changed_entities + 255) / 256;
-	glDispatchCompute(groups, 1, 1);
-
-	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-	glFinish();
-
-	entities_added_this_frame = 0;
-	entities_deleted_this_frame = 0;
 }
 
 
@@ -331,15 +195,13 @@ uint32_t Mupfel::CollisionSystem::PointYtoCell(uint32_t y)
 
 void Mupfel::CollisionSystem::SetProgramParams()
 {
-	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-
 	/* Update the Shader Program parameters for the GPU */
 	ProgramParams params{};
 
-	params.component_mask = static_cast<uint64_t>(wanted_comp_sig.to_ulong());
-	params.entities_added = entities_added_this_frame;
-	params.entities_deleted = entities_deleted_this_frame;
-	params.active_entities = transform_array.Size();
+	params.component_mask = 0;
+	params.entities_added = 0;
+	params.entities_deleted = 0;
+	params.active_entities = active_entities->Size();
 	params.cell_size_pow = collision_grid.cell_size_pow;
 	params.num_cells_x = collision_grid.num_cells_x;
 	params.num_cells_y = collision_grid.num_cells_y;
@@ -366,16 +228,20 @@ void Mupfel::CollisionSystem::UpdateCells()
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
 
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, transform_array.GetSparseSSBO());
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, spatial_info_array.GetSparseSSBO());
+
 	/* Bind the Spatial Info Component Array to slot 6 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, spatial_info_array.GetComponentSSBO());
 
 	/* Bind the Active Pairs Array to slot 7 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetComponentSSBO());
 
 	/* Bind the Shader parameters to slot 8 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, programParamsSSBO);
 
-	GLuint groups = (active_entities->size() + 255) / 256;
+	GLuint groups = (active_entities->Size() + 255) / 256;
 	glDispatchCompute(groups, 1, 1);
 	glFinish();
 	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
@@ -408,7 +274,7 @@ void Mupfel::CollisionSystem::GPUNarrowPhase()
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, spatial_info_array.GetComponentSSBO());
 
 	/* Bind the Active Pairs Array to slot 7 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetComponentSSBO());
 
 	/* Bind the Shader parameters to slot 8 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, programParamsSSBO);
@@ -490,14 +356,7 @@ void Mupfel::CollisionSystem::SetCallbacks()
 				return;
 			}
 
-			if (entities_added_this_frame >= added_entities->size())
-			{
-				added_entities->resize(entities_added_this_frame * 2, Entity());
-			}
-
-			added_entities->operator[](entities_added_this_frame) = event.e;
-
-			entities_added_this_frame++;
+			active_entities->Insert(event.e, event.e.Index());
 		}
 	);
 
@@ -530,15 +389,7 @@ void Mupfel::CollisionSystem::SetCallbacks()
 			}
 
 			/* Add the entity to the delete array */
-
-			if (entities_deleted_this_frame >= deleted_entities->size())
-			{
-				deleted_entities->resize(entities_deleted_this_frame * 2, Entity());
-			}
-
-			deleted_entities->operator[](entities_deleted_this_frame) = event.e;
-
-			entities_deleted_this_frame++;
+			active_entities->Remove(event.e);
 		}
 	);
 }

@@ -20,31 +20,29 @@ struct VelocityData {
 };
 
 struct ProgramParams {
-	uint64_t component_mask;
 	uint64_t active_entities;
-	uint64_t entities_changed;
-    uint64_t entities_deleted;
 	float delta_time;
+    float _padding;
 };
-
 
 layout(std430, binding = 3) buffer TransformComponents {
     TransformData transforms[];
+};
+
+layout(std430, binding = 4) readonly buffer TransformSparse {
+    uint transformSparse[];
+};
+
+layout(std430, binding = 5) readonly buffer VelocitySparse {
+    uint velocitySparse[];
 };
 
 layout(std430, binding = 6) buffer VelocityComponents {
     VelocityData velocities[];
 };
 
-// --- Output: Join-Ergebnisse ---
-struct ActiveEntity {
-    uint e;   // Entity ID
-    uint ti;  // Transform dense index
-    uint vi;  // Velocity dense index
-};
-
-layout(std430, binding = 7) buffer ActiveEntities {
-    ActiveEntity pairs[];
+layout(std430, binding = 7) readonly buffer ActiveEntities {
+    uint enitity[];
 };
 
 layout(std430, binding = 8) readonly buffer ProgramParam {
@@ -56,11 +54,13 @@ void main()
     uint idx = gl_GlobalInvocationID.x;
     if (idx >= params.active_entities) return;
 
-    // If entity is 0, ignore
-    if(pairs[idx].e == 0) return;
+    uint e = enitity[idx];
 
-    uint tIndex = pairs[idx].ti;
-    uint vIndex = pairs[idx].vi;
+    // If entity is 0, ignore
+    if(e == 0) return;
+
+    uint tIndex = transformSparse[e];
+    uint vIndex = velocitySparse[e];
 
     VelocityData velo = velocities[vIndex];
 
