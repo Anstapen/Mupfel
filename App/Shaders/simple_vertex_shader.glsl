@@ -18,18 +18,20 @@ layout(std430, binding = 3) readonly buffer TransformComponents {
     TransformData transforms[];
 };
 
+layout(std430, binding = 4) readonly buffer TransformSparse {
+    uint transformSparse[];
+};
+
+layout(std430, binding = 5) readonly buffer TextureSparse {
+    uint textureSparse[];
+};
+
 layout(std430, binding = 6) readonly buffer TextureComponents {
     TextureData textures[];
 };
 
-struct ActiveEntity {
-    uint e;   // Entity ID
-    uint ti;  // Transform dense index
-    uint tei;  // Texture dense index
-};
-
-layout(std430, binding = 7) buffer ActiveEntities {
-    ActiveEntity pairs[];
+layout(std430, binding = 7) readonly buffer ActiveEntities {
+    uint entities[];
 };
 
 uniform mat4 view;
@@ -41,9 +43,11 @@ void main()
 {
     uint instanceID = gl_InstanceID;
 
-    if(pairs[instanceID].e == 0) return;
+    uint e = entities[instanceID];
 
-    uint transform_index = pairs[instanceID].ti;
+    if(e == 0) return;
+
+    uint transform_index = transformSparse[e];
     //uint texture_index = indices[instanceID].texture_index;
     
     float rotation = transforms[transform_index].rotation;

@@ -45,11 +45,7 @@ struct DrawElementsIndirectCommand {
 };
 
 struct ProgramParams {
-    uint64_t component_mask = 0;
     uint64_t active_entities = 0;
-    uint64_t entities_added = 0;
-    uint64_t entities_deleted = 0;
-    float delta_time;
 };
 
 
@@ -67,20 +63,7 @@ static int screen_h = 0;
 static uint32_t join_compute_shader = 0;
 static uint32_t prepare_render_shader = 0;
 
-struct ActiveEntity {
-    uint32_t entity_id = 0;
-    uint32_t transform_index = 0;
-    uint32_t texture_index = 0;
-};
-
-static std::unique_ptr<GPUVector<ActiveEntity>> active_entities = nullptr;
-static std::unique_ptr<GPUVector<uint32_t>> active_entity_count = nullptr;
-
-static std::unique_ptr<GPUVector<Entity>> added_entities = nullptr;
-static uint32_t entities_added_this_frame = 0;
-
-static std::unique_ptr<GPUVector<Entity>> deleted_entities = nullptr;
-static uint32_t entities_deleted_this_frame = 0;
+static std::unique_ptr<GPUComponentArray<uint32_t>> active_entities = nullptr;
 
 GLuint indirectBuffer = 0;
 static GLuint frameParamsSSBO = 0;
@@ -107,29 +90,14 @@ void Renderer::Init()
     /* Load the texture */
     t = new Texture("Resources/simple_ball.png");
 
-    /* Load the Join Compute Shader */
-    char* shader_code = LoadFileText("Shaders/render_data_join.glsl");
-    int shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
-    join_compute_shader = rlLoadComputeShaderProgram(shader_data);
-    UnloadFileText(shader_code);
-
     /* Load the Prepare Render Compute Shader */
-    shader_code = LoadFileText("Shaders/prepare_render_pass.glsl");
-    shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
+    char* shader_code = LoadFileText("Shaders/prepare_render_pass.glsl");
+    int shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
     prepare_render_shader = rlLoadComputeShaderProgram(shader_data);
     UnloadFileText(shader_code);
 
     /* Create a GPUVector for the active entities */
-    active_entities = std::make_unique<GPUVector<ActiveEntity>>();
-    active_entities->resize(1000, { 0, 0, 0 });
-
-    /* Create a GPUVector for the added entities every frame */
-    added_entities = std::make_unique<GPUVector<Entity>>();
-    added_entities->resize(100, { Entity() });
-
-    /* Create a GPUVector for the deleted entities every frame */
-    deleted_entities = std::make_unique<GPUVector<Entity>>();
-    deleted_entities->resize(100, { Entity() });
+    active_entities = std::make_unique<GPUComponentArray<uint32_t>>();
 
     glCreateBuffers(1, &indirectBuffer);
     DrawElementsIndirectCommand cmd{};
@@ -187,15 +155,7 @@ void Renderer::Init()
                 /* Entity does not have Transform + Texture */
                 return;
             }
-
-            if (entities_added_this_frame >= added_entities->size())
-            {
-                added_entities->resize(entities_added_this_frame * 2, Entity());
-            }
-
-            added_entities->operator[](entities_added_this_frame) = event.e;
-
-            entities_added_this_frame++;
+            active_entities->Insert(event.e, event.e.Index());
         }
     );
 
@@ -226,17 +186,7 @@ void Renderer::Init()
             {
                 return;
             }
-
-            /* Add the entity to the delete array */
-
-            if (entities_deleted_this_frame >= deleted_entities->size())
-            {
-                deleted_entities->resize(entities_deleted_this_frame * 2, Entity());
-            }
-
-            deleted_entities->operator[](entities_deleted_this_frame) = event.e;
-
-            entities_deleted_this_frame++;
+            active_entities->Remove(event.e);
         }
     );
 }
@@ -244,8 +194,6 @@ void Renderer::Init()
 void Renderer::Render()
 {
     ProfilingSample prof("Renderer custom Draw Batching");
-
-    auto view = Application::GetCurrentRegistry().view<Transform>();
 
     SetProgramParams();
 
@@ -305,68 +253,15 @@ void Mupfel::Renderer::JoinAndRender()
     /* Bind the Transform Component Array to slot 3 */
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
 
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, transform_array.GetSparseSSBO());
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, texture_array.GetSparseSSBO());
+
     /* Bind the Texture Component Array to slot 6 */
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, texture_array.GetComponentSSBO());
 
     /* Bind the Active Pairs Array to slot 7 */
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
-
-    {
-        ProfilingSample prof("Running Render Join");
-
-        if (entities_added_this_frame > 0 || entities_deleted_this_frame > 0)
-        {
-            glUseProgram(join_compute_shader);
-
-            uint32_t signatureBuffer = Application::GetCurrentRegistry().signatures.GetSSBOID();
-
-            /*
-                Check if we need to resize the Active Entity buffer.
-                As an active entity needs to have both transform and texture,
-                the min of both arrays is the maximum number of active entities this frame.
-            */
-            uint32_t max_active_pairs = std::min<uint32_t>(transform_array.Size(), texture_array.Size());
-
-            if (transform_array.Size() >= active_entities->size())
-            {
-                active_entities->resize(transform_array.Size() * 2, { 0, 0, 0 });
-                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetSSBOID());
-            }
-
-            /* Bind the Entity Signature Array to slot 0 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, signatureBuffer);
-
-            /* Bind the Transform Sparse Array to slot 1 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, transform_array.GetSparseSSBO());
-
-            /* Bind the Transform Dense Array to slot 2 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, transform_array.GetDenseSSBO());
-
-            /* Bind the Texture Sparse Array to slot 4 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, texture_array.GetSparseSSBO());
-
-            /* Bind the Texture Dense Array to slot 5 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, texture_array.GetDenseSSBO());
-
-            /* Bind the Added Entities Array to slot 10 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, added_entities->GetSSBOID());
-
-            /* Bind the Deleted Entities Array to slot 11 */
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, deleted_entities->GetSSBOID());
-
-            uint32_t changed_entities = std::max<uint32_t>(entities_added_this_frame, entities_deleted_this_frame);
-
-            //glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-            // Compute starten
-            GLuint groups = (changed_entities + 255) / 256;
-            glDispatchCompute(groups, 1, 1);
-            glFinish();
-
-            entities_added_this_frame = 0;
-            entities_deleted_this_frame = 0;
-            //glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
-        }
-    }
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetComponentSSBO());
 
     {
         glUseProgram(prepare_render_shader);
@@ -409,16 +304,10 @@ void Mupfel::Renderer::JoinAndRender()
 
 void Mupfel::Renderer::SetProgramParams()
 {
-    GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-
     /* Update the Shader Program parameters for the GPU */
     ProgramParams params{};
 
-    params.component_mask = static_cast<uint64_t>(wanted_comp_sig.to_ulong());
-    params.entities_added = entities_added_this_frame;
-    params.entities_deleted = entities_deleted_this_frame;
-    params.active_entities = transform_array.Size();
-    params.delta_time = 0;
+    params.active_entities = active_entities->Size();
 
     glNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
 }

@@ -12,11 +12,7 @@ struct DrawElementsIndirectCommand {
 };
 
 struct ProgramParams {
-	uint64_t component_mask;
 	uint64_t active_entities;
-	uint64_t entities_added;
-    uint64_t entities_deleted;
-	float delta_time;
 };
 
 layout(std430, binding = 9) buffer IndirectCmd {
