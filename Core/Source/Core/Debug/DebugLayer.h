@@ -14,6 +14,7 @@ namespace Mupfel {
 		void DrawCollisionGrid();
 		void DrawEntityColliders();
 		void DrawEntityVelocity();
+		void DrawEntityIndex();
 		void DrawPerformanceMetrics();
 		void DrawDebugGUI();
 	private:
@@ -24,6 +25,7 @@ namespace Mupfel {
 		bool show_velocity = false;
 		bool show_grid = false;
 		bool single_stepping = true;
+		bool show_entity_index = false;
 	};
 }
 

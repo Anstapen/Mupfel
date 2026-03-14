@@ -25,7 +25,7 @@ void Mupfel::DebugLayer::OnInit()
 
 void Mupfel::DebugLayer::OnUpdate(double timestep)
 {
-	if (single_stepping && IsKeyDown(KEY_SPACE))
+	if (single_stepping && IsKeyPressed(KEY_SPACE))
 	{
 		Application::PhysicsStep();
 	}
@@ -48,6 +48,11 @@ void Mupfel::DebugLayer::OnRender()
 	if (show_velocity)
 	{
 		DrawEntityVelocity();
+	}
+
+	if (show_entity_index)
+	{
+		DrawEntityIndex();
 	}
 
 	if (show_perf)
@@ -163,6 +168,23 @@ void Mupfel::DebugLayer::DrawEntityVelocity()
 	}
 }
 
+void Mupfel::DebugLayer::DrawEntityIndex()
+{
+	Registry& reg = Mupfel::Application::GetCurrentRegistry();
+
+
+	auto movement_view = reg.view<Mupfel::Transform>();
+
+	for (auto [entity, transform] : movement_view)
+	{
+		float idx = entity.Index();
+
+		std::string text1 = std::vformat("{:.0f}", std::make_format_args(idx));
+		Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x + 15, transform.pos_y, 15);
+
+	}
+}
+
 void Mupfel::DebugLayer::DrawPerformanceMetrics()
 {
 	/* Print the Profiling Samples */
@@ -198,11 +220,12 @@ void Mupfel::DebugLayer::DrawDebugGUI()
 	GuiCheckBox(Rectangle(anchor_x, anchor_y + 30, 24, 24), "Show Entity Colliders", &show_collider);
 	GuiCheckBox(Rectangle(anchor_x, anchor_y + 60, 24, 24), "Show Grid", &show_grid);
 	GuiCheckBox(Rectangle(anchor_x, anchor_y + 90, 24, 24), "Show Entity Velocity", &show_velocity);
+	GuiCheckBox(Rectangle(anchor_x, anchor_y + 120, 24, 24), "Show Entity Index", &show_entity_index);
 	static float scale = 1.0f;
-	if (GuiSlider(Rectangle(anchor_x, anchor_y + 120, 100, 20), "", "Time Scale", &scale, 0.01f, 3.0f) != 0) {
+	if (GuiSlider(Rectangle(anchor_x, anchor_y + 150, 100, 20), "", "Time Scale", &scale, 0.01f, 3.0f) != 0) {
 		Application::SetTimeScale(scale);
 	}
-	if (GuiCheckBox(Rectangle(anchor_x, anchor_y + 150, 24, 24), "Enable Single Stepping", &single_stepping) != 0) {
+	if (GuiCheckBox(Rectangle(anchor_x, anchor_y + 180, 24, 24), "Enable Single Stepping", &single_stepping) != 0) {
 		Application::TogglePhysicsSingleStep();
 	}
 }
