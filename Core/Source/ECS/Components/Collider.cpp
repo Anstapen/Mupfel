@@ -5,7 +5,7 @@ using namespace Mupfel;
 
 float Mupfel::Collider::GetBoundingBox() const
 {
-	return spatial.bounding_box_size;
+	return bounding_box_size;
 }
 
 void Mupfel::Collider::SetCircle(float in_radius)
@@ -20,7 +20,7 @@ void Mupfel::Collider::SetCircle(float in_radius)
 		Set the bounding box.
 		Sides are radius times 2.
 	*/
-	spatial.bounding_box_size = radius * 2.0f;
+	bounding_box_size = radius * 2.0f;
 }
 
 float Mupfel::Collider::GetCircle() const

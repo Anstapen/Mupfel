@@ -34,14 +34,6 @@ struct Collider {
     float padShape2;
     float padShape3;
 
-    // Spatial data for the broadphase
-	// this occupies 152 bytes
-    uvec2 old_cell_min;
-    uvec2 old_cell_max;
-
-    CellIndex cell_indices[16];
-
-    uint  num_cells;
     float bounding_box_size;
 };
 
