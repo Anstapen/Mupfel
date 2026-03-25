@@ -45,11 +45,6 @@ struct Collider {
     float bounding_box_size;
 };
 
-struct Cell {
-	uint startIndex;
-	uint count;
-};
-
 struct CollisionPair {
 	uint entity_a;
 	uint entity_b;
@@ -65,12 +60,12 @@ struct ProgramParams {
     uint _padding;
 };
 
-layout(std430, binding = 1) buffer Cells {
-    Cell cells[];
+layout(std430, binding = 1) readonly buffer CellCountIndices {
+    uint cell_index[];
 };
 
-layout(std430, binding = 2) buffer CellEntities {
-    uint entities[];
+layout(std430, binding = 2) buffer CellEntityArray {
+    CellIndex cells[];
 };
 
 layout(std430, binding = 3) readonly buffer TransformSparse {
@@ -113,24 +108,6 @@ layout(std430, binding = 10) buffer num_colliding_entities {
     uint num;
 };
 
-uint firstMatchingCell(uint entity_a, uint entity_b)
-{
-    Collider c_a = colliders[colliderSparse[entity_a]];
-    Collider c_b = colliders[colliderSparse[entity_b]];
-    
-    for(uint i = 0; i < c_a.num_cells; i++)
-    {
-        for(uint j = 0; j < c_b.num_cells; j++)
-        {
-            if(c_a.cell_indices[i].cell_id == c_b.cell_indices[j].cell_id)
-            {
-                return c_a.cell_indices[i].cell_id;
-            }
-        }
-    }
-    
-    return 0;
-}
 
 bool CollisionPossible(uint entity_a, uint entity_b)
 {
@@ -155,31 +132,23 @@ bool CollisionPossible(uint entity_a, uint entity_b)
 void main()
 {
     uint idx = gl_GlobalInvocationID.x;
-    if (idx >= (params.num_cells_x * params.num_cells_y)) return;
 
-    uint cell_count = cells[idx].count;
-    uint cell_start = cells[idx].startIndex;
-
-    if(cell_count < 2) return;
+    if (idx >= (params.num_cells_x * params.num_cells_y - 1)) return;
+    uint cell_count = cell_index[idx + 1] - cell_index[idx];
+    uint cell_start = cell_index[idx];
 
     for (uint first = 0; first < cell_count; first++)
 	{
 		for (uint second = first + 1; second < cell_count; second++)
 		{
-            uint entity_a = entities[cell_start + first];
-            uint entity_b = entities[cell_start + second];
+            uint entity_a = cells[cell_start + first].entity_id;
+            uint entity_b = cells[cell_start + second].entity_id;
 
             if(CollisionPossible(entity_a, entity_b))
             {
-                uint first_colliding_cell = firstMatchingCell(entity_a, entity_b);
-                if(first_colliding_cell == idx)
-                {
-                    uint idx = atomicAdd(num, 1);
-                    collision_pairs[idx] = CollisionPair(entity_a, entity_b);
-                }
-                
+                uint collision_idx = atomicAdd(num, 1);
+                collision_pairs[collision_idx] = CollisionPair(entity_a, entity_b);
             }
         }
     }
-
 }

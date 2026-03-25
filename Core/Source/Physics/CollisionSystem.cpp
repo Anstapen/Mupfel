@@ -18,19 +18,9 @@
 #include "rlgl.h"
 #include "glm.hpp"
 
+#include <iostream>
+
 using namespace Mupfel;
-
-struct CollisionPair {
-	uint32_t entity_a = 0;
-	uint32_t entity_b = 0;
-};
-
-struct ActiveEntity {
-	uint32_t id;
-	uint32_t num_cells;
-	uint32_t cell_index;
-	uint32_t _padding;
-};
 
 /**
  * @brief Contains per-frame parameters for the Collision and Join Compute Shaders.
@@ -67,24 +57,9 @@ struct ProgramParams {
 };
 
 /**
- * @brief Holds a GPU buffer of all currently active entities that have both Transform and Velocity components.
- */
-static std::unique_ptr<GPUComponentArray<ActiveEntity>> active_entities = nullptr;
-
-/**
  * @brief OpenGL Shader Storage Buffer Object that holds the current program parameters for GPU-side computation.
  */
 static GLuint programParamsSSBO = 0;
-
-/**
- * @brief GPU buffer containing entities that may be colliding this frame. They will be processed by the CPU later.
- */
-static std::unique_ptr<GPUVector<CollisionPair>> colliding_entities = nullptr;
-
-/**
- * @brief GPU buffer containing the number of pairs of entities that may be colliding.
- */
-static std::unique_ptr<GPUVector<uint32_t>> num_colliding_entities = nullptr;
 
 /**
  * @brief Component signature mask describing which components the system requires (Transform + Velocity).
@@ -94,29 +69,35 @@ static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mu
 
 static const uint32_t max_colliding_entities = 20000;
 
-/**
- * @brief OpenGL shader program ID for the main movement update compute shader.
- */
-static uint32_t cell_update_shader_id = 0;
-
-/**
- * @brief OpenGL shader program ID for the narrow_phase shader, used to detect possible collisions using AABB bounding boxes.
- */
-static uint32_t narrow_phase_shader_id = 0;
 
 Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) :
 	registry(reg),
 	evt_system(evt_sys),
-	collision_grid()
+	collision_grid(),
+	active_entities(nullptr),
+	cell_count_array(nullptr),
+	cell_entity_array(nullptr),
+	colliding_entities(nullptr),
+	num_colliding_entities(nullptr)
 {
 }
 
 void CollisionSystem::Init()
 {
+	prefix_sum.Init(collision_grid.num_cells_x * collision_grid.num_cells_y);
+
+	/* Initialize the buffers */
+	cell_count_array = std::make_unique<GPUVector<uint32_t>>();
+	cell_count_array->resize(collision_grid.num_cells_x * collision_grid.num_cells_y, { 0 });
+	cell_count_indices = std::make_unique<GPUVector<uint32_t>>();
+	cell_count_indices->resize(collision_grid.num_cells_x * collision_grid.num_cells_y, { 0 });
+	cell_entity_array = std::make_unique<GPUVector<CellEntityPair>>();
+	cell_entity_array->resize(collision_grid.num_cells_x * collision_grid.num_cells_y * collision_grid.EntitiesPerCell, { 0 });
+
 	/* Load the Cell Update Compute Shader */
-	char* shader_code = LoadFileText("Shaders/cell_update.glsl");
+	char* shader_code = LoadFileText("Shaders/fill_cell_count.glsl");
 	int shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
-	cell_update_shader_id = rlLoadComputeShaderProgram(shader_data);
+	fill_cell_count_shader_id = rlLoadComputeShaderProgram(shader_data);
 	UnloadFileText(shader_code);
 
 	/* Load the Narrow Phase Compute Shader */
@@ -125,8 +106,14 @@ void CollisionSystem::Init()
 	narrow_phase_shader_id = rlLoadComputeShaderProgram(shader_data);
 	UnloadFileText(shader_code);
 
+	/* Load the Narrow Phase Compute Shader */
+	shader_code = LoadFileText("Shaders/fill_cell_entity_array.glsl");
+	shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
+	fill_cell_entity_shader_id = rlLoadComputeShaderProgram(shader_data);
+	UnloadFileText(shader_code);
+
 	/* Create a GPUVector for the active pairs */
-	active_entities = std::make_unique<GPUComponentArray<ActiveEntity>>();
+	active_entities = std::make_unique<GPUComponentArray<uint32_t>>();
 
 	/* Create a GPUVector for the colliding entities every frame */
 	colliding_entities = std::make_unique<GPUVector<CollisionPair>>();
@@ -147,8 +134,9 @@ void CollisionSystem::Init()
 void CollisionSystem::Update()
 {
 	SetProgramParams();
-	ClearGrid();
-	UpdateCells();
+	ClearBuffers();
+	UpdateCellCount();
+	FillCellEntityArray();
 	GPUNarrowPhase();
 	CheckCollisions();
 }
@@ -192,19 +180,16 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);
 }
 
-void Mupfel::CollisionSystem::UpdateCells()
+void Mupfel::CollisionSystem::UpdateCellCount()
 {
-	glUseProgram(cell_update_shader_id);
+	glUseProgram(fill_cell_count_shader_id);
 
 	/* Get the needed buffers from the current Registry */
 	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
 	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Bind the Collision Grid Cell Array to slot 1 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.cells.GetSSBOID());
-
-	/* Bind the Collision Grid Entity Array to slot 2 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.entities.GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cell_count_array->GetSSBOID());
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
@@ -224,8 +209,59 @@ void Mupfel::CollisionSystem::UpdateCells()
 
 	GLuint groups = (active_entities->Size() + 255) / 256;
 	glDispatchCompute(groups, 1, 1);
-	glFinish();
+	//glFinish();
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+
+	prefix_sum.Run(*cell_count_array, collision_grid.num_cells_x * collision_grid.num_cells_y);
+	//glFinish();
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+	/*
+		The cell_count array buffer now holds the starting indices for the cells.
+		As we need them for the narrow phase, we copy the indices.
+	*/
+	glBindBuffer(GL_COPY_READ_BUFFER, cell_count_array->GetSSBOID());
+	glBindBuffer(GL_COPY_WRITE_BUFFER, cell_count_indices->GetSSBOID());
+
+	glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, cell_count_array->size() * sizeof(uint32_t));
+
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+}
+
+void Mupfel::CollisionSystem::FillCellEntityArray()
+{
+	glUseProgram(fill_cell_entity_shader_id);
+
+	/* Get the needed buffers from the current Registry */
+	GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
+	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
+
+	/* Bind the Collision Grid Cell Array to slot 1 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cell_count_array->GetSSBOID());
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, cell_entity_array->GetSSBOID());
+
+	/* Bind the Transform Component Array to slot 3 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, transform_array.GetSparseSSBO());
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, spatial_info_array.GetSparseSSBO());
+
+	/* Bind the Spatial Info Component Array to slot 6 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, spatial_info_array.GetComponentSSBO());
+
+	/* Bind the Active Pairs Array to slot 7 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetComponentSSBO());
+
+	/* Bind the Shader parameters to slot 8 */
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, programParamsSSBO);
+
+	GLuint groups = (active_entities->Size() + 255) / 256;
+	glDispatchCompute(groups, 1, 1);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	//glFinish();
 }
 
 void Mupfel::CollisionSystem::GPUNarrowPhase()
@@ -237,10 +273,10 @@ void Mupfel::CollisionSystem::GPUNarrowPhase()
 	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Bind the Collision Grid Cell Array to slot 1 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.cells.GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cell_count_indices->GetSSBOID());
 
 	/* Bind the Collision Grid Entity Array to slot 2 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.entities.GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, cell_entity_array->GetSSBOID());
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetSparseSSBO());
@@ -265,12 +301,13 @@ void Mupfel::CollisionSystem::GPUNarrowPhase()
 
 	/* Bind buffer for the number of colliding entities to slot 10 */
 	num_colliding_entities->operator[](0) = 0;
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, num_colliding_entities->GetSSBOID());
 
-	GLuint groups = ((64*64) + 255) / 256;
+	GLuint groups = ((collision_grid.num_cells_x * collision_grid.num_cells_y) + 255) / 256;
 	glDispatchCompute(groups, 1, 1);
 	glFinish();
-	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 }
 
 void Mupfel::CollisionSystem::CheckCollisions()
@@ -293,36 +330,24 @@ void Mupfel::CollisionSystem::CheckCollisions()
 	}
 }
 
-void Mupfel::CollisionSystem::ClearGrid()
+void Mupfel::CollisionSystem::ClearBuffers()
 {
-	for (uint32_t y = 0; y < collision_grid.num_cells_y; y++)
-	{
-		for (uint32_t x = 0; x < collision_grid.num_cells_x; x++)
-		{
-			/* Calculate the index of the wanted cell in the cell array */
-			uint32_t cell_index = y * collision_grid.num_cells_x + x;
-			if (collision_grid.cells[cell_index].count == 0)
-			{
-				continue;
-			}
-
-			uint32_t start_index = collision_grid.cells[cell_index].startIndex;
-
-			for (uint32_t i = 0; i < collision_grid.cells[cell_index].count; i++)
-			{
-				collision_grid.entities[start_index + i] = Entity();
-			}
-			collision_grid.cells[cell_index].count = 0;
-		}
-	}
-
-	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+	GLuint zero = 0;
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, cell_count_array->GetSSBOID());
+	glClearBufferData(
+		GL_SHADER_STORAGE_BUFFER,
+		GL_R32UI,
+		GL_RED_INTEGER,
+		GL_UNSIGNED_INT,
+		&zero
+	);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void Mupfel::CollisionSystem::SetCallbacks()
 {
 	Application::GetCurrentEventSystem().RegisterListener<ComponentAddedEvent>(
-		[](const ComponentAddedEvent& event)
+		[this](const ComponentAddedEvent& event)
 		{
 			Entity::Signature test;
 			test.set(event.comp_id);
@@ -337,12 +362,12 @@ void Mupfel::CollisionSystem::SetCallbacks()
 				return;
 			}
 
-			active_entities->Insert(event.e, { event.e.Index() , 0, 0, 0});
+			active_entities->Insert(event.e, { event.e.Index()});
 		}
 	);
 
 	Application::GetCurrentEventSystem().RegisterListener<ComponentRemovedEvent>(
-		[](const ComponentRemovedEvent& event)
+		[this](const ComponentRemovedEvent& event)
 		{
 			Entity::Signature test;
 			test.set(event.comp_id);

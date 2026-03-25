@@ -5,6 +5,7 @@
 #include "Core/Application.h"
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Movement.h"
+#include "ECS/Components/Collider.h"
 #include "Renderer/Texture.h"
 
 using namespace Mupfel;

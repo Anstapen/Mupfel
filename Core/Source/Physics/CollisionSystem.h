@@ -1,13 +1,12 @@
 #pragma once
-#include "ECS/Components/Collider.h"
-#include <array>
-#include <vector>
-#include <future>
 #include "Core/Coordinate.h"
-#include "Core/Debug/DebugLayer.h"
-#include "ECS/Entity.h"
-#include "ECS/ComponentArray.h"
 #include "GPUCollisionGrid.h"
+#include "ECS/Registry.h"
+#include "Core/EventSystem.h"
+#include <memory>
+#include "ECS/GPUComponentArray.h"
+#include <cstdint>
+#include "GPU/GPUPrefixSum.h"
 
 namespace Mupfel {
 
@@ -17,6 +16,15 @@ namespace Mupfel {
 	class CollisionSystem
 	{
 		friend class DebugLayer;
+	public:
+		struct CollisionPair {
+			uint32_t entity_a = 0;
+			uint32_t entity_b = 0;
+		};
+		struct CellEntityPair {
+			uint32_t cell = 0;
+			uint32_t entity = 0;
+		};
 	public:
 		CollisionSystem(Registry& reg, EventSystem& evt_sys);
 		void Init();
@@ -29,14 +37,28 @@ namespace Mupfel {
 
 		void SetCallbacks();
 		void SetProgramParams();
-		void UpdateCells();
+		void UpdateCellCount();
+		void FillCellEntityArray();
 		void GPUNarrowPhase();
 		void CheckCollisions();
-		void ClearGrid();
+		void ClearBuffers();
 	private:
 		Registry& registry;
 		EventSystem& evt_system;
 		GPUCollisionGrid collision_grid;
+		GPUPrefixSum prefix_sum;
+		/* Shader IDs */
+		uint32_t fill_cell_count_shader_id;
+		uint32_t fill_cell_entity_shader_id;
+		uint32_t narrow_phase_shader_id;
+
+		/* GPU-side buffers */
+		std::unique_ptr<GPUComponentArray<uint32_t>> active_entities;
+		std::unique_ptr<GPUVector<uint32_t>> cell_count_array;
+		std::unique_ptr<GPUVector<uint32_t>> cell_count_indices;
+		std::unique_ptr<GPUVector<CellEntityPair>> cell_entity_array;
+		std::unique_ptr<GPUVector<CollisionPair>> colliding_entities;
+		std::unique_ptr<GPUVector<uint32_t>> num_colliding_entities;
 	};
 }
 

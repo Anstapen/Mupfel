@@ -45,11 +45,6 @@ struct Collider {
     float bounding_box_size;
 };
 
-struct Cell {
-	uint startIndex;
-	uint count;
-};
-
 struct ProgramParams {
 	uint64_t active_entities;
     uint cell_size_pow;
@@ -60,13 +55,10 @@ struct ProgramParams {
 	uint _padding;
 };
 
-layout(std430, binding = 1) buffer Cells {
-    Cell cells[];
+layout(std430, binding = 1) buffer CellCounts {
+    uint cell_count[];
 };
 
-layout(std430, binding = 2) buffer CellEntities {
-    uint cell_entities[];
-};
 
 layout(std430, binding = 3) buffer TransformComponents {
     TransformData transforms[];
@@ -84,15 +76,8 @@ layout(std430, binding = 6) buffer ColliderComponents {
     Collider colliders[];
 };
 
-struct ActiveEntity {
-    uint id;
-	uint num_cells;
-	uint cell_index;
-	uint _padding;
-};
-
 layout(std430, binding = 7) buffer ActiveEntities {
-    ActiveEntity entities[];
+    uint entities[];
 };
 
 layout(std430, binding = 8) readonly buffer ProgramParam {
@@ -113,41 +98,19 @@ uint PointYtoCell(uint y)
 
 void UpdateCellsOfEntity(uint e, uint comp_index, uvec2 cell_min, uvec2 cell_max)
 {
-	/* TODO: Update the min and max cells and add the entity to the cells */
-	uint ref_count = 0;
-	Collider collider = colliders[comp_index];
-	collider.num_cells = 0;
 
 	for (uint y = cell_min.y; y <= cell_max.y; y++)
 	{
 		for (uint x = cell_min.x; x <= cell_max.x; x++)
 		{
-
+			/* Increase the cell_count for the current cell */
 			/* Add the Entity to the current cell */
 			/* Calculate the index of the wanted cell in the cell array */
 			uint cell_index = y * params.num_cells_x + x;
 
-			/* Calculate the starting index of the entity array */
-			uint cell_start_index = cells[cell_index].startIndex;
-
-			uint cell_count = atomicAdd(cells[cell_index].count, 1);
-
-			cell_entities[cell_start_index + cell_count] = e;
-
-			/* Update the SpatialInfo component of the entity */
-			collider.cell_indices[ref_count].cell_id = cell_index;
-			collider.cell_indices[ref_count].entity_id = cell_count;
-			collider.num_cells++;
-
-			ref_count++;
+			atomicAdd(cell_count[cell_index], 1);
 		}
 	}
-	/* Add the new Cell Boundaries to the SpatialInfo component */
-	collider.old_cell_max = cell_max;
-	collider.old_cell_min = cell_min;
-
-	/* Write the new Spatial info */
-	colliders[comp_index] = collider;
 }
 
 void main()
@@ -156,7 +119,7 @@ void main()
     if (idx >= params.active_entities) return;
 
     // If entity is 0, ignore
-	uint e = entities[idx].id;
+	uint e = entities[idx];
 
     if(e == 0) return;
 

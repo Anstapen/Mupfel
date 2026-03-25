@@ -17,8 +17,10 @@ namespace Mupfel {
 	friend class CollisionSystem;
 	friend class DebugLayer;
 	public:
-		GPUCollisionGrid(uint32_t in_num_cells_x = 32, uint32_t in_num_cells_y = 32, uint32_t in_entities_per_cell = 2048, uint32_t in_cell_size_pow = 8);
+		GPUCollisionGrid(uint32_t in_num_cells_x = 4, uint32_t in_num_cells_y = 4, uint32_t in_entities_per_cell = 2048, uint32_t in_cell_size_pow = 8);
 		void Init();
+		void SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y);
+		void SetEntitiesPerCell(uint32_t entities_per_cell);
 	private:
 		static constexpr bool is_powerof2(size_t v) {
 			return v && ((v & (v - 1)) == 0);
