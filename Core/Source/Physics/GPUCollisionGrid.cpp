@@ -2,30 +2,42 @@
 #include <cassert>
 
 Mupfel::GPUCollisionGrid::GPUCollisionGrid(uint32_t in_num_cells_x, uint32_t in_num_cells_y, uint32_t in_entities_per_cell, uint32_t in_cell_size_pow) :
-	num_cells_x(in_num_cells_x), num_cells_y(in_num_cells_y), EntitiesPerCell(in_entities_per_cell), cell_size_pow(in_cell_size_pow)
+	num_cells_x(in_num_cells_x),
+	num_cells_y(in_num_cells_y),
+	EntitiesPerCell(in_entities_per_cell),
+	cell_size_pow(in_cell_size_pow),
+	cell_count_array(),
+	cell_count_indices(),
+	cell_entity_array()
 {
-	assert(is_powerof2(num_cells_x));
-	assert(is_powerof2(num_cells_y));
-	assert(is_powerof2(EntitiesPerCell));
 }
 
 void Mupfel::GPUCollisionGrid::Init()
 {
-	entities.resize(num_cells_x * num_cells_y * EntitiesPerCell, Entity());
-	cells.resize(num_cells_x * num_cells_y, { 0, 0 });
+	/* Initialize the buffers */
+	cell_count_array.resize(num_cells_x * num_cells_y, { 0 });
+	cell_count_indices.resize(num_cells_x * num_cells_y, { 0 });
+	cell_entity_array.resize(num_cells_x * num_cells_y * EntitiesPerCell, { 0 });
+}
 
-	/* Fill the Cells with the correct offsets */
-	uint32_t running_offset = 0;
+void Mupfel::GPUCollisionGrid::SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y)
+{
+	this->num_cells_x = num_cells_x;
+	this->num_cells_y = num_cells_y;
 
-	for (uint32_t y = 0; y < num_cells_y; y++)
-	{
-		for (uint32_t x = 0; x < num_cells_x; x++)
-		{
-			const uint32_t index = y * num_cells_x + x;
+	/* Resize the buffers */
+	cell_count_array.resize(num_cells_x * num_cells_y, { 0 });
+	cell_count_indices.resize(num_cells_x * num_cells_y, { 0 });
+	cell_entity_array.resize(num_cells_x * num_cells_y * EntitiesPerCell, { 0 });
+}
 
-			cells[index].startIndex = running_offset;
-			cells[index].count = 0;
-			running_offset += EntitiesPerCell;
-		}
-	}
+void Mupfel::GPUCollisionGrid::SetEntitiesPerCell(uint32_t entities_per_cell)
+{
+	EntitiesPerCell = entities_per_cell;
+	cell_entity_array.resize(num_cells_x * num_cells_y * EntitiesPerCell, { 0 });
+}
+
+void Mupfel::GPUCollisionGrid::SetCellSizePow(uint32_t cell_size_pow)
+{
+	this->cell_size_pow = cell_size_pow;
 }

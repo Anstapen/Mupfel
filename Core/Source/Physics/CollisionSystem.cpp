@@ -49,10 +49,6 @@ struct ProgramParams {
 
 	uint32_t num_cells_y;
 
-	uint32_t entities_per_cell;
-
-	uint32_t max_colliding_entities;
-
 	uint32_t _padding;
 };
 
@@ -75,24 +71,17 @@ Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) :
 	evt_system(evt_sys),
 	collision_grid(),
 	active_entities(nullptr),
-	cell_count_array(nullptr),
-	cell_entity_array(nullptr),
 	colliding_entities(nullptr),
-	num_colliding_entities(nullptr)
+	num_colliding_entities(nullptr),
+	fill_cell_count_shader_id(0),
+	fill_cell_entity_shader_id(0),
+	narrow_phase_shader_id(0)
 {
 }
 
 void CollisionSystem::Init()
 {
 	prefix_sum.Init(collision_grid.num_cells_x * collision_grid.num_cells_y);
-
-	/* Initialize the buffers */
-	cell_count_array = std::make_unique<GPUVector<uint32_t>>();
-	cell_count_array->resize(collision_grid.num_cells_x * collision_grid.num_cells_y, { 0 });
-	cell_count_indices = std::make_unique<GPUVector<uint32_t>>();
-	cell_count_indices->resize(collision_grid.num_cells_x * collision_grid.num_cells_y, { 0 });
-	cell_entity_array = std::make_unique<GPUVector<CellEntityPair>>();
-	cell_entity_array->resize(collision_grid.num_cells_x * collision_grid.num_cells_y * collision_grid.EntitiesPerCell, { 0 });
 
 	/* Load the Cell Update Compute Shader */
 	char* shader_code = LoadFileText("Shaders/fill_cell_count.glsl");
@@ -153,18 +142,6 @@ uint32_t Mupfel::CollisionSystem::WorldtoCell(Coordinate<uint32_t> c)
 	return cell_y * collision_grid.num_cells_x + cell_x;
 }
 
-uint32_t Mupfel::CollisionSystem::PointXtoCell(uint32_t x)
-{
-	uint32_t cell_x = x >> collision_grid.cell_size_pow;
-	return std::min(cell_x, collision_grid.num_cells_x - 1);
-}
-
-uint32_t Mupfel::CollisionSystem::PointYtoCell(uint32_t y)
-{
-	uint32_t cell_y = y >> collision_grid.cell_size_pow;
-	return std::min(cell_y, collision_grid.num_cells_y - 1);
-}
-
 void Mupfel::CollisionSystem::SetProgramParams()
 {
 	/* Update the Shader Program parameters for the GPU */
@@ -174,8 +151,6 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	params.cell_size_pow = collision_grid.cell_size_pow;
 	params.num_cells_x = collision_grid.num_cells_x;
 	params.num_cells_y = collision_grid.num_cells_y;
-	params.entities_per_cell = collision_grid.EntitiesPerCell;
-	params.max_colliding_entities = max_colliding_entities;
 
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);
 }
@@ -189,7 +164,7 @@ void Mupfel::CollisionSystem::UpdateCellCount()
 	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Bind the Collision Grid Cell Array to slot 1 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cell_count_array->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.GetCellCountArraySSBO());
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
@@ -213,7 +188,7 @@ void Mupfel::CollisionSystem::UpdateCellCount()
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	//glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 
-	prefix_sum.Run(*cell_count_array, collision_grid.num_cells_x * collision_grid.num_cells_y);
+	prefix_sum.Run(collision_grid.GetCellCountArray(), collision_grid.GetNumCellsX() * collision_grid.GetNumCellsY());
 	//glFinish();
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -221,10 +196,10 @@ void Mupfel::CollisionSystem::UpdateCellCount()
 		The cell_count array buffer now holds the starting indices for the cells.
 		As we need them for the narrow phase, we copy the indices.
 	*/
-	glBindBuffer(GL_COPY_READ_BUFFER, cell_count_array->GetSSBOID());
-	glBindBuffer(GL_COPY_WRITE_BUFFER, cell_count_indices->GetSSBOID());
+	glBindBuffer(GL_COPY_READ_BUFFER, collision_grid.GetCellCountArraySSBO());
+	glBindBuffer(GL_COPY_WRITE_BUFFER, collision_grid.GetCellCountIndicesSSBO());
 
-	glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, cell_count_array->size() * sizeof(uint32_t));
+	glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, collision_grid.GetCellCountArray().size() * sizeof(uint32_t));
 
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 }
@@ -238,9 +213,9 @@ void Mupfel::CollisionSystem::FillCellEntityArray()
 	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Bind the Collision Grid Cell Array to slot 1 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cell_count_array->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.GetCellCountArraySSBO());
 
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, cell_entity_array->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.GetCellEntityArraySSBO());
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
@@ -273,10 +248,10 @@ void Mupfel::CollisionSystem::GPUNarrowPhase()
 	GPUComponentArray<Mupfel::Collider>& spatial_info_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Collider>();
 
 	/* Bind the Collision Grid Cell Array to slot 1 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cell_count_indices->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, collision_grid.GetCellCountIndicesSSBO());
 
 	/* Bind the Collision Grid Entity Array to slot 2 */
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, cell_entity_array->GetSSBOID());
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, collision_grid.GetCellEntityArraySSBO());
 
 	/* Bind the Transform Component Array to slot 3 */
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetSparseSSBO());
@@ -333,7 +308,7 @@ void Mupfel::CollisionSystem::CheckCollisions()
 void Mupfel::CollisionSystem::ClearBuffers()
 {
 	GLuint zero = 0;
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, cell_count_array->GetSSBOID());
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, collision_grid.GetCellCountArraySSBO());
 	glClearBufferData(
 		GL_SHADER_STORAGE_BUFFER,
 		GL_R32UI,

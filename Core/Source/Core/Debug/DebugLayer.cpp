@@ -110,26 +110,7 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 
 			uint32_t cell_index = Mupfel::Application::Get().physics.collision_system->WorldtoCell({ pos_x, pos_y });
 
-			if (Mupfel::Application::Get().physics.collision_system->collision_grid.cells[cell_index].count == 0)
-			{
-				RaylibDrawRect(pos_x, pos_y, cell_size, cell_size, 230, 41, 55, 255);
-
-				uint32_t cell_count = Mupfel::Application::Get().physics.collision_system->collision_grid.cells[cell_index].count;
-
-				std::string text = std::vformat("{}", std::make_format_args(cell_count));
-
-				Text::RaylibDrawText(text.c_str(), pos_x, pos_y);
-			}
-			else
-			{
-				RaylibDrawRect(pos_x, pos_y, cell_size, cell_size, 0, 228, 48, 255);
-
-				uint32_t cell_count = Mupfel::Application::Get().physics.collision_system->collision_grid.cells[cell_index].count;
-
-				std::string text = std::vformat("{}", std::make_format_args(cell_count));
-
-				Text::RaylibDrawText(text.c_str(), pos_x, pos_y);
-			}
+			RaylibDrawRect(pos_x, pos_y, cell_size, cell_size, 230, 41, 55, 255);
 
 			pos_x += cell_size;
 		}

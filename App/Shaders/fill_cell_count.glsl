@@ -50,8 +50,6 @@ struct ProgramParams {
     uint cell_size_pow;
 	uint num_cells_x;
 	uint num_cells_y;
-	uint entities_per_cell;
-	uint max_colliding_ents;
 	uint _padding;
 };
 

@@ -24,7 +24,7 @@ namespace Mupfel {
 		bool show_collider = false;
 		bool show_velocity = false;
 		bool show_grid = false;
-		bool single_stepping = true;
+		bool single_stepping = false;
 		bool show_entity_index = false;
 	};
 }

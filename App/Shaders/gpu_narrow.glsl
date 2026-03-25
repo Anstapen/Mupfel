@@ -55,8 +55,6 @@ struct ProgramParams {
     uint cell_size_pow;
 	uint num_cells_x;
 	uint num_cells_y;
-	uint entities_per_cell;
-	uint max_colliding_ents;
     uint _padding;
 };
 
@@ -82,18 +80,6 @@ layout(std430, binding = 5) readonly buffer ColliderSparse {
 
 layout(std430, binding = 6) buffer ColliderComponents {
     Collider colliders[];
-};
-
-// --- Output: Join-Ergebnisse ---
-struct ActiveEntity {
-    uint e;   // Entity ID
-    uint num_cells;
-	uint cell_index;
-	uint _padding;
-};
-
-layout(std430, binding = 7) buffer ActiveEntities {
-    ActiveEntity pairs[];
 };
 
 layout(std430, binding = 8) readonly buffer ProgramParam {

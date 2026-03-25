@@ -21,19 +21,12 @@ namespace Mupfel {
 			uint32_t entity_a = 0;
 			uint32_t entity_b = 0;
 		};
-		struct CellEntityPair {
-			uint32_t cell = 0;
-			uint32_t entity = 0;
-		};
 	public:
 		CollisionSystem(Registry& reg, EventSystem& evt_sys);
 		void Init();
 		void Update();
 	private:
 		uint32_t WorldtoCell(Coordinate<uint32_t> c);
-		uint32_t PointXtoCell(uint32_t x);
-		uint32_t PointYtoCell(uint32_t y);
-
 
 		void SetCallbacks();
 		void SetProgramParams();
@@ -54,9 +47,6 @@ namespace Mupfel {
 
 		/* GPU-side buffers */
 		std::unique_ptr<GPUComponentArray<uint32_t>> active_entities;
-		std::unique_ptr<GPUVector<uint32_t>> cell_count_array;
-		std::unique_ptr<GPUVector<uint32_t>> cell_count_indices;
-		std::unique_ptr<GPUVector<CellEntityPair>> cell_entity_array;
 		std::unique_ptr<GPUVector<CollisionPair>> colliding_entities;
 		std::unique_ptr<GPUVector<uint32_t>> num_colliding_entities;
 	};
