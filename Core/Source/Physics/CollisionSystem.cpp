@@ -78,10 +78,19 @@ Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) :
 	narrow_phase_shader_id(0)
 {
 }
+void Mupfel::CollisionSystem::SetCellSizePow(uint32_t cell_size_pow)
+{
+	collision_grid.SetCellSizePow(cell_size_pow);
+}
+
+void Mupfel::CollisionSystem::SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y)
+{
+	collision_grid.SetNumCells(num_cells_x, num_cells_y);
+}
 
 void CollisionSystem::Init()
 {
-	prefix_sum.Init(collision_grid.num_cells_x * collision_grid.num_cells_y);
+	prefix_sum.Init(collision_grid.GetNumCellsX() * collision_grid.GetNumCellsY());
 
 	/* Load the Cell Update Compute Shader */
 	char* shader_code = LoadFileText("Shaders/fill_cell_count.glsl");
@@ -133,13 +142,13 @@ void CollisionSystem::Update()
 
 uint32_t Mupfel::CollisionSystem::WorldtoCell(Coordinate<uint32_t> c)
 {
-	uint32_t cell_x = c.x >> collision_grid.cell_size_pow;
-	uint32_t cell_y = c.y >> collision_grid.cell_size_pow;
+	uint32_t cell_x = c.x >> collision_grid.GetCellSizePow();
+	uint32_t cell_y = c.y >> collision_grid.GetCellSizePow();
 
-	cell_x = std::min(cell_x, collision_grid.num_cells_x - 1);
-	cell_y = std::min(cell_y, collision_grid.num_cells_y - 1);
+	cell_x = std::min(cell_x, collision_grid.GetNumCellsX() - 1);
+	cell_y = std::min(cell_y, collision_grid.GetNumCellsY() - 1);
 
-	return cell_y * collision_grid.num_cells_x + cell_x;
+	return cell_y * collision_grid.GetNumCellsX() + cell_x;
 }
 
 void Mupfel::CollisionSystem::SetProgramParams()
@@ -148,9 +157,9 @@ void Mupfel::CollisionSystem::SetProgramParams()
 	ProgramParams params{};
 
 	params.active_entities = active_entities->Size();
-	params.cell_size_pow = collision_grid.cell_size_pow;
-	params.num_cells_x = collision_grid.num_cells_x;
-	params.num_cells_y = collision_grid.num_cells_y;
+	params.cell_size_pow = collision_grid.GetCellSizePow();
+	params.num_cells_x = collision_grid.GetNumCellsX();
+	params.num_cells_y = collision_grid.GetNumCellsY();
 
 	glNamedBufferSubData(programParamsSSBO, 0, sizeof(ProgramParams), &params);
 }
@@ -279,7 +288,7 @@ void Mupfel::CollisionSystem::GPUNarrowPhase()
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, num_colliding_entities->GetSSBOID());
 
-	GLuint groups = ((collision_grid.num_cells_x * collision_grid.num_cells_y) + 255) / 256;
+	GLuint groups = ((collision_grid.GetNumCellsX() * collision_grid.GetNumCellsY()) + 255) / 256;
 	glDispatchCompute(groups, 1, 1);
 	glFinish();
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);

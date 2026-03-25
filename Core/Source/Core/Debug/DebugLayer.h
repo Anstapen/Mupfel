@@ -26,6 +26,7 @@ namespace Mupfel {
 		bool show_grid = false;
 		bool single_stepping = false;
 		bool show_entity_index = false;
+		float cell_size_pow = 8;
 	};
 }
 

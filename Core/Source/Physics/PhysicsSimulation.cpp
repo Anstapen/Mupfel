@@ -59,3 +59,13 @@ void Mupfel::PhysicsSimulation::Step()
 	MovementSystem::Update(0.001f);
 	collision_system->Update();
 }
+
+void Mupfel::PhysicsSimulation::SetCellSizePow(uint32_t cell_size_pow)
+{
+	collision_system->SetCellSizePow(cell_size_pow);
+}
+
+void Mupfel::PhysicsSimulation::SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y)
+{
+	collision_system->SetNumCells(num_cells_x, num_cells_y);
+}

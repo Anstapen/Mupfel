@@ -22,7 +22,7 @@ namespace Mupfel {
 			uint32_t entity = 0;
 		};
 	public:
-		GPUCollisionGrid(uint32_t in_num_cells_x = 64, uint32_t in_num_cells_y = 64, uint32_t in_entities_per_cell = 2048, uint32_t in_cell_size_pow = 8);
+		GPUCollisionGrid(uint32_t in_num_cells_x = 64, uint32_t in_num_cells_y = 64, uint32_t in_entities_per_cell = 2048, uint32_t in_cell_size_pow = 5);
 		void Init();
 		uint32_t GetNumCellsX() const { return num_cells_x; }
 		uint32_t GetNumCellsY() const { return num_cells_y; }

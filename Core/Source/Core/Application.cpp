@@ -151,6 +151,11 @@ Registry& Mupfel::Application::GetCurrentRegistry()
 	return Get().registry;
 }
 
+PhysicsSimulation& Mupfel::Application::GetCurrentPhysicsSim()
+{
+	return Get().physics;
+}
+
 ThreadPool& Mupfel::Application::GetCurrentThreadPool()
 {
 	return Get().thread_pool;

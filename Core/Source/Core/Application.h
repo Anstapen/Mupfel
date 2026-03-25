@@ -137,6 +137,11 @@ namespace Mupfel {
 		static Registry& GetCurrentRegistry();
 
 		/**
+		 * @brief Provides access to the global Physics Simulation.
+		 */
+		static PhysicsSimulation& GetCurrentPhysicsSim();
+
+		/**
 		 * @brief Provides access to the global Thread Pool.
 		 */
 		static ThreadPool& GetCurrentThreadPool();

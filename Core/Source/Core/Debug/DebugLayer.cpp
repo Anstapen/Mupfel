@@ -86,9 +86,9 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 	uint32_t screen_width = Mupfel::Application::GetCurrentRenderWidth();
 	uint32_t screen_height = Application::GetCurrentRenderHeight();
 
-	static uint32_t num_rows = Mupfel::Application::Get().physics.collision_system->collision_grid.num_cells_y;
-	static uint32_t num_columns = Mupfel::Application::Get().physics.collision_system->collision_grid.num_cells_x;
-	static uint32_t cell_size = 1 << Mupfel::Application::Get().physics.collision_system->collision_grid.cell_size_pow;
+	uint32_t num_rows = Mupfel::Application::Get().physics.collision_system->collision_grid.num_cells_y;
+	uint32_t num_columns = Mupfel::Application::Get().physics.collision_system->collision_grid.num_cells_x;
+	uint32_t cell_size = 1 << Mupfel::Application::Get().physics.collision_system->collision_grid.cell_size_pow;
 
 	uint32_t pos_x = 0;
 	uint32_t pos_y = 0;
@@ -194,6 +194,8 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 	}
 }
 
+#include <iostream>
+
 void Mupfel::DebugLayer::DrawDebugGUI()
 {
 
@@ -209,4 +211,9 @@ void Mupfel::DebugLayer::DrawDebugGUI()
 	if (GuiCheckBox(Rectangle(anchor_x, anchor_y + 180, 24, 24), "Enable Single Stepping", &single_stepping) != 0) {
 		Application::TogglePhysicsSingleStep();
 	}
+
+	if (GuiSlider(Rectangle(anchor_x, anchor_y + 210, 100, 20), "", "Time Scale", &cell_size_pow, 3.0f, 10.0f) != 0) {
+		Application::Get().GetCurrentPhysicsSim().SetCellSizePow((uint32_t)cell_size_pow);
+	}
+
 }

@@ -25,6 +25,8 @@ namespace Mupfel {
 		CollisionSystem(Registry& reg, EventSystem& evt_sys);
 		void Init();
 		void Update();
+		void SetCellSizePow(uint32_t cell_size_pow);
+		void SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y);
 	private:
 		uint32_t WorldtoCell(Coordinate<uint32_t> c);
 
