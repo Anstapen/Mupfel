@@ -181,8 +181,11 @@ void Renderer::Init()
 
             uint32_t comp_info = has_transform_component + has_texture_component;
 
-            /* We only care about the entity if it has exactly one of the needed components */
-            if (comp_info != 1)
+            /*
+                The remove event is always issued before the removal of the component,
+                so we check if the entity currently has both of the components.
+            */
+            if (comp_info != 2)
             {
                 return;
             }
@@ -195,6 +198,7 @@ void Renderer::Render()
 {
     ProfilingSample prof("Renderer custom Draw Batching");
 
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
     SetProgramParams();
 
     JoinAndRender();

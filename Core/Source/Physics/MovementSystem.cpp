@@ -197,8 +197,11 @@ void Mupfel::MovementSystem::SetEventCallbacks()
 
 			uint32_t comp_info = has_transform_component + has_velocity_component;
 
-			/* We only care about the entity if it has exactly one of the needed components */
-			if (comp_info != 1)
+			/*
+				The remove event is always issued before the removal of the component,
+				so we check if the entity currently has both of the components.
+			*/
+			if (comp_info != 2)
 			{
 				return;
 			}

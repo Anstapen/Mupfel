@@ -76,6 +76,8 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(MessageCallback, 0);
 
+	frame_count = 0;
+
 	return true;
 }
 
@@ -176,6 +178,11 @@ void Mupfel::Application::PhysicsStep()
 	Get().physics.Step();
 }
 
+uint64_t Mupfel::Application::GetFrameCount()
+{
+	return Get().frame_count;
+}
+
 
 static GLuint gpuTimerQuery = 0;
 
@@ -197,6 +204,7 @@ void Application::Run()
 			break;
 		}
 		Application::StartFrameTime();
+		frame_count++;
 		ProfilingSample prof("Application::Run()");
 
 		double currentTime = Application::GetCurrentTime();

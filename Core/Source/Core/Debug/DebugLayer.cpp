@@ -127,7 +127,17 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 
 	for (auto [entity, t, collider] : spatial_view)
 	{
-		Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider.GetCircle(), 102, 191, 255, 255);
+		
+
+		if (collider.info.type == ShapeType::Circle)
+		{
+			Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider.GetCircle(), 102, 191, 255, 255);
+		}
+
+		if (collider.info.type == ShapeType::AABB)
+		{
+			RaylibDrawRect(t.pos_x - collider.GetBoundingBoxX() / 2, t.pos_y - collider.GetBoundingBoxY() / 2, collider.GetBoundingBoxX(), collider.GetBoundingBoxY(), 102, 191, 255, 255);
+		}
 	}
 }
 

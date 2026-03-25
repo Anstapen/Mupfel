@@ -37,4 +37,7 @@ float Mupfel::Collider::GetCircle() const
 
 void Mupfel::Collider::SetAABB(float x, float y)
 {
+	info.type = ShapeType::AABB;
+	bounding_box_x = x;
+	bounding_box_y = y;
 }

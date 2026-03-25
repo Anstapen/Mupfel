@@ -12,6 +12,9 @@ enum class ShapeType : uint32_t
 	Ray,
 	Segment,
 	Sector,
-	ConvexPolygon
+	ConvexPolygon,
+
+	/* Total count of the defined enum values. */
+	COUNT
 };
 

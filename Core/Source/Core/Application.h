@@ -159,6 +159,8 @@ namespace Mupfel {
 
 		static void PhysicsStep();
 
+		static uint64_t GetFrameCount();
+
 		/**
 		 * @brief Pushes a new layer onto the application’s layer stack.
 		 *
@@ -225,6 +227,9 @@ namespace Mupfel {
 
 		/** @brief Duration of the most recently completed frame (in seconds). */
 		double last_frame_time = 0.0;
+
+		/** @brief A frame counter (mostly for debugging purposes) */
+		uint64_t frame_count = 0;
 	};
 }
 

@@ -19,13 +19,11 @@ static Mupfel::Entity* cursor = nullptr;
 
 static Mupfel::Entity* preview = nullptr;
 
-static float scale = 32.0f;
 static bool angular_velocity_wanted = false;
 static float angular_velocity = 0;
 static bool collider_wanted = false;
-static int entity_count = 1;
-static bool entity_count_edit = false;
 static float collider_size = 1.0f;
+static bool velocity_wanted = false;
 
 void EditorLayer::OnInit()
 {
@@ -44,10 +42,7 @@ void EditorLayer::OnInit()
 	t.rotation = 0.0f;
 	reg.AddComponent<Mupfel::Transform>(*cursor, t);
 	reg.AddComponent<Mupfel::Transform>(*preview, t);
-	reg.AddComponent<Mupfel::TextureComponent>(*preview, {});
 
-
-	
 }
 
 void EditorLayer::OnUpdate(double timestep)
@@ -55,8 +50,6 @@ void EditorLayer::OnUpdate(double timestep)
 	/* Update the Entity Properties */
 	ProcessEvents();
 }
-
-
 
 void EditorLayer::OnRender()
 {
@@ -67,110 +60,217 @@ void EditorLayer::OnRender()
 	uint32_t anchor_x = static_cast<uint32_t>(static_cast<float>(screen_width) * 2 / 3);
 	uint32_t anchor_y = static_cast<uint32_t>(static_cast<float>(screen_height) * 1 / 10);
 	
-	Vector2 anchor01 = { screen_width - 300, anchor_y };
+	Vector2 anchor = { screen_width - 300, anchor_y };
 
-    // raygui: controls drawing
-            //----------------------------------------------------------------------------------
-    GuiGroupBox(Rectangle(anchor01.x, anchor01.y + 40, 250, 500), "Create Entity");
-	GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 110, 24, 24), "Angular Velocity", &angular_velocity_wanted);
-	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 140, 120, 24), "Vel:", NULL, &angular_velocity, 0, PI * 2 * 10);
-    GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 170, 120, 24), "Scale", NULL, &scale, 1, 100);
-    GuiCheckBox(Rectangle(anchor01.x + 50, anchor01.y + 230, 24, 24), "Collider", &collider_wanted);
-	GuiSlider(Rectangle(anchor01.x + 50, anchor01.y + 260, 120, 24), "Size", NULL, &collider_size, 16, 200);
-	if (GuiValueBox(Rectangle(anchor01.x + 50, anchor01.y + 290, 120, 24), "No.", & entity_count, 1, 100000, entity_count_edit)) entity_count_edit = !entity_count_edit;
-	GuiGroupBox(Rectangle(anchor01.x + 85, anchor01.y + 400, 100, 100), "Preview");
-	if (GuiButton(Rectangle(anchor01.x + 85, anchor01.y + 500, 50, 50), "Load Entities")) {
+    /* Draw common GUI elements */
+    GuiGroupBox(Rectangle(anchor.x, anchor.y + 40, 250, 600), "Create Entity");
+	int testval = 0;
+	
+
+	GuiCheckBox(Rectangle(anchor.x + 50, anchor.y + 140, 24, 24), "Velocity", &velocity_wanted);
+
+	GuiCheckBox(Rectangle(anchor.x + 50, anchor.y + 170, 24, 24), "Angular Velocity", &angular_velocity_wanted);
+	GuiSlider(Rectangle(anchor.x + 50, anchor.y + 200, 120, 24), "Vel:", NULL, &angular_velocity, 0, PI * 2 * 10);
+	GuiSlider(Rectangle(anchor.x + 50, anchor.y + 230, 120, 24), "Scale", NULL, &current_scale, 1, 100);
+	GuiCheckBox(Rectangle(anchor.x + 50, anchor.y + 260, 24, 24), "Collider", &collider_wanted);
+	
+	if (GuiButton(Rectangle(anchor.x + 125 - 25, anchor.y + 550, 50, 50), "Load Entities")) {
 		/* Try to load entities */
 		Mupfel::EntityFileManager fm;
 
 		fm.Load("Data/entities.json");
 	}
-    //----------------------------------------------------------------------------------
 
-	Mupfel::Transform t;
-	t.pos_x = anchor01.x +135;
-	t.pos_y = anchor01.y + 450;
-	t.scale_x = scale;
-	t.scale_y = scale;
-
-	/* Reposition the entity */
-	reg.SetComponent<Mupfel::Transform>(*preview, t);
-
-	/* Draw the collider if enabled */
-	if (collider_wanted)
+	if (GuiDropdownBox(Rectangle(anchor.x + 50, anchor.y + 60, 60, 24), "Circle;AABB", &DropdownBox000Active, DropdownBox000EditMode))
 	{
-		Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider_size, 102, 191, 255, 255);
+		DropdownBox000EditMode = !DropdownBox000EditMode;
 	}
+
+	Vector2 preview_anchor = { anchor.x + 125 - 50, anchor.y + 400 };
+	GuiGroupBox(Rectangle(preview_anchor.x, preview_anchor.y, 100, 100), "Preview:");
+	DrawPreview(preview_anchor);
+    
+	Vector2 entity_creator_anchor = { anchor.x, anchor.y + 290 };
+	switch (DropdownBox000Active)
+	{
+		case 0:
+			DrawCircleCreator(entity_creator_anchor);
+			break;
+		case 1:
+			DrawAABBCreator(entity_creator_anchor);
+			break;
+		default:
+			break;
+	}
+
+	DrawRects();
 
 }
 
-static float initial_x = 0.0f;
-static float initial_y = 0.0f;
-static float velocity_x = 0.0f;
-static float velocity_y = 0.0f;
-
-static Mupfel::Entity currently_created_entity = 0;
-
 void EditorLayer::ProcessEvents()
 {
-	auto& evt_system = Mupfel::Application::GetCurrentEventSystem();
-	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
 
-	int screen_height = Mupfel::Application::GetCurrentRenderHeight();
-	int screen_width = Mupfel::Application::GetCurrentRenderWidth();
-
-	/*
-		Retrieve all the UserInputEvents that were issued the last frame.
-	*/
-	for (const auto& evt : evt_system.GetEvents<Mupfel::UserInputEvent>())
+	if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
 	{
-		/* If Left-Mouseclick is pressed, iterate over the entities */
-		if (evt.input == Mupfel::UserInput::RIGHT_MOUSE_CLICK)
-		{
-		}
-
-	}
-	if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-	{
-		initial_x = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorX();
-		initial_y = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorY();
-
-		currently_created_entity = reg.CreateEntity();
-
-		Mupfel::Transform t;
-		t.pos_x = initial_x;
-		t.pos_y = initial_y;
-		t.scale_x = scale;
-		t.scale_y = scale;
-		reg.AddComponent<Mupfel::Transform>(currently_created_entity, t);
-		reg.AddComponent<Mupfel::TextureComponent>(currently_created_entity, {});
+		CreateNewEntity();
 	}
 
-	if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+	if(IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+	{
+		initial_velocity_x = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorX();
+		initial_velocity_y = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorY();
+	}
+
+	if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && velocity_wanted)
 	{
 		float current_x = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorX();
 		float current_y = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorY();
 
-		DrawLine(current_x, current_y, initial_x, initial_y, RED);
-		velocity_x = (initial_x - current_x) * 2;
-		velocity_y = (initial_y - current_y) * 2;
+		DrawLine(current_x, current_y, initial_velocity_x, initial_velocity_y, RED);
+		current_velocity_x = (initial_velocity_x - current_x) * 2;
+		current_velocity_y = (initial_velocity_y - current_y) * 2;
 	}
+	
+}
 
-	if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
+void EditorLayer::CreateNewEntity()
+{
+	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
+
+	Mupfel::Entity currently_created_entity = reg.CreateEntity();
+
+	Mupfel::Transform t;
+	t.pos_x = current_pos_x;
+	t.pos_y = current_pos_y;
+	t.scale_x = current_scale;
+	t.scale_y = current_scale;
+	reg.AddComponent<Mupfel::Transform>(currently_created_entity, t);
+
+	if(velocity_wanted)
 	{
 		Mupfel::Movement movement;
-		movement.velocity_x = velocity_x;
-		movement.velocity_y = velocity_y;
+		movement.velocity_x = current_velocity_x;
+		movement.velocity_y = current_velocity_y;
 		movement.angular_velocity = angular_velocity;
-		//movement.friction = 75.0f;
 		reg.AddComponent<Mupfel::Movement>(currently_created_entity, movement);
-
-		if (collider_wanted)
-		{
-			Mupfel::Collider col;
-			col.SetCircle(collider_size);
-			reg.AddComponent<Mupfel::Collider>(currently_created_entity, col);
-		}
 	}
 
+	/* For Circles, we have a Texture */
+	if (DropdownBox000Active == static_cast<int>(ShapeType::Circle) - 1)
+	{
+		reg.AddComponent<Mupfel::TextureComponent>(currently_created_entity, {});
+	}
+
+	if (!collider_wanted)
+	{
+		return;
+	}
+
+	Mupfel::Collider c;
+	switch (DropdownBox000Active)
+	{
+	case 0: // Circle
+		c.SetCircle(collider_size);
+		reg.AddComponent<Mupfel::Collider>(currently_created_entity, c);
+		break;
+	case 1: // AABB
+		c.SetAABB(collider_size_x, collider_size_y);
+		reg.AddComponent<Mupfel::Collider>(currently_created_entity, c);
+		break;
+	default:
+		break;
+	}
+}
+
+void EditorLayer::DrawCircleCreator(Vector2 anchor)
+{
+	GuiSlider(Rectangle(anchor.x + 50, anchor.y, 120, 24), "Size", NULL, &collider_size, 16, 200);
+	collider_size_x = collider_size;
+	collider_size_y = collider_size;
+	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
+	current_pos_x = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorX();
+	current_pos_y = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorY();
+
+}
+void EditorLayer::DrawAABBCreator(Vector2 anchor)
+{
+	if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+	{
+		initial_pos_x = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorX();
+		initial_pos_y = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorY();
+	}
+
+	if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+	{
+		float current_size_x = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorX() - initial_pos_x;
+		float current_size_y = Mupfel::Application::GetCurrentInputManager().GetCurrentCursorY() - initial_pos_y;
+
+		current_pos_x = initial_pos_x + current_size_x / 2;
+		current_pos_y = initial_pos_y + current_size_y / 2;
+
+		RaylibDrawRectFilled(current_pos_x - current_size_x / 2, current_pos_y - current_size_y / 2, current_size_x, current_size_y, 102, 191, 255, 255);
+
+		collider_size_x = std::abs(current_size_x);
+		collider_size_y = std::abs(current_size_y);
+	}
+}
+
+void EditorLayer::DrawPreview(Vector2 anchor)
+{
+	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
+
+	Mupfel::Transform t;
+	t.pos_x = anchor.x + 50;
+	t.pos_y = anchor.y + 50;
+	t.scale_x = current_scale;
+	t.scale_y = current_scale;
+
+	/* Reposition the entity */
+	reg.SetComponent<Mupfel::Transform>(*preview, t);
+
+	/* Reset the texture component */
+	if(reg.HasComponent<Mupfel::TextureComponent>(*preview))
+	{
+		reg.RemoveComponent<Mupfel::TextureComponent>(*preview);
+	}
+
+	if (DropdownBox000Active == static_cast<int>(ShapeType::Circle) - 1)
+	{
+		reg.AddComponent<Mupfel::TextureComponent>(*preview, {});
+	}
+
+	if (DropdownBox000Active == static_cast<int>(ShapeType::AABB) - 1)
+	{
+		RaylibDrawRectFilled(t.pos_x - t.scale_x / 2, t.pos_y - t.scale_y / 2, t.scale_x, t.scale_y, 102, 191, 255, 255);
+	}
+
+	/* Draw the collider if enabled */
+	if (collider_wanted)
+	{
+		switch (DropdownBox000Active)
+		{
+		case 0:
+			Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider_size, 102, 191, 255, 255);
+			break;
+		case 1:
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void EditorLayer::DrawRects()
+{
+	Mupfel::Registry& reg = Mupfel::Application::GetCurrentRegistry();
+
+	auto rect_view = reg.view<Mupfel::Transform, Mupfel::Collider>();
+
+	for (auto [entity, t, collider] : rect_view)
+	{
+		if(collider.info.type != ShapeType::Circle)
+		{
+			RaylibDrawRect(t.pos_x - collider.GetBoundingBoxX() / 2, t.pos_y - collider.GetBoundingBoxY() / 2, collider.GetBoundingBoxX(), collider.GetBoundingBoxY(), 102, 191, 255, 255);
+		}
+	}
 }

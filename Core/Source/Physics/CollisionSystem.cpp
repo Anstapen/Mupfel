@@ -127,6 +127,11 @@ void CollisionSystem::Init()
 	glNamedBufferStorage(programParamsSSBO, sizeof(ProgramParams), nullptr, GL_DYNAMIC_STORAGE_BIT);
 
 	SetCallbacks();
+
+	/* Register the Collision Resolvers */
+	CollisionProcessor::RegisterCollisionResolver(ShapeType::Circle, ShapeType::Circle, CollisionProcessor::CircleCircle);
+	CollisionProcessor::RegisterCollisionResolver(ShapeType::Circle, ShapeType::AABB, CollisionProcessor::CircleAABB);
+	CollisionProcessor::RegisterCollisionResolver(ShapeType::AABB, ShapeType::AABB, CollisionProcessor::AABBAABB);
 }
 
 void CollisionSystem::Update()
@@ -300,7 +305,7 @@ void Mupfel::CollisionSystem::CheckCollisions()
 	if (num_colliding > 0)
 	{
 		/* Iterate through the colliding entities */
-
+		std::cout << "Num Collisions: " << num_colliding << std::endl;
 		for (uint32_t i = 0; i < num_colliding; i++)
 		{
 
@@ -372,8 +377,11 @@ void Mupfel::CollisionSystem::SetCallbacks()
 
 			uint32_t comp_info = has_transform_component + has_spatial_component;
 
-			/* We only care about the entity if it has exactly one of the needed components */
-			if (comp_info != 1)
+			/*
+				The remove event is always issued before the removal of the component,
+				so we check if the entity currently has both of the components.
+			*/
+			if (comp_info != 2)
 			{
 				return;
 			}
