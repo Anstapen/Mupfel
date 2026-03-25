@@ -34,7 +34,8 @@ struct Collider {
     float padShape2;
     float padShape3;
 
-    float bounding_box_size;
+    float bounding_box_x;
+    float bounding_box_y;
 };
 
 struct ProgramParams {
@@ -119,13 +120,13 @@ void main()
 	TransformData t = transforms[tIndex];
 	Collider collider = colliders[sIndex];
 
+	float collider_half_x = collider.bounding_box_x / 2;
+	float collider_half_y = collider.bounding_box_y / 2;
 
-	float collider_half = collider.bounding_box_size / 2;
-
-	float min_x = t.pos.x - collider_half;
-	float min_y = t.pos.y - collider_half;
-	float max_x = t.pos.x + collider_half;
-	float max_y = t.pos.y + collider_half;
+	float min_x = t.pos.x - collider_half_x;
+	float min_y = t.pos.y - collider_half_y;
+	float max_x = t.pos.x + collider_half_x;
+	float max_y = t.pos.y + collider_half_y;
 
 	/* Update the Grid */
 	uint cell_min_x = PointXtoCell(uint(floor(min_x)));

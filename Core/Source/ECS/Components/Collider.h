@@ -28,7 +28,8 @@ namespace Mupfel {
 	class Collider
 	{
 	public:
-		float GetBoundingBox() const;
+		float GetBoundingBoxX() const;
+		float GetBoundingBoxY() const;
 		void SetCircle(float in_radius);
 		float GetCircle() const;
 		void SetAABB(float x, float y);
@@ -40,9 +41,10 @@ namespace Mupfel {
 		float radius = 0;
 		float pad[3] = { 0 };
 	private:
-		float bounding_box_size = 16.0f;
+		float bounding_box_x = 16.0f;
+		float bounding_box_y = 16.0f;
 	};
 
-	static_assert(sizeof(Collider) == 52);
+	static_assert(sizeof(Collider) == 56);
 
 }

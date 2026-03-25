@@ -34,7 +34,8 @@ struct Collider {
     float padShape2;
     float padShape3;
 
-    float bounding_box_size;
+    float bounding_box_x;
+    float bounding_box_y;
 };
 
 struct CollisionPair {
@@ -95,14 +96,14 @@ bool CollisionPossible(uint entity_a, uint entity_b)
     Collider c_a = colliders[colliderSparse[entity_a]];
     Collider c_b = colliders[colliderSparse[entity_b]];
 
-    float a_x = t_a.x - c_a.bounding_box_size / 2;
-    float a_y = t_a.y - c_a.bounding_box_size / 2;
+    float a_x = t_a.x - c_a.bounding_box_x / 2;
+    float a_y = t_a.y - c_a.bounding_box_y / 2;
 
-    float b_x = t_b.x - c_b.bounding_box_size / 2;
-    float b_y = t_b.y - c_b.bounding_box_size / 2;
+    float b_x = t_b.x - c_b.bounding_box_x / 2;
+    float b_y = t_b.y - c_b.bounding_box_x / 2;
 
-    bool collisionX = ((a_x + c_a.bounding_box_size) >= b_x) && ((b_x + c_b.bounding_box_size) >= a_x);
-    bool collisionY = ((a_y + c_a.bounding_box_size) >= b_y) && ((b_y + c_b.bounding_box_size) >= a_y);
+    bool collisionX = ((a_x + c_a.bounding_box_x) >= b_x) && ((b_x + c_b.bounding_box_x) >= a_x);
+    bool collisionY = ((a_y + c_a.bounding_box_y) >= b_y) && ((b_y + c_b.bounding_box_y) >= a_y);
 
     return collisionX && collisionY;
 }
