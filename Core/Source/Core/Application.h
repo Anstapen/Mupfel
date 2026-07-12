@@ -11,8 +11,13 @@
 #include "Debug/DebugLayer.h"
 #include "ThreadPool.h"
 #include "Physics/PhysicsSimulation.h"
+#include "Renderer/Renderer.h"
+#include <optional>
+
 
 namespace Mupfel {
+
+	class Renderer;
 
 	/**
 	 * @brief Defines the specification parameters used to initialize the Application.
@@ -80,7 +85,7 @@ namespace Mupfel {
 		/**
 		 * @brief Returns the current time in seconds since startup.
 		 */
-		static double GetCurrentTime();
+		static double GetTime();
 
 		/**
 		 * @brief Marks the beginning of a new frame for frame-time measurement.
@@ -96,15 +101,12 @@ namespace Mupfel {
 		 */
 		static void EndFrameTime();
 
+		static void WaitTime(double time);
+
 		/**
 		 * @brief Returns the time delta (in seconds) of the last rendered frame.
 		 */
 		static float GetLastFrameTime();
-
-		/**
-		 * @brief Returns a random integer between @p min and @p max.
-		 */
-		static int GetRandomNumber(int min, int max);
 
 		/**
 		 * @brief Returns the current width of the render surface in pixels.
@@ -210,6 +212,12 @@ namespace Mupfel {
 		/** @brief Manages user input and input event mapping. */
 		InputManager input_manager;
 
+		/** Renders to the screen. */
+		Renderer renderer;
+
+		/** RHI interface handle. */
+		std::optional<Ping::Device> gpu;
+
 		/** @brief The ECS Registry that holds all entities and components. */
 		Registry registry;
 
@@ -223,7 +231,7 @@ namespace Mupfel {
 		DebugLayer debug_layer;
 
 		/** @brief Timestamp of the current frame’s start time. */
-		double start_time = 0.0;
+		double start_frame_time = 0.0;
 
 		/** @brief Duration of the most recently completed frame (in seconds). */
 		double last_frame_time = 0.0;

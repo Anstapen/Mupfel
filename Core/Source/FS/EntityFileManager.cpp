@@ -6,7 +6,6 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Movement.h"
 #include "ECS/Components/Collider.h"
-#include "Renderer/Texture.h"
 
 using namespace Mupfel;
 using json = nlohmann::json;
@@ -24,7 +23,6 @@ FileManager::Handle Mupfel::EntityFileManager::Load(std::filesystem::path file)
 	}
 
 	RegisterComponentLoader("Transform", EntityFileManager::LoadTransform);
-	RegisterComponentLoader("Texture", EntityFileManager::LoadTexture);
 	RegisterComponentLoader("Movement", EntityFileManager::LoadMovement);
 	RegisterComponentLoader("Collider", EntityFileManager::LoadCollider);
 
@@ -69,11 +67,6 @@ void Mupfel::EntityFileManager::LoadTransform(Entity e, nlohmann::json source)
 	t.scale_y = source["scale_y"];
 	t.rotation = source["rotation"];
 	Application::GetCurrentRegistry().AddComponent<Transform>(e, t);
-}
-
-void Mupfel::EntityFileManager::LoadTexture(Entity e, nlohmann::json source)
-{
-	Application::GetCurrentRegistry().AddComponent<TextureComponent>(e, {});
 }
 
 void Mupfel::EntityFileManager::LoadMovement(Entity e, nlohmann::json source)

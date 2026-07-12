@@ -19,7 +19,7 @@ static uint32_t sample_id = 0;
 
 ProfilingSample::ProfilingSample(std::string_view in_name) : name(in_name), active(true), depth(0), end_time(0.0f), id(0)
 {
-	start_time = Application::GetCurrentTime();
+	start_time = Application::GetTime();
 	id = Profiler::GetId();
 	depth = scope;
 	scope++;;
@@ -32,7 +32,7 @@ ProfilingSample::~ProfilingSample()
 		return;
 	}
 
-	end_time = Application::GetCurrentTime();
+	end_time = Application::GetTime();
 
 	if (scope > 0)
 	{

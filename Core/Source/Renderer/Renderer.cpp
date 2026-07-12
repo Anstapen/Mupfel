@@ -1,317 +1,215 @@
 #include "Renderer.h"
-#include "raylib.h"
-#include "glad.h"
-#include "rlgl.h"
-#include "Core/Application.h"
-#include "ECS/Components/Transform.h"
-#include "ECS/Components/Movement.h"
-#include "ECS/View.h"
-#include "ECS/Registry.h"
-#include <vector>
-#include "glm.hpp"
-#include "gtc/matrix_transform.hpp"
-#include "gtc/type_ptr.hpp"
-#include "raygui.h"
-#include "Core/Profiler.h"
-#include "Texture.h"
-#include <algorithm>
-#include "Physics/MovementSystem.h"
+#include "Ping/Types.h"
+
+#include <chrono>
+#include <functional>
+#include <glm/gtc/matrix_transform.hpp>
+#include <imgui.h>
 
 using namespace Mupfel;
 
-static Shader shader;
-
-static unsigned int VAO = 0;
-static unsigned int quadVBO = 0;
-static unsigned int EBO = 0;
-static unsigned int SSBO = 0;
-
-// static Unit-Quad (centered) with pos+uv
-static const float QUAD_VERTS[] = {
-    //  x      y      z     u     v
-    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f,  // 0
-     0.5f, -0.5f, 0.0f,   1.0f, 0.0f,  // 1
-     0.5f,  0.5f, 0.0f,   1.0f, 1.0f,  // 2
-    -0.5f,  0.5f, 0.0f,   0.0f, 1.0f   // 3
+struct UniformBufferObject
+{
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
 };
 
-// entspricht GL's DrawElementsIndirectCommand
-struct DrawElementsIndirectCommand {
-    uint32_t count;         // number of indices per instance (bei dir: 6)
-    uint32_t instanceCount; // wird vom Compute gesetzt (== aktive Entities)
-    uint32_t firstIndex;    // meist 0
-    uint32_t baseVertex;    // meist 0
-    uint32_t baseInstance;  // meist 0
+/* For now a private class */
+struct Vertex
+{
+	/** 2D position, bound to vertex shader location 0. */
+	glm::vec2 pos;
+	/** RGB color, bound to vertex shader location 1. */
+	glm::vec2 texCoord;
+
+	/** The `Ping::VertexBinding` matching `Transform`'s memory layout, for `PipelineSpecification::vertexLayout`. */
+	static Ping::VertexBinding GetVertexLayout()
+	{
+		return {
+			.binding = 0,
+			.stride = sizeof(Vertex),
+			.inputRate = Ping::VertexInputRate::Vertex,
+			.attributes = {
+				{0, Ping::VertexFormat::Float32x2, offsetof(Vertex, pos)},
+				{1, Ping::VertexFormat::Float32x2, offsetof(Vertex, texCoord)}} };
+	}
 };
 
-struct ProgramParams {
-    uint64_t active_entities = 0;
-};
+static const std::vector<Vertex> vertices = {
+	{{-0.5f, -0.5f}, {1.0f, 0.0f}},
+	{{0.5f, -0.5f}, {0.0f, 0.0f}},
+	{{0.5f, 0.5f}, {0.0f, 1.0f}},
+	{{-0.5f, 0.5f}, {1.0f, 1.0f}}};
 
+static const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
-static const unsigned short QUAD_IDX[] = { 0,2,1, 0,3,2 };
+static const std::string defaul_image_path = "Images/texture.jpg";
 
-static Mupfel::Texture *t;
-
-static glm::mat4 view = glm::mat4(1.0f);
-
-static glm::mat4 projection = glm::mat4(1.0f);
-
-static int screen_w = 0;
-static int screen_h = 0;
-
-static uint32_t join_compute_shader = 0;
-static uint32_t prepare_render_shader = 0;
-
-static std::unique_ptr<GPUComponentArray<uint32_t>> active_entities = nullptr;
-
-GLuint indirectBuffer = 0;
-static GLuint frameParamsSSBO = 0;
-GLuint texturesSSBO = 0;
-const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::TextureComponent>();
-
-
-void Renderer::Init()
+void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
-    shader = LoadShader("Shaders/simple_vertex_shader.glsl", "Shaders/simple_fragment_shader.glsl");
+	logger = Logger::Create("Renderer");
+	logger->info("Init");
+	swapchain = device.CreateSwapChain(window.GetGLFWHandle(), frames_in_flight);
+	Ping::PipelineSpecification pipeline_spec{
+		"Shaders/slang.spv",
+		Vertex::GetVertexLayout(),
+		{{.set = uboSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::UniformBuffer,
+		  .stageFlags = Ping::ShaderStage::Vertex},
+		 {.set = samplerSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::CombinedImageSampler,
+		  .stageFlags = Ping::ShaderStage::Fragment}}};
+	pipeline = device.CreatePipeline(pipeline_spec, swapchain.value());
+	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
+	assert(commandBuffers.has_value() && commandBuffers.value().size() > 0);
 
-    VAO = rlLoadVertexArray();
-    rlEnableVertexArray(VAO);
+	/* We need one vertex buffer for each frame in flight */
+	for (uint32_t i = 0; i < frames_in_flight; i++)
+	{
+		auto& buffer = vertex_buffers.emplace_back(device.CreateBuffer(
+			sizeof(Vertex) * vertices.size(), Ping::BufferUsage::VertexBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
+		auto* mapped_ptr = static_cast<Vertex*>(buffer.GetMappedPtr());
 
-    /* statischer VBO */
-    quadVBO = rlLoadVertexBuffer(QUAD_VERTS, sizeof(QUAD_VERTS), false);
-    rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 5 * sizeof(float), 0);
-    rlSetVertexAttribute(1, 2, RL_FLOAT, 0, 5 * sizeof(float), sizeof(float) * 3);
-    rlEnableVertexAttribute(0);
-    rlEnableVertexAttribute(1);
+		/* Copy vertices */
+		std::memcpy(mapped_ptr, vertices.data(), buffer.Size());
 
-    EBO = rlLoadVertexBufferElement(QUAD_IDX, sizeof(QUAD_IDX), false);
+		uniformBuffers.emplace_back(device.CreateBuffer(
+			sizeof(UniformBufferObject), Ping::BufferUsage::UniformBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
+	}
 
-    /* Load the texture */
-    t = new Texture("Resources/simple_ball.png");
+	index_buffer = std::move(device.CreateBuffer(
+		sizeof(uint16_t) * indices.size(), Ping::BufferUsage::IndexBuffer | Ping::BufferUsage::TransferDst,
+		Ping::MemoryProperty::DeviceLocal));
 
-    /* Load the Prepare Render Compute Shader */
-    char* shader_code = LoadFileText("Shaders/prepare_render_pass.glsl");
-    int shader_data = rlCompileShader(shader_code, RL_COMPUTE_SHADER);
-    prepare_render_shader = rlLoadComputeShaderProgram(shader_data);
-    UnloadFileText(shader_code);
+	/* Copy indices */
+	index_buffer.value().CopyHostData(device, indices.data(), sizeof(uint16_t) * indices.size());
 
-    /* Create a GPUVector for the active entities */
-    active_entities = std::make_unique<GPUComponentArray<uint32_t>>();
+	/* Create descriptor sets */
+	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uboSetIndex, uniformBuffers);
 
-    glCreateBuffers(1, &indirectBuffer);
-    DrawElementsIndirectCommand cmd{};
-    cmd.count = 6;
-    cmd.instanceCount = 0;
-    cmd.firstIndex = 0;
-    cmd.baseVertex = 0;
-    cmd.baseInstance = 0;
+	gui = device.CreateGui(window.GetGLFWHandle(), swapchain.value(), frames_in_flight);
 
-    // Speicher anlegen; Flags wie bei deinen SSBOs (Storage + optional Mapping)
-    glNamedBufferStorage(indirectBuffer, sizeof(cmd), &cmd,
-        GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+	/* Try to open a default image */
+	std::optional<Ping::Image> defaul_image = device.CreateImage(defaul_image_path, Ping::ImageUsage::Sampled);
 
-    glCreateBuffers(1, &frameParamsSSBO);
-    glNamedBufferStorage(frameParamsSSBO, sizeof(ProgramParams), nullptr, GL_DYNAMIC_STORAGE_BIT);
+	if (!defaul_image.has_value())
+	{
+		logger->warn("Unable to load {}.", defaul_image_path);
+		return;
+	}
 
+	images.push_back(std::move(defaul_image.value()));
+	samplers.push_back(device.CreateSampler(
+		{.filterMode = Ping::SamplerFilterMode::Linear,
+		 .mipmapMode = Ping::SamplerMipMapMode::Linear,
+		 .addressMode = Ping::SamplerAddressMode::Repeat,
+		 .anisotropyEnable = true}));
 
-    rlEnableShader(shader.id);
+	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
 
-    int viewlLoc = glGetUniformLocation(shader.id, "view");
-    if (viewlLoc == -1)
-    {
-        TraceLog(LOG_ERROR, "Could not find uniform");
-    }
-    glUniformMatrix4fv(viewlLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-    int projLoc = glGetUniformLocation(shader.id, "projection");
-    if (projLoc == -1)
-    {
-        TraceLog(LOG_ERROR, "Could not find uniform");
-    }
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-    GLuint64 handle = glGetTextureHandleARB(t->id);
-    glMakeTextureHandleResidentARB(handle);
-    
-    glCreateBuffers(1, &texturesSSBO);
-    glNamedBufferStorage(texturesSSBO, sizeof(GLuint64), &handle, GL_DYNAMIC_STORAGE_BIT);
-
-    rlDisableShader();
-
-    Application::GetCurrentEventSystem().RegisterListener<ComponentAddedEvent>(
-        [](const ComponentAddedEvent& event)
-        {
-            Entity::Signature test;
-            test.set(event.comp_id);
-            /* Check if even care about the entity */
-            if ((test & wanted_comp_sig) == 0)
-            {
-                return;
-            }
-
-            if ((event.sig & wanted_comp_sig) != wanted_comp_sig)
-            {
-                /* Entity does not have Transform + Texture */
-                return;
-            }
-            active_entities->Insert(event.e, event.e.Index());
-        }
-    );
-
-    Application::GetCurrentEventSystem().RegisterListener<ComponentRemovedEvent>(
-        [](const ComponentRemovedEvent& event)
-        {
-            Entity::Signature test;
-            test.set(event.comp_id);
-            /* Check if even care about the entity */
-            if ((test & wanted_comp_sig) == 0)
-            {
-                return;
-            }
-
-            Entity::Signature transform_sig;
-            transform_sig.set(ComponentIndex::Index<Mupfel::Transform>());
-
-            Entity::Signature texture_sig;
-            texture_sig.set(ComponentIndex::Index<Mupfel::TextureComponent>());
-
-            uint32_t has_transform_component = (event.sig & transform_sig) != 0 ? 1 : 0;
-            uint32_t has_texture_component = (event.sig & texture_sig) != 0 ? 1 : 0;
-
-            uint32_t comp_info = has_transform_component + has_texture_component;
-
-            /*
-                The remove event is always issued before the removal of the component,
-                so we check if the entity currently has both of the components.
-            */
-            if (comp_info != 2)
-            {
-                return;
-            }
-            active_entities->Remove(event.e);
-        }
-    );
+	samplerDescriptorSets = device.CreateSamplerDescriptorSets(pipeline.value(), samplerSetIndex, images, sampler_refs);
 }
 
-void Renderer::Render()
+void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 {
-    ProfilingSample prof("Renderer custom Draw Batching");
+	auto [width, height] = swapchain.value().GetExtent();
 
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
-    SetProgramParams();
+	static auto startTime = std::chrono::high_resolution_clock::now();
 
-    JoinAndRender();
-    
+	auto  currentTime = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+	UniformBufferObject ubo{};
+	ubo.model = rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.proj =
+		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 10.0f);
+	ubo.proj[1][1] *= -1;
+	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
 }
 
-void Renderer::DeInit()
+void Mupfel::Renderer::RenderNextFrame(const Ping::Device& device, const Window& window)
 {
-	
+
+	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
+
+	current_command_buffer.WaitForFences(device);
+
+	updateMVP(uniformBuffers[frameIndex]);
+
+	uint32_t image_index = swapchain.value().AcquireNextImage(frameIndex);
+
+	/* Check if the index is valid */
+	if (image_index == std::numeric_limits<uint32_t>::max())
+	{
+		/* Image was resized, swapchain needs to be recreated */
+		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
+		return;
+	}
+
+	gui.value().NewFrame();
+	ImGui::ShowDemoWindow();
+
+	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
+
+	Ping::ImageLayoutTransition layout_transition = {
+		.oldLayout = Ping::ImageLayout::Undefined,
+		.newLayout = Ping::ImageLayout::ColorAttachmentOptimal,
+		.srcAccessMask = Ping::AccessMask::None,
+		.dstAccessMask = Ping::AccessMask::ColorAttachmentWrite,
+		.srcStage = Ping::PipelineStage::ColorAttachmentOutput,
+		.dstStage = Ping::PipelineStage::ColorAttachmentOutput};
+
+	current_command_buffer.transitionImageLayout(swapchain.value(), image_index, layout_transition);
+
+	current_command_buffer.BeginRendering(swapchain.value(), image_index);
+
+	current_command_buffer.BindPipeline(pipeline.value());
+
+	current_command_buffer.BindDescriptorSet(pipeline.value(), descriptorSets.value(), frameIndex, uboSetIndex);
+
+	if (samplerDescriptorSets.has_value())
+	{
+		current_command_buffer.BindDescriptorSet(pipeline.value(), samplerDescriptorSets.value(), 0, samplerSetIndex);
+	}
+
+	current_command_buffer.BindVertexBuffer(vertex_buffers[frameIndex], 0);
+
+	current_command_buffer.BindIndexBuffer(index_buffer.value());
+
+	// current_command_buffer.Draw(3);
+	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()));
+
+	current_command_buffer.DrawGui(device, gui.value(), frameIndex);
+
+	current_command_buffer.EndRendering();
+
+	layout_transition.oldLayout = Ping::ImageLayout::ColorAttachmentOptimal;
+	layout_transition.newLayout = Ping::ImageLayout::PresentSource;
+	layout_transition.srcAccessMask = Ping::AccessMask::ColorAttachmentWrite;
+	layout_transition.dstAccessMask = Ping::AccessMask::None;
+	layout_transition.dstStage = Ping::PipelineStage::BottomOfPipe;
+
+	current_command_buffer.transitionImageLayout(swapchain.value(), image_index, layout_transition);
+
+	current_command_buffer.End();
+
+	current_command_buffer.Submit(device, swapchain.value(), frameIndex, image_index);
+
+	if (!swapchain.value().Present(device, image_index))
+	{
+		/* Image was resized, swapchain needs to be recreated */
+		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
+	}
+
+	incrementFrameIndex();
 }
 
-void Mupfel::Renderer::UpdateScreenSize()
-{
-    int current_screen_w = Application::GetCurrentRenderWidth();
-    int current_screen_h = Application::GetCurrentRenderHeight();
+void Mupfel::Renderer::Shutdown() {}
 
-    bool screen_changed = false;
-
-    if (current_screen_h != screen_h)
-    {
-        screen_h = current_screen_h;
-        screen_changed = true;
-    }
-
-    if (current_screen_w != screen_w)
-    {
-        screen_w = current_screen_w;
-        screen_changed = true;
-    }
-
-    if (screen_changed)
-    {
-        /* Update perspective matrix */
-        projection = glm::ortho(0.0f, (float)screen_w, (float)screen_h, 0.0f, -1.0f, 1.0f);
-
-        rlEnableShader(shader.id);
-        int projLoc = glGetUniformLocation(shader.id, "projection");
-        if (projLoc == -1)
-        {
-            TraceLog(LOG_ERROR, "Could not find uniform");
-        }
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        rlDisableShader();
-    }
-    
-
-}
-
-void Mupfel::Renderer::JoinAndRender()
-{
-    GPUComponentArray<Mupfel::Transform>& transform_array = Application::GetCurrentRegistry().GetComponentArray<Mupfel::Transform>();
-    GPUComponentArray<TextureComponent>& texture_array = Application::GetCurrentRegistry().GetComponentArray<TextureComponent>();
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, frameParamsSSBO);
-
-    /* Bind the Transform Component Array to slot 3 */
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, transform_array.GetComponentSSBO());
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, transform_array.GetSparseSSBO());
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, texture_array.GetSparseSSBO());
-
-    /* Bind the Texture Component Array to slot 6 */
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, texture_array.GetComponentSSBO());
-
-    /* Bind the Active Pairs Array to slot 7 */
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, active_entities->GetComponentSSBO());
-
-    {
-        glUseProgram(prepare_render_shader);
-
-        // binde den Indirect-Buffer **zusätzlich** als SSBO (binding=9)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, indirectBuffer);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, frameParamsSSBO);
-
-        glDispatchCompute(1, 1, 1);
-
-        // sehr wichtig: Indirect-Command Updates sind Befehlsdaten : Command-Barrier!
-        glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
-    }
-
-    {
-        ProfilingSample prof("Running Graphics Pipeline");
-
-        UpdateScreenSize();
-
-        rlEnableShader(shader.id);
-       
-        /* Update the Vertex Array Buffer and index buffer */
-        rlEnableVertexArray(VAO);
-        rlEnableVertexBuffer(quadVBO);
-        rlEnableVertexBufferElement(EBO);
-        
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBuffer);
-
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 12, texturesSSBO);
-
-
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
-
-        glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0);
-
-        glFinish();
-    }
-    
-}
-
-void Mupfel::Renderer::SetProgramParams()
-{
-    /* Update the Shader Program parameters for the GPU */
-    ProgramParams params{};
-
-    params.active_entities = active_entities->Size();
-
-    glNamedBufferSubData(frameParamsSSBO, 0, sizeof(ProgramParams), &params);
-}
+void Mupfel::Renderer::incrementFrameIndex() { frameIndex = (frameIndex + 1) % frames_in_flight; }

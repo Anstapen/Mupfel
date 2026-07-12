@@ -45,12 +45,6 @@ namespace Mupfel {
 		static void Move(double elapsedTime);
 
 		/**
-		 * @brief Updates the GPU buffer that holds Shader Program parameters.
-		 * @param elapsedTime Delta time for this frame.
-		 */
-		static void SetProgramParams(double elapsedTime);
-
-		/**
 		 * @brief Registers event listeners for component addition/removal events.
 		 */
 		static void SetEventCallbacks();

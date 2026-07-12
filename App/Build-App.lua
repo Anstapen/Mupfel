@@ -22,10 +22,12 @@ project "App"
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   includedirs {"../" .. raygui_dir .."/src"}
-   includedirs {"../" .. raylib_dir .. "/src"}
    includedirs {"../Vendor/Sources/nlohmann"}
    includedirs {"../Vendor/Sources/glm-master/glm"}
+   includedirs {"../Vendor/Sources/vulkan_starter-main/Ping/Source"}
+   includedirs {"../Vendor/Sources/spdlog-1.17.0/include"}
+   includedirs {vulkan_sdk_path .. "/Include"}
+  
 
    filter "system:windows"
        systemversion "latest"

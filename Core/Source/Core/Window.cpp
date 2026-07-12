@@ -1,8 +1,23 @@
 #include "Window.h"
-#include "raylib.h"
+#include <GLFW/glfw3.h>
 #include "Core/Profiler.h"
 
 using namespace Mupfel;
+
+void Mupfel::Window::WaitEvents() const
+{
+	glfwWaitEvents();
+}
+
+GLFWwindow* Mupfel::Window::GetGLFWHandle() const
+{
+	return window;
+}
+
+void Mupfel::Window::GetFramebufferSize(int32_t& width, int32_t& height) const
+{
+	glfwGetFramebufferSize(window, &width, &height);
+}
 
 Mupfel::Window::Window()
 {
@@ -10,7 +25,10 @@ Mupfel::Window::Window()
 
 Mupfel::Window::~Window()
 {
-	CloseWindow();
+	if (window)
+	{
+		glfwDestroyWindow(window);
+	}
 }
 
 Window& Mupfel::Window::GetInstance()
@@ -21,27 +39,31 @@ Window& Mupfel::Window::GetInstance()
 
 bool Window::ShouldClose()
 {
-	return WindowShouldClose();
+	return glfwWindowShouldClose(window);
+}
+
+void Mupfel::Window::PollEvents() const
+{
 }
 
 bool Window::Init(const WindowSpecification& spec)
 {
 	this->spec = spec;
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
-	InitWindow(spec.width, spec.height, spec.title.c_str());
-	SetTargetFPS(0);
 
-	current_height = spec.height;
-	current_width = spec.width;
+	glfwInit();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+	const std::string window_name("Vulkan Playground");
+	uint32_t		  window_size_x = spec.width;
+	uint32_t		  window_size_y = spec.height;
+	this->window = glfwCreateWindow(window_size_x, window_size_y, window_name.c_str(), nullptr, nullptr);
+	glfwSetWindowUserPointer(window, this);
+	if (!this->window)
+	{
+		return false;
+	}
 
 	return true;
-}
-
-void Mupfel::Window::resize(int width, int height)
-{
-	SetWindowSize(width, height);
-	current_height = height;
-	current_width = width;
 }
 
 void Mupfel::Window::ToggleFS()
@@ -50,23 +72,11 @@ void Mupfel::Window::ToggleFS()
 
 	if (is_currently_fullscreen)
 	{
-		SetWindowSize(current_width, current_height);
+		// TODO: set windowed size
 	}
 	else {
-		SetWindowSize(GetMonitorWidth(GetCurrentMonitor()), GetMonitorHeight(GetCurrentMonitor()));
+		// TODO: set fullscreen
 	}
-	ToggleFullscreen();
 	is_currently_fullscreen = !is_currently_fullscreen;
 
-}
-
-void Mupfel::Window::StartFrame()
-{
-	BeginDrawing();
-	ClearBackground(BLANK);
-}
-
-void Mupfel::Window::EndFrame()
-{
-	EndDrawing();
 }

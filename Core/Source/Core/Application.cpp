@@ -1,10 +1,18 @@
+#include "Ping/Device.h"
 #include "Application.h"
-#include "raylib.h"
 #include <algorithm>
 #include "Profiler.h"
 #include "Renderer/Renderer.h"
 #include <iostream>
-#include "glad.h"
+#include <chrono>
+#include "Ping/Ping.h"
+#include "Logger/Logger.h"
+
+
+#include "GLFW/glfw3.h"
+
+using Clock = std::chrono::steady_clock;
+static const Clock::time_point start_time = Clock::now();
 
 
 using namespace Mupfel;
@@ -29,24 +37,6 @@ Application::~Application()
 {
 }
 
-static void GLAPIENTRY
-MessageCallback(GLenum source,
-	GLenum type,
-	GLuint id,
-	GLenum severity,
-	GLsizei length,
-	const GLchar* message,
-	const void* userParam)
-{
-	if (severity <= GL_DEBUG_SEVERITY_NOTIFICATION)
-	{
-		return;
-	}
-	fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-		(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
-		type, severity, message);
-}
-
 bool Application::Init(const ApplicationSpecification& in_spec)
 {
 	auto &app = Get();
@@ -57,24 +47,24 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 		app.spec.name.insert(0, "Application");
 	}
 
-	/* Init Raylib RND number generator */
-	SetRandomSeed(997478384U);
+	Logger::Init();
 
 	WindowSpecification window_spec;
 	window_spec.title = app.spec.name;
 
 	Window::GetInstance().Init(window_spec);
 
+	if (!Ping::Init())
+	{
+		return false;
+	}
+	gpu = Ping::Device(Ping::DeviceSpecification(), Window::GetInstance().GetGLFWHandle());
+
+	renderer.Init(gpu.value(), Window::GetInstance());
+
 	physics.Init();
 
 	debug_layer.OnInit();
-
-	Renderer::Init();
-	
-
-	// During init, enable debug output
-	glEnable(GL_DEBUG_OUTPUT);
-	glDebugMessageCallback(MessageCallback, 0);
 
 	frame_count = 0;
 
@@ -86,20 +76,20 @@ void Application::Stop()
 	running = false;
 }
 
-double Application::GetCurrentTime()
+double Application::GetTime()
 {
-	return GetTime();
+	return std::chrono::duration<double>(Clock::now() - start_time).count();
 }
 
 void Mupfel::Application::StartFrameTime()
 {
-	Get().start_time = GetTime();
+	Get().start_frame_time = GetTime();
 }
 
 void Mupfel::Application::EndFrameTime()
 {
 	double current_time = GetTime();
-	double frame_time = current_time - Get().start_time;
+	double frame_time = current_time - Get().start_frame_time;
 
 	double wait_time = (1.0f / 144.0f) - frame_time;
 
@@ -107,30 +97,20 @@ void Mupfel::Application::EndFrameTime()
 	{
 		WaitTime((float)wait_time);
 		current_time = GetTime();
-		frame_time = (float)(current_time - Get().start_time);
+		frame_time = (float)(current_time - Get().start_frame_time);
 	}
 
 	Get().last_frame_time = frame_time;
 }
 
+void Mupfel::Application::WaitTime(double time)
+{
+	std::this_thread::sleep_for(std::chrono::duration<double>(time));
+}
+
 float Mupfel::Application::GetLastFrameTime()
 {
-	return Get().last_frame_time;
-}
-
-int Mupfel::Application::GetRandomNumber(int min, int max)
-{
-	return GetRandomValue(min, max);
-}
-
-int Mupfel::Application::GetCurrentRenderWidth()
-{
-	return GetRenderWidth();
-}
-
-int Mupfel::Application::GetCurrentRenderHeight()
-{
-	return GetRenderHeight();
+	return static_cast<float>(Get().last_frame_time);
 }
 
 bool Mupfel::Application::isDebugModeEnabled()
@@ -191,9 +171,7 @@ void Application::Run()
 {
 	running = true;
 
-	double lastTime = Application::GetCurrentTime();
-
-	glGenQueries(1, &gpuTimerQuery);
+	double lastTime = Application::GetTime();
 
 	/* Main Loop */
 	while (running)
@@ -207,7 +185,7 @@ void Application::Run()
 		frame_count++;
 		ProfilingSample prof("Application::Run()");
 
-		double currentTime = Application::GetCurrentTime();
+		double currentTime = Application::GetTime();
 		double timestep = std::clamp<double>(currentTime - lastTime, 0.001f, 0.1f);
 		lastTime = currentTime;
 
@@ -249,8 +227,7 @@ void Application::Run()
 
 		{
 			ProfilingSample prof("Engine Renderer");
-			window.StartFrame();
-			Renderer::Render();
+			renderer.RenderNextFrame(gpu.value(), Window::GetInstance());
 		}
 		
 		{
@@ -274,9 +251,7 @@ void Application::Run()
 		}
 
 		{
-			ProfilingSample prof2("EndFrame");
-			window.EndFrame();
-			
+			ProfilingSample prof2("EndFrame");			
 		}
 
 		{
@@ -301,4 +276,6 @@ void Application::Run()
 void Application::DeInit()
 {
 	physics.DeInit();
+	gpu.value().WaitForCommands();
+	Ping::Shutdown();
 }

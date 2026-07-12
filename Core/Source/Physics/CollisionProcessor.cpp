@@ -4,7 +4,7 @@
 #include <cmath>
 #include <array>
 
-#include "glm.hpp"
+#include "glm/glm.hpp"
 
 /* Needed Components */
 #include "ECS/Components/Collider.h"

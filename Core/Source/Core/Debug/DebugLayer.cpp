@@ -1,9 +1,5 @@
 #include "DebugLayer.h"
 #include "Core/Application.h"
-#include "Renderer/Rectangle.h"
-#include "Renderer/Circle.h"
-#include "Renderer/Text.h"
-#include "Renderer/Texture.h"
 #include <string>
 #include <format>
 #include "ECS/Registry.h"
@@ -12,12 +8,7 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Movement.h"
 #include "Core/Profiler.h"
-//#include "raylib.h"
 
-
-
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
 
 void Mupfel::DebugLayer::OnInit()
 {
@@ -25,10 +16,12 @@ void Mupfel::DebugLayer::OnInit()
 
 void Mupfel::DebugLayer::OnUpdate(double timestep)
 {
+#if 0
 	if (single_stepping && IsKeyPressed(KEY_SPACE))
 	{
 		Application::PhysicsStep();
 	}
+#endif
 }
 
 void Mupfel::DebugLayer::OnRender()
@@ -66,6 +59,7 @@ static float slider_val = 0.0f;
 
 void Mupfel::DebugLayer::DrawDebugInfo()
 {
+#if 0
 	uint32_t current_entities = Mupfel::Application::GetCurrentRegistry().GetCurrentEntities();
 	/* Get the time of the last frame. */
 	float last_frame_time = Mupfel::Application::GetLastFrameTime();
@@ -76,12 +70,14 @@ void Mupfel::DebugLayer::DrawDebugInfo()
 
 	std::string text1 = std::vformat("FPS: {:.1f}", std::make_format_args(fps));
 	std::string text2 = std::vformat("Entities(GLOBAL): {}", std::make_format_args(current_entities));
-	Text::RaylibDrawText(text1.c_str(), 10, 20);
-	Text::RaylibDrawText(text2.c_str(), 10, 40);
+	//Text::RaylibDrawText(text1.c_str(), 10, 20);
+	//Text::RaylibDrawText(text2.c_str(), 10, 40);
+#endif
 }
 
 void Mupfel::DebugLayer::DrawCollisionGrid()
 {
+#if 0
 	/* Lets render the Collision Grid */
 	uint32_t screen_width = Mupfel::Application::GetCurrentRenderWidth();
 	uint32_t screen_height = Application::GetCurrentRenderHeight();
@@ -110,13 +106,14 @@ void Mupfel::DebugLayer::DrawCollisionGrid()
 
 			uint32_t cell_index = Mupfel::Application::Get().physics.collision_system->WorldtoCell({ pos_x, pos_y });
 
-			RaylibDrawRect(pos_x, pos_y, cell_size, cell_size, 230, 41, 55, 255);
+			//RaylibDrawRect(pos_x, pos_y, cell_size, cell_size, 230, 41, 55, 255);
 
 			pos_x += cell_size;
 		}
 		pos_x = 0;
 		pos_y += cell_size;
 	}
+#endif
 }
 
 void Mupfel::DebugLayer::DrawEntityColliders()
@@ -131,12 +128,12 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 
 		if (collider.info.type == ShapeType::Circle)
 		{
-			Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider.GetCircle(), 102, 191, 255, 255);
+			//Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider.GetCircle(), 102, 191, 255, 255);
 		}
 
 		if (collider.info.type == ShapeType::AABB)
 		{
-			RaylibDrawRect(t.pos_x - collider.GetBoundingBoxX() / 2, t.pos_y - collider.GetBoundingBoxY() / 2, collider.GetBoundingBoxX(), collider.GetBoundingBoxY(), 102, 191, 255, 255);
+			//RaylibDrawRect(t.pos_x - collider.GetBoundingBoxX() / 2, t.pos_y - collider.GetBoundingBoxY() / 2, collider.GetBoundingBoxX(), collider.GetBoundingBoxY(), 102, 191, 255, 255);
 		}
 	}
 }
@@ -153,7 +150,8 @@ void Mupfel::DebugLayer::DrawEntityVelocity()
 		if (fabs(movement.velocity_x) > 0.0f || fabs(movement.velocity_y) > 0.0f)
 		{
 			std::string text1 = std::vformat("{:.0f}{:.0f}", std::make_format_args(movement.velocity_x, movement.velocity_x));
-			Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x, transform.pos_y, 15);
+			//Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x, transform.pos_y, 15);
+			//TODO: implement using imgui
 		}
 
 	}
@@ -168,10 +166,11 @@ void Mupfel::DebugLayer::DrawEntityIndex()
 
 	for (auto [entity, transform] : movement_view)
 	{
-		float idx = entity.Index();
+		float idx = static_cast<float>(entity.Index());
 
 		std::string text1 = std::vformat("{:.0f}", std::make_format_args(idx));
-		Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x + 15, transform.pos_y, 15);
+		//Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x + 15, transform.pos_y, 15);
+		// TODO: implement using imgui
 
 	}
 }
@@ -198,7 +197,8 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 			std::string indent(s.depth * 2, ' ');
 			double elapsed_ms = (s.end_time - s.start_time) * 1000.0f;
 			t = std::vformat("{}{}: {:.0f}ms", std::make_format_args(indent, s.name, elapsed_ms));
-			Text::RaylibDrawText(t.c_str(), 10, offset);
+			//Text::RaylibDrawText(t.c_str(), 10, offset);
+			// TODO: implement using imgui
 			offset += 20;
 		}
 	}
@@ -208,22 +208,4 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 
 void Mupfel::DebugLayer::DrawDebugGUI()
 {
-
-	GuiCheckBox(Rectangle(anchor_x, anchor_y, 24, 24), "Show Performance", &show_perf);
-	GuiCheckBox(Rectangle(anchor_x, anchor_y + 30, 24, 24), "Show Entity Colliders", &show_collider);
-	GuiCheckBox(Rectangle(anchor_x, anchor_y + 60, 24, 24), "Show Grid", &show_grid);
-	GuiCheckBox(Rectangle(anchor_x, anchor_y + 90, 24, 24), "Show Entity Velocity", &show_velocity);
-	GuiCheckBox(Rectangle(anchor_x, anchor_y + 120, 24, 24), "Show Entity Index", &show_entity_index);
-	static float scale = 1.0f;
-	if (GuiSlider(Rectangle(anchor_x, anchor_y + 150, 100, 20), "", "Time Scale", &scale, 0.01f, 3.0f) != 0) {
-		Application::SetTimeScale(scale);
-	}
-	if (GuiCheckBox(Rectangle(anchor_x, anchor_y + 180, 24, 24), "Enable Single Stepping", &single_stepping) != 0) {
-		Application::TogglePhysicsSingleStep();
-	}
-
-	if (GuiSlider(Rectangle(anchor_x, anchor_y + 210, 100, 20), "", "Time Scale", &cell_size_pow, 3.0f, 10.0f) != 0) {
-		Application::Get().GetCurrentPhysicsSim().SetCellSizePow((uint32_t)cell_size_pow);
-	}
-
 }

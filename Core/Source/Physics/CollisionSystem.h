@@ -1,12 +1,10 @@
 #pragma once
 #include "Core/Coordinate.h"
-#include "GPUCollisionGrid.h"
 #include "ECS/Registry.h"
 #include "Core/EventSystem.h"
+#include "CollisionGrid.h"
 #include <memory>
-#include "ECS/GPUComponentArray.h"
 #include <cstdint>
-#include "GPU/GPUPrefixSum.h"
 
 namespace Mupfel {
 
@@ -31,26 +29,15 @@ namespace Mupfel {
 		uint32_t WorldtoCell(Coordinate<uint32_t> c);
 
 		void SetCallbacks();
-		void SetProgramParams();
 		void UpdateCellCount();
 		void FillCellEntityArray();
-		void GPUNarrowPhase();
+		void NarrowPhase();
 		void CheckCollisions();
 		void ClearBuffers();
 	private:
 		Registry& registry;
 		EventSystem& evt_system;
-		GPUCollisionGrid collision_grid;
-		GPUPrefixSum prefix_sum;
-		/* Shader IDs */
-		uint32_t fill_cell_count_shader_id;
-		uint32_t fill_cell_entity_shader_id;
-		uint32_t narrow_phase_shader_id;
-
-		/* GPU-side buffers */
-		std::unique_ptr<GPUComponentArray<uint32_t>> active_entities;
-		std::unique_ptr<GPUVector<CollisionPair>> colliding_entities;
-		std::unique_ptr<GPUVector<uint32_t>> num_colliding_entities;
+		CollisionGrid collision_grid;
 	};
 }
 

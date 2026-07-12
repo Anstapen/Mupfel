@@ -3,6 +3,10 @@
 #include <string>
 #include <cstdint>
 
+/* forward declarations */
+struct GLFWwindow;
+typedef struct GLFWwindow GLFWwindow;
+
 namespace Mupfel {
 
 	/**
@@ -34,6 +38,8 @@ namespace Mupfel {
 
 	class Application;
 
+	class Renderer;
+
 	/**
 	 * @brief Represents the main application window.
 	 *
@@ -49,8 +55,8 @@ namespace Mupfel {
 	 */
 	class Window
 	{
-		friend Application;
-
+		friend class Application;
+		friend class Renderer;
 	private:
 		/**
 		 * @brief Destructor.
@@ -80,37 +86,12 @@ namespace Mupfel {
 		bool Init(const WindowSpecification& spec);
 
 		/**
-		 * @brief Resizes the window to the given dimensions.
-		 * @param width New width of the window (in pixels).
-		 * @param height New height of the window (in pixels).
-		 *
-		 * Updates both raylib’s internal window state and
-		 * the engine’s local width/height tracking.
-		 */
-		void resize(int width, int height);
-
-		/**
 		 * @brief Toggles between fullscreen and windowed mode.
 		 *
 		 * This function switches the current display mode while
 		 * preserving the previous window dimensions for restoration.
 		 */
 		void ToggleFS();
-
-		/**
-		 * @brief Prepares the frame for rendering.
-		 *
-		 * Begins the raylib drawing process and clears the window background.
-		 * Should be called once per frame before rendering any content.
-		 */
-		void StartFrame();
-
-		/**
-		 * @brief Finalizes the current frame and presents it to the display.
-		 *
-		 * Ends the raylib drawing context and swaps the back buffer to the screen.
-		 */
-		void EndFrame();
 
 		/**
 		 * @brief Checks whether the window should close.
@@ -120,6 +101,21 @@ namespace Mupfel {
 		 * or Alt+F4) and is used by the main loop to determine exit conditions.
 		 */
 		bool ShouldClose();
+
+		/** Processes pending window/input events. Call once per frame from the main loop. */
+		void PollEvents() const;
+
+		/**
+		 * Blocks until at least one event is available, then processes pending events (used while
+		 * minimized, where the framebuffer size is zero — see `Ping::SwapChain::Recreate`).
+		 */
+		void WaitEvents() const;
+
+		/** The underlying GLFW window handle, for backend code (e.g. `glfwCreateWindowSurface`) that needs it. */
+		GLFWwindow* GetGLFWHandle() const;
+
+		/** Writes the window's current framebuffer size (in pixels) to `width`/`height`. */
+		void GetFramebufferSize(int32_t& width, int32_t& height) const;
 
 	private:
 		/**
@@ -141,6 +137,9 @@ namespace Mupfel {
 
 		/** @brief The current window height (used for restoring size when exiting fullscreen). */
 		int current_height = 0;
+
+		/** Owning GLFW window handle. */
+		GLFWwindow* window;
 	};
 }
 

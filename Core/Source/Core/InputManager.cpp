@@ -1,10 +1,10 @@
 #include "InputManager.h"
 
-#include "raylib.h"
 
 using namespace Mupfel;
 
-static Vector2 current_mouse_pos;
+static float current_mouse_pos_x;
+static float current_mouse_pos_y;
 
 InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system(evt_system), current_mode(in_mode)
 {
@@ -40,12 +40,12 @@ void InputManager::Update(double elapsedTime)
 
 float Mupfel::InputManager::GetCurrentCursorX() const
 {
-	return current_mouse_pos.x;
+	return current_mouse_pos_x;
 }
 
 float Mupfel::InputManager::GetCurrentCursorY() const
 {
-	return current_mouse_pos.y;
+	return current_mouse_pos_y;
 }
 
 void Mupfel::InputManager::MapKeyboardButton(Key key, UserInput new_input)
@@ -77,6 +77,7 @@ void Mupfel::InputManager::MapGamepadButton(GamepadButton button, UserInput new_
 
 void Mupfel::InputManager::UpdateButtons()
 {
+#if 0
 	/* First update keyboard presses */
 
 	uint32_t key = GetKeyPressed();
@@ -101,11 +102,12 @@ void Mupfel::InputManager::UpdateButtons()
 	{
 		event_system.AddEvent<UserInputEvent>({ gamepad_map.at(key).input });
 	}
-
+#endif
 }
 
 void Mupfel::InputManager::UpdateCursor()
 {
+#if 0
 	Vector2 current_pos = GetMousePosition();
 
 	if (current_pos.x != current_mouse_pos.x || current_pos.y != current_mouse_pos.y)
@@ -113,6 +115,7 @@ void Mupfel::InputManager::UpdateCursor()
 		current_mouse_pos = current_pos;
 		event_system.AddEvent<UserInputEvent>({UserInput::CURSOR_POS_CHANGED});
 	}
+#endif
 }
 
 void Mupfel::InputManager::UpdateMouseButtons()
@@ -128,6 +131,7 @@ void Mupfel::InputManager::UpdateMouseButtons()
 
 void Mupfel::InputManager::UpdateMouseButton(MouseButton b)
 {
+#if 0
 	/* After that the Mouse presses */
 	if (IsMouseButtonPressed(b)) //|| IsMouseButtonDown(b))
 	{
@@ -136,6 +140,7 @@ void Mupfel::InputManager::UpdateMouseButton(MouseButton b)
 			event_system.AddEvent<UserInputEvent>({ mouse_map.at(b).input });
 		}
 	}
+#endif
 }
 
 UserInputEvent::UserInputEvent() : input(UserInput::NONE)

@@ -1,8 +1,4 @@
 #include "HelloWorldLayer.h"
-#include "Renderer/Text.h"
-#include "Renderer/Circle.h"
-#include "Renderer/Rectangle.h"
-#include "Renderer/TextureManager.h"
 #include "Core/Application.h"
 #include "Core/Profiler.h"
 #include <iostream>

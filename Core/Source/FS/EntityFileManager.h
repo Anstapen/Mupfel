@@ -18,7 +18,6 @@ namespace Mupfel {
 		virtual bool RegisterComponentLoader(std::string loader_name, ComponentLoader loader);
 	private:
 		static void LoadTransform(Entity e, nlohmann::json source);
-		static void LoadTexture(Entity e, nlohmann::json source);
 		static void LoadMovement(Entity e, nlohmann::json source);
 		static void LoadCollider(Entity e, nlohmann::json source);
 	private:
