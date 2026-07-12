@@ -25,6 +25,7 @@ project "App"
    includedirs {"../" .. raygui_dir .."/src"}
    includedirs {"../" .. raylib_dir .. "/src"}
    includedirs {"../Vendor/Sources/nlohmann"}
+   includedirs {"../Vendor/Sources/glm-master/glm"}
 
    filter "system:windows"
        systemversion "latest"

@@ -1,5 +1,4 @@
 #pragma once
-#include "GUID.h"
 
 namespace Mupfel {
 	/**

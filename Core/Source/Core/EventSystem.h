@@ -5,7 +5,6 @@
 #include <optional>
 #include <ranges>
 #include <functional>
-#include "GUID.h"
 #include "EventBuffer.h"
 
 namespace Mupfel {

@@ -2,7 +2,6 @@
 #include "ComponentArray.h"
 #include <vector>
 #include <cassert>
-#include "Core/GUID.h"
 
 namespace Mupfel {
 
