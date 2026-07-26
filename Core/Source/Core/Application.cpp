@@ -49,6 +49,9 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	Logger::Init();
 
+	logger = Logger::Create(app.spec.name);
+	logger->info("{} initializing...", app.spec.name);
+
 	WindowSpecification window_spec;
 	window_spec.title = app.spec.name;
 
@@ -56,8 +59,10 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	if (!Ping::Init())
 	{
+		logger->error("Failed to initialize the RHI.");
 		return false;
 	}
+
 	gpu = Ping::Device(Ping::DeviceSpecification(), Window::GetInstance().GetGLFWHandle());
 
 	renderer.Init(gpu.value(), Window::GetInstance());
@@ -164,8 +169,6 @@ uint64_t Mupfel::Application::GetFrameCount()
 }
 
 
-static GLuint gpuTimerQuery = 0;
-
 
 void Application::Run()
 {
@@ -181,6 +184,7 @@ void Application::Run()
 			Stop();
 			break;
 		}
+		window.PollEvents();
 		Application::StartFrameTime();
 		frame_count++;
 		ProfilingSample prof("Application::Run()");
@@ -248,10 +252,6 @@ void Application::Run()
 				Profiler::Clear();
 			}
 
-		}
-
-		{
-			ProfilingSample prof2("EndFrame");			
 		}
 
 		{

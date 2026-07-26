@@ -1,51 +1,30 @@
+-- App/Build-App.lua
+--
+-- Builds the "App" executable: game/editor-specific layers (see App/Source) plus the compute/vertex
+-- shaders the engine dispatches (see App/Shaders). Links Core (the engine); everything else here is
+-- header-only usage (nlohmann json, glm, direct Ping/Vulkan/spdlog types in app-layer code) with no
+-- extra linking, since those libraries are already linked in transitively via Core.
+--
+-- Dependency graph: App -> Core (linked); nlohmann json, glm, Ping, spdlog, Vulkan SDK headers only.
+
 project "App"
-   kind "ConsoleApp"
-   language "C++"
-   cppdialect "C++20"
-   targetdir "Binaries/%{cfg.buildcfg}"
-   staticruntime "off"
+    kind "ConsoleApp"
+    ApplyDefaultProjectSettings()
 
-   files { "Source/**.h", "Source/**.cpp", "Shaders/**.glsl" }
+    files { "Source/**.h", "Source/**.cpp", "Shaders/**.glsl" }
 
-   includedirs
-   {
-      "Source",
+    includedirs
+    {
+        "Source",
+        "%{wks.location}/Core/Source",
+        DepPath("nlohmann"),
+        DepPath("glm", "glm"),
+        DepPath("ping", "Source"),
+        DepPath("spdlog", "include"),
+        vulkan_sdk_path .. "/Include",
+    }
 
-	  -- Include Core
-	  "../Core/Source"
-   }
+    links { "Core" }
 
-   links
-   {
-      "Core"
-   }
-
-   targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
-   objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   includedirs {"../Vendor/Sources/nlohmann"}
-   includedirs {"../Vendor/Sources/glm-master/glm"}
-   includedirs {"../Vendor/Sources/vulkan_starter-main/Ping/Source"}
-   includedirs {"../Vendor/Sources/spdlog-1.17.0/include"}
-   includedirs {vulkan_sdk_path .. "/Include"}
-  
-
-   filter "system:windows"
-       systemversion "latest"
-       defines { "WINDOWS" }
-
-   filter "configurations:Debug"
-       defines { "DEBUG" }
-       runtime "Debug"
-       symbols "On"
-
-   filter "configurations:Release"
-       defines { "RELEASE" }
-       runtime "Release"
-       optimize "On"
-       symbols "On"
-
-   filter "configurations:Dist"
-       defines { "DIST" }
-       runtime "Release"
-       optimize "On"
-       symbols "Off"
+    filter "system:windows"
+        defines { "WINDOWS" }

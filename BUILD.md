@@ -1,0 +1,186 @@
+# Build system structure
+
+This document describes how Mupfel's Premake build is organized: which libraries exist, what each one
+depends on, and which files are responsible for defining them. It reflects the restructuring done to
+give the build a clear three-tier separation — **Vendor** (third-party code) / **Engine** (`Core`) /
+**Application** (`App`) — instead of vendor projects being defined inline inside `Core`'s build script.
+
+## Directory layout
+
+```
+Build.lua                  Workspace root: declares the workspace, shared per-project settings
+                            (ApplyDefaultProjectSettings), and the Vendor/Engine/App group structure.
+Dependencies.lua           Single source of truth for third-party dependencies: where each one's
+                            source lives (Deps table) and how to fetch it (DepPath, fetch_dependency).
+
+Vendor/
+  Build-Vendor.lua         Builds vendored third-party static libs: spdlog, imgui, Logger, Ping.
+  Sources/                 Fetched/vendored source trees (gitignored, populated by Dependencies.lua).
+  Binaries/Premake/        Vendored premake5 executables (checked into git).
+
+Core/
+  Build-Core.lua           Builds the "Core" engine static lib from Core/Source.
+  Source/                  Mupfel's own engine code (ECS, physics, renderer, event system, ...).
+
+App/
+  Build-App.lua            Builds the "App" executable from App/Source (+ App/Shaders).
+  Source/                  Game/editor-specific layers.
+
+Benchmarks/
+  Build-Benchmarks.lua     Builds the "Benchmarks" executable (microbenchmarks) from Benchmarks/Source.
+  Source/                  nanobench-based ECS/View/lifecycle benchmarks (links Core; see its README).
+```
+
+Each tier's build script only exists inside that tier's own directory, and only defines projects that
+belong to that tier — `Vendor/Build-Vendor.lua` never reaches into `Core/` or `App/`, and vice versa.
+
+## Dependency graph
+
+```
+                         ┌─────────────┐
+                         │ Vulkan SDK  │  (system dependency, VULKAN_SDK env var — not vendored)
+                         └──────┬──────┘
+                                │ headers
+     ┌────────────┐            │            ┌────────────┐
+     │   glfw3    │◄───────────┼────────────┤   spdlog   │  (no internal deps)
+     │ (prebuilt, │  headers   │   headers  └─────┬──────┘
+     │  Windows)  │            │                  │ headers
+     └─────┬──────┘            │                  ▼
+           │ headers      ┌────▼───┐        ┌────────────┐
+           └─────────────►│ imgui  │        │   Logger   │  (split out of Ping's source
+                           └────────┘        └─────┬──────┘   tree so Core and Ping can
+                                                    │ link      each link it independently)
+                                                    ▼
+                                              ┌────────────┐
+                            headers  ┌───────►│    Ping    │
+                      (spdlog/glfw/  │        └─────┬──────┘
+                     imgui/stb/vk)   │              │ link
+                                     │              ▼
+                                ┌────┴───────────────────┐
+                                │          Core           │  Mupfel's engine (Core/Source)
+                                │  links: Ping, Logger,    │  headers: nlohmann, ping, vulkan,
+                                │  spdlog, imgui, glfw3,   │           glfw, spdlog, imgui
+                                │  vulkan                 │
+                                └────────────┬─────────────┘
+                                             │ link
+                                             ▼
+                                ┌─────────────────────────┐
+                                │           App            │  Game/editor (App/Source)
+                                │  links: Core              │  headers: nlohmann, glm, ping,
+                                │                            │           spdlog, vulkan
+                                └─────────────────────────┘
+```
+
+Header-only dependencies (no build project, just `includedirs`): **nlohmann/json**, **glm**, **stb_image**,
+**nanobench**. `stb_image` is only ever included by `Ping`; `nlohmann` is used by both `Core` (entity
+serialization) and `App`; `glm` (math) is only used by `App` today; `nanobench` is only used by the
+`Benchmarks` project (see below).
+
+**Who links what:**
+
+| Project  | Links against                                   | Also sees headers of (no link) |
+|----------|--------------------------------------------------|---------------------------------|
+| `spdlog` | —                                                  | —                                |
+| `imgui`  | —                                                  | glfw                             |
+| `Logger` | —                                                  | spdlog                           |
+| `Ping`   | Logger                                             | spdlog, glfw, imgui, stb, vulkan |
+| `Core`   | Ping, Logger, spdlog, imgui, glfw3, vulkan         | nlohmann                         |
+| `App`    | Core                                               | nlohmann, glm, ping, spdlog, vulkan |
+| `Benchmarks` | Core                                           | nanobench, + Core's header set (for ParallelForEach's Application.h) |
+
+This table is the direct answer to "who includes which headers" — it's now also mechanically
+enforced: each project's `Build-*.lua` file only calls `includedirs`/`links` for what it actually
+uses, resolved via `DepPath(name, subpath)` (see below) rather than ad hoc relative path strings.
+
+## How dependency paths are resolved
+
+Previously, each vendored dependency's directory name and version were duplicated as literal strings
+in both `Dependencies.lua` (for downloading) and `Core/Ping.lua` (for `includedirs`/`files`). A version
+bump meant updating two files and could silently desync (this had already happened for `glm`: it was
+never added to `Dependencies.lua`'s downloader at all, so a fresh clone would fail to build `App`
+until someone manually placed it in `Vendor/Sources/`).
+
+Now `Dependencies.lua` defines one `Deps` table as the single source of truth:
+
+```lua
+Deps = {
+    spdlog = { relpath = "Vendor/Sources/spdlog-1.17.0", url = "https://.../v1.17.0.zip" },
+    ...
+}
+```
+
+`DepPath(name, subpath)` turns a `Deps` entry into a path anchored to the workspace root via the
+`%{wks.location}` Premake token, so it resolves correctly regardless of which project file calls it:
+
+```lua
+DepPath("spdlog", "include")  -->  "%{wks.location}/Vendor/Sources/spdlog-1.17.0/include"
+```
+
+`fetch_dependency(name)` downloads/extracts a dependency into `Vendor/Sources/` if it isn't already
+present, driven entirely by the same `Deps` entry (`url`, `relpath`, and `single_file` for
+header-only downloads like `json.hpp`/`stb_image.h`). `build_externals()` calls it for every
+dependency Mupfel needs, including the previously-missing `glm`, and only fetches the Windows GLFW
+binary when actually targeting Windows (see "Bugs fixed" below).
+
+Adding a new vendored dependency is now one entry in `Deps` plus a project block (if it needs
+compiling) in `Vendor/Build-Vendor.lua` — no path strings duplicated elsewhere.
+
+## Shared project settings
+
+Every project (vendor, engine, app) previously repeated ~30 lines of identical filter blocks
+(per-configuration defines/runtime/symbols, MSVC character set, output directories). This is now
+`ApplyDefaultProjectSettings()`, defined once in `Build.lua` and called as the first line of every
+`project` block:
+
+```lua
+project "Core"
+    kind "StaticLib"
+    ApplyDefaultProjectSettings()
+    -- project-specific files/includedirs/links follow
+```
+
+Only what's genuinely project-specific (`kind`, `files`, `includedirs`, `links`, extra `defines`)
+stays in each `Build-*.lua` file.
+
+## Solution grouping
+
+`Build.lua` wraps the includes so the generated solution mirrors the three tiers:
+
+```lua
+group "Vendor"
+   include "Vendor/Build-Vendor.lua"   -- spdlog, imgui, Logger, Ping
+group ""
+
+group "Engine"
+   include "Core/Build-Core.lua"       -- Core
+group ""
+
+include "App/Build-App.lua"            -- App (ungrouped — it's the startproject)
+
+group "Benchmarks"
+   include "Benchmarks/Build-Benchmarks.lua"  -- Benchmarks (microbenchmarks, links Core)
+group ""
+```
+
+## Bugs fixed along the way
+
+- **`glm` was never fetched.** `App/Build-App.lua` has always included `Vendor/Sources/glm-master/glm`,
+  but no `Dependencies.lua` function ever downloaded it — it only worked because a copy already existed
+  on disk. It's now a proper `Deps.glm` entry, fetched like everything else.
+- **The GLFW download's `system:windows` guard was a no-op.** It used a Premake `filter(...)` call to
+  gate `check_glfw()`, but `filter` only affects the currently active workspace/project configuration
+  scope — and this code runs *before* `workspace "Mupfel"` is even declared, so the filter had no
+  container to apply to. In practice this meant the Windows-only prebuilt GLFW binary zip was
+  downloaded unconditionally, including on Linux (`Scripts/Setup-Linux.sh`). It's now a real
+  `if os.target() == "windows" then ... end` check in `build_externals()`.
+- **Fragile relative paths (`"../..."`) tied every path to a file's location in the directory tree.**
+  Moving the vendor project definitions out of `Core/Ping.lua` into `Vendor/Build-Vendor.lua` would
+  have silently broken every `"../Vendor/..."`-style path (wrong number of `../` for the new nesting
+  depth). All paths now go through `DepPath()`/`%{wks.location}`, which is correct regardless of which
+  directory the referencing script lives in.
+
+## Verification
+
+Regenerated the solution (`premake5 vs2026`) and built all configurations end-to-end
+(`Vendor` → `Core` → `App`) with MSBuild: 0 errors, output binaries land in the same
+`Binaries/<system>-<arch>/<config>/<project>/` layout as before.

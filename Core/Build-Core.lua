@@ -1,62 +1,41 @@
-
-include "Ping.lua"
+-- Core/Build-Core.lua
+--
+-- Builds the "Core" engine static library: Mupfel's own reusable engine code (ECS, physics/collision
+-- pipeline, renderer, event system, etc.), see Core/Source. Everything it links against is vendored
+-- (see Vendor/Build-Vendor.lua) or a system dependency (Vulkan SDK, GLFW prebuilt binary).
+--
+-- Dependency graph: Core -> Ping, Logger, spdlog, imgui (linked); glfw3, vulkan (prebuilt/system,
+-- linked via libdirs); nlohmann json headers only (entity (de)serialization, no link needed).
 
 project "Core"
-   kind "StaticLib"
-   language "C++"
-   cppdialect "C++20"
-   targetdir "Binaries/%{cfg.buildcfg}"
-   staticruntime "off"
+    kind "StaticLib"
+    ApplyDefaultProjectSettings()
 
-   files { "Source/**.h", "Source/**.cpp" }
+    files { "Source/**.h", "Source/**.cpp" }
 
-   includedirs
-   {
-      "Source"
-   }
+    includedirs
+    {
+        "Source",
+        DepPath("nlohmann"),
+        DepPath("ping", "Source"),
+        vulkan_sdk_path .. "/Include",
+        DepPath("glfw", "include"),
+        DepPath("spdlog", "include"),
+        DepPath("imgui"),
+    }
 
-   targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
-   objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   links {
-          "Ping",
-          "Logger",
-          "spdlog",
-          "imgui",
-          "glfw3",
-          "vulkan"
-         }
+    libdirs
+    {
+        DepPath("glfw", "lib-vc2022"),
+        vulkan_sdk_path .. "/Lib",
+    }
 
-   libdirs {"../" .. glfw_dir .. "/lib-vc2022"}
-   libdirs {vulkan_sdk_path .. "/Lib"}
-
-   includedirs {"../Vendor/Sources/nlohmann"}
-   includedirs {"../" .. ping_dir .. "/Source"}
-   includedirs {vulkan_sdk_path .. "/Include"}
-   includedirs {"../" .. glfw_dir .. "/include"}
-   includedirs {"../" .. spdlog_dir .. "/include"}
-   includedirs {"../" .. imgui_dir}
-   
-   filter "action:vs*"
-       defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}
-       characterset ("Unicode")
-
-   filter "system:windows"
-       systemversion "latest"
-       defines { }
-
-   filter "configurations:Debug"
-       defines { "DEBUG" }
-       runtime "Debug"
-       symbols "On"
-
-   filter "configurations:Release"
-       defines { "RELEASE" }
-       runtime "Release"
-       optimize "On"
-       symbols "On"
-
-   filter "configurations:Dist"
-       defines { "DIST" }
-       runtime "Release"
-       optimize "On"
-       symbols "Off"
+    links
+    {
+        "Ping",
+        "Logger",
+        "spdlog",
+        "imgui",
+        "glfw3",
+        "vulkan",
+    }

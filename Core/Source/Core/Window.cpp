@@ -44,6 +44,7 @@ bool Window::ShouldClose()
 
 void Mupfel::Window::PollEvents() const
 {
+	glfwPollEvents();
 }
 
 bool Window::Init(const WindowSpecification& spec)

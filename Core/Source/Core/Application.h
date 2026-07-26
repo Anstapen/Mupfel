@@ -13,6 +13,7 @@
 #include "Physics/PhysicsSimulation.h"
 #include "Renderer/Renderer.h"
 #include <optional>
+#include "Logger/Logger.h"
 
 
 namespace Mupfel {
@@ -206,17 +207,20 @@ namespace Mupfel {
 		/** @brief Stack of all active layers, managed by the application. */
 		std::vector<std::unique_ptr<Layer>> layerStack;
 
+		/** The main application logger. */
+		Logger::SafeLoggerPtr logger;
+
 		/** @brief Global event management system for engine and user events. */
 		EventSystem evt_system;
 
 		/** @brief Manages user input and input event mapping. */
 		InputManager input_manager;
 
-		/** Renders to the screen. */
-		Renderer renderer;
-
 		/** RHI interface handle. */
 		std::optional<Ping::Device> gpu;
+
+		/** Renders to the screen. */
+		Renderer renderer;
 
 		/** @brief The ECS Registry that holds all entities and components. */
 		Registry registry;

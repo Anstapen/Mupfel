@@ -9,7 +9,7 @@
 #include <typeindex>
 #include <vector>
 
-#include "CPUComponentArray.h"
+#include "ComponentArray.h"
 #include "ECS/Components/ComponentIndex.h"
 
 namespace Mupfel
@@ -78,7 +78,7 @@ public:
 
 /**
  * Owns all entities and components for a `World`: entity lifecycle (via `EntityManager`), one
- * `CPUComponentArray<T>` per component type `T` ever used, and each entity's `Entity::Signature`
+ * `ComponentArray<T>` per component type `T` ever used, and each entity's `Entity::Signature`
  * (which components it has). Fires `EntityCreatedEvent`/`EntityDestroyedEvent`/`ComponentAddedEvent`/
  * `ComponentRemovedEvent` on `evt_system` as entities and components change.
  */
@@ -121,11 +121,10 @@ public:
 
 	/**
 	 * Runs `function(Entity, Components&...)` over every entity with all of `Components...`, split
-	 * into chunks and dispatched across `Application::GetCurrentThreadPool()`. Entities for which
-	 * `function` returns `true` are appended to `changed_entities` (order not guaranteed across threads).
+	 * into chunks and dispatched across `Application::GetCurrentThreadPool()`.
 	 */
 	template <typename... Components, typename F>
-	void ParallelForEach(F&& function, std::vector<Entity>& changed_entities);
+	void ParallelForEach(F&& function);
 
 	/** Constructs a `T` in place from `args` and adds it to `e` (see the `AddComponent(Entity, T)` overload). */
 	template <typename T, typename... Args> void AddComponent(Entity e, Args&&... args);
@@ -157,8 +156,8 @@ public:
 	}
 
 private:
-	/** Returns (creating on first use) the `CPUComponentArray<T>` for component type `T`. */
-	template <typename T> CPUComponentArray<T>& GetComponentArray();
+	/** Returns (creating on first use) the `ComponentArray<T>` for component type `T`. */
+	template <typename T> ComponentArray<T>& GetComponentArray();
 
 	/** Grows `component_buffer` if needed so `T`'s slot (`ComponentIndex::Index<T>()`) is valid. */
 	template <typename T> void resizeComponentBuffer();
@@ -175,7 +174,7 @@ private:
 };
 
 template <typename... Components, typename F>
-inline void Registry::ParallelForEach(F&& function, std::vector<Entity>& changed_entities)
+inline void Registry::ParallelForEach(F&& function)
 {
 	auto view = this->view<Components...>();
 
@@ -195,7 +194,7 @@ inline void Registry::ParallelForEach(F&& function, std::vector<Entity>& changed
 	}
 
 	const uint32_t								  chunk = (total + num_threads - 1) / num_threads;
-	std::vector<std::future<std::vector<Entity>>> jobs;
+	std::vector<std::future<void>> jobs;
 	jobs.reserve(num_threads);
 
 	const auto required = Registry::ComponentSignature<Components...>();
@@ -211,10 +210,8 @@ inline void Registry::ParallelForEach(F&& function, std::vector<Entity>& changed
 		}
 
 		jobs.push_back(pool.Enqueue(
-			[this, begin, end, function, &dense, required, &arrays]() mutable -> std::vector<Entity>
+			[this, begin, end, function, &dense, required, &arrays]() mutable -> void
 			{
-				std::vector<Entity> local_entities;
-				local_entities.reserve(64);
 
 				for (size_t i = begin; i < end; ++i)
 				{
@@ -231,23 +228,17 @@ inline void Registry::ParallelForEach(F&& function, std::vector<Entity>& changed
 					std::apply(
 						[&](auto*... arr)
 						{
-							bool entity_changed = function(e, arr->Get(e)...);
-							if (entity_changed)
-								local_entities.push_back(e);
+							function(e, arr->Get(e)...);
 						},
 						arrays);
 				}
-
-				return local_entities;
 			}));
 	}
 
 	/* Wait for all jobs to finish and collect the entities */
 	for (auto& job : jobs)
 	{
-		auto local = job.get();
-		changed_entities.insert(
-			changed_entities.end(), std::make_move_iterator(local.begin()), std::make_move_iterator(local.end()));
+		job.get();
 	}
 }
 
@@ -289,7 +280,7 @@ template <typename T> inline void Registry::SetComponent(Entity e, T comp) { Get
 
 template <typename T> inline bool Registry::HasComponent(Entity e) { return GetComponentArray<T>().Has(e); }
 
-template <typename T> inline CPUComponentArray<T>& Registry::GetComponentArray()
+template <typename T> inline ComponentArray<T>& Registry::GetComponentArray()
 {
 	size_t comp_index = ComponentIndex::Index<T>();
 
@@ -298,11 +289,11 @@ template <typename T> inline CPUComponentArray<T>& Registry::GetComponentArray()
 	/* Create a new Component Array for the given Type if there is none */
 	if (!component_buffer[comp_index])
 	{
-		SafeComponentArrayPtr new_array = std::make_unique<CPUComponentArray<T>>(50000);
+		SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(10);
 		component_buffer[comp_index] = std::move(new_array);
 	}
 
-	return *static_cast<CPUComponentArray<T>*>(component_buffer[comp_index].get());
+	return *static_cast<ComponentArray<T>*>(component_buffer[comp_index].get());
 }
 
 template <typename T> inline void Registry::resizeComponentBuffer()

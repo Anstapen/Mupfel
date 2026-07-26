@@ -1,51 +1,141 @@
 #pragma once
-#include "Entity.h"
-#include <cstdint>
+#include "IComponentArray.h"
+#include <cassert>
+#include <vector>
 
 namespace Mupfel
 {
 
+template <typename FirstComponent, typename... Components> class View;
+
+class Registry;
+
 /**
- * Type-erased interface every `ComponentArray<T>` implements, so `Registry` can hold a
- * heterogeneous `component_buffer` of them and operate on an entity without knowing `T`.
+ * Host-memory, sparse-set storage for one component type `T`.
+ *
+ * `sparse[entity_index]` maps an entity to its slot in the parallel `dense`/`components` arrays
+ * (or `IComponentArray::invalid_entry` if the entity has no component of this type). `Remove` is
+ * O(1): it swaps the removed slot with the last slot in `dense`/`components`, so iteration order
+ * over `components` is not stable across removals.
  */
-class IComponentArray
-{
-public:
-	virtual ~IComponentArray() = default;
-
-	/** Removes the component for `e`, if present. A no-op otherwise. */
-	virtual void Remove(Entity e) = 0;
-
-	/** Whether `e` currently has a component in this array. */
-	virtual bool Has(Entity e) const = 0;
-
-	/** Number of components currently stored. */
-	virtual uint32_t Size() = 0;
-
-	/** Sentinel used by sparse-set implementations (e.g. `CPUComponentArray`) to mark "no component". */
-	static constexpr size_t invalid_entry = std::numeric_limits<size_t>::max();
-};
-
-/** Typed storage interface for one component type `T`, implemented by `CPUComponentArray<T>`. */
 template <typename T> class ComponentArray : public IComponentArray
 {
 	template <typename FirstComponent, typename... Components> friend class View;
 	friend class Registry;
-	friend class MovementSystem;
-	friend class Renderer;
-	friend class CollisionSystem;
 
 public:
-	virtual ~ComponentArray() override = default;
+	/** Reserves `capacity` entries up front in `sparse`, `dense`, and `components`. */
+	ComponentArray(uint32_t capacity = 1000);
+	~ComponentArray() override = default;
 
-	/** @warning Undefined unless `Has(e)` is true. */
-	virtual T& Get(Entity e) = 0;
+	/** Removes `e`'s component by swapping it with the last entry, if present. A no-op otherwise. */
+	void Remove(Entity e) final;
 
-	/** @warning Undefined unless `Has(e)` is true. */
-	virtual void Set(Entity e, T val) = 0;
+	bool Has(Entity e) const final;
 
-	/** Adds a component for `e`. `e` must not already have one. */
-	virtual void Insert(Entity e, T component) = 0;
+	/** Number of components currently stored. */
+	uint32_t Size() final;
+
+	/**
+	 * Raw access to the dense entity-index array (parallel to `components`), e.g. for
+	 * `View`/`Registry::ParallelForEach` iteration.
+	 */
+	uint32_t* GetDense();
+
+	T&	 Get(Entity e);
+	void Set(Entity e, T val);
+
+	/** @warning Asserts `e` does not already have a component of this type. */
+	void Insert(Entity e, T component);
+
+private:
+	/** Entity index -> slot in `dense`/`components`, or `invalid_entry`. */
+	std::vector<size_t> sparse;
+	/** Slot -> owning entity index; parallel to `components`. */
+	std::vector<uint32_t> dense;
+	/** Component data, indexed by the same slot as `dense`. */
+	std::vector<T> components;
 };
+
+template <typename T> inline void ComponentArray<T>::Insert(Entity e, T component)
+{
+	/*
+		If the sparse array is too small, we resize it using the invalid_index as value.
+		We resize in powers of two for now.
+	*/
+	if (e.Index() >= sparse.size())
+	{
+		sparse.resize((sparse.size() + 2) * 2, IComponentArray::invalid_entry);
+	}
+
+	/*
+		A value of "invalid_index" shows that the entity does not have the component yet.
+		Multiple components of the same type for one entity are illegal.
+	*/
+	assert(sparse[e.Index()] == IComponentArray::invalid_entry && "Entity already has a component of this type!");
+
+	/*
+		New entries of the component and dense vectors are always pushed at the end.
+	*/
+	sparse[e.Index()] = dense.size();
+
+	/* The value at the index stores which entity uses the component */
+	dense.push_back(e.Index());
+	components.push_back(component);
+}
+
+template <typename T> inline ComponentArray<T>::ComponentArray(uint32_t capacity)
+{
+	sparse.reserve(capacity);
+	dense.reserve(capacity);
+	components.reserve(capacity);
+}
+
+template <typename T> inline void ComponentArray<T>::Remove(Entity e)
+{
+	if (!Has(e))
+	{
+		return;
+	}
+
+	size_t comp_index = sparse[e.Index()];
+	size_t last_index = dense.size() - 1;
+
+	/* Swap the element that should be removed with the last one */
+	std::swap(dense[comp_index], dense[last_index]);
+	std::swap(components[comp_index], components[last_index]);
+
+	/* the component order changed, update the sparse list */
+	sparse[dense[comp_index]] = comp_index;
+
+	/* Delete the last component */
+	components.pop_back();
+	dense.pop_back();
+
+	/* invalidate the component reference */
+	sparse[e.Index()] = IComponentArray::invalid_entry;
+}
+
+template <typename T> inline bool ComponentArray<T>::Has(Entity e) const
+{
+	return e.Index() < sparse.size() && sparse[e.Index()] != IComponentArray::invalid_entry;
+}
+
+template <typename T> inline uint32_t* ComponentArray<T>::GetDense() { return dense.data(); }
+
+template <typename T> inline uint32_t ComponentArray<T>::Size() { return static_cast<uint32_t>(dense.size()); }
+
+template <typename T> inline T& ComponentArray<T>::Get(Entity e)
+{
+	assert(Has(e) && "Given Entity does not currently have a component of this type!");
+
+	return components[sparse[e.Index()]];
+}
+
+template <typename T> inline void ComponentArray<T>::Set(Entity e, T val)
+{
+	assert(Has(e) && "Given Entity does not currently have a component of this type!");
+	components[sparse[e.Index()]] = val;
+}
+
 } // namespace Mupfel

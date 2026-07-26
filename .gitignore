@@ -12,5 +12,15 @@ Vendor/Sources/
 *.log
 Makefile
 
+# Benchmark results (machine-specific output of the Benchmarks project's --csv flag)
+Benchmarks/*.csv
+
 # Exclude
 !Vendor/Binaries
+App/Images/
+
+*.spv
+
+App/logs/
+
+*.ini

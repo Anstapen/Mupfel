@@ -135,7 +135,7 @@ void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 
 void Mupfel::Renderer::RenderNextFrame(const Ping::Device& device, const Window& window)
 {
-
+#if 0
 	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
 
 	current_command_buffer.WaitForFences(device);
@@ -208,6 +208,7 @@ void Mupfel::Renderer::RenderNextFrame(const Ping::Device& device, const Window&
 	}
 
 	incrementFrameIndex();
+#endif
 }
 
 void Mupfel::Renderer::Shutdown() {}
