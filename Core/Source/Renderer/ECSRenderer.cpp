@@ -267,6 +267,8 @@ void Mupfel::ECSRenderer::PostUser(const Ping::Device& device, Ping::CommandBuff
 
 	// current_command_buffer.Draw(3);
 	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()), drawable_entities);
+
+	IncrementFrameIndex();
 }
 
 void Mupfel::ECSRenderer::EnsureTransformCapacity(const Ping::Device& device, uint32_t required_capacity)

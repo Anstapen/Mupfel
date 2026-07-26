@@ -31,7 +31,7 @@ public:
 	virtual void PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) = 0;
 
 protected:
-	void incrementFrameIndex();
+	void IncrementFrameIndex();
 
 protected:
 	/** The total frames in flight. The implementer is expected to allocate each of its buffers for all frames in

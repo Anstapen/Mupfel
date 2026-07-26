@@ -2,6 +2,7 @@
 #include "Ping/Types.h"
 
 #include "ECSRenderer.h"
+#include "DebugRenderer.h"
 
 using namespace Mupfel;
 
@@ -37,6 +38,7 @@ bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 	/* Create the SubRenderers */
 	subRenderers.emplace_back(std::move(std::make_unique<ECSRenderer>(frames_in_flight)));
+	subRenderers.emplace_back(std::move(std::make_unique<DebugRenderer>(frames_in_flight)));
 
 	for (uint32_t i = 0; i < subRenderers.size(); i++)
 	{

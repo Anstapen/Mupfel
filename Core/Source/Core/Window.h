@@ -39,6 +39,7 @@ namespace Mupfel {
 	class Application;
 
 	class Renderer;
+	class DebugRenderer;
 
 	/**
 	 * @brief Represents the main application window.
@@ -57,6 +58,7 @@ namespace Mupfel {
 	{
 		friend class Application;
 		friend class Renderer;
+		friend class DebugRenderer;
 	private:
 		/**
 		 * @brief Destructor.

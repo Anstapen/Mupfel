@@ -99,6 +99,7 @@ void HelloWorldLayer::OnInit()
 	{
 		Entity	  e = registry.CreateEntity();
 		Transform p;
+		p.pos_y = 2.0f;
 		p.scale_x = 5.0f;
 		p.scale_y = 5.0f;
 		registry.AddComponent<Transform>(e, p);

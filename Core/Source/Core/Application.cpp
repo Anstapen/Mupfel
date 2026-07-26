@@ -67,6 +67,12 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	debug_layer.OnInit();
 
+	if (!animationSystem.Init())
+	{
+		logger->error("Animation System Initialization failed!");
+		return false;
+	}
+
 	frame_count = 0;
 
 	return true;
@@ -206,6 +212,12 @@ void Application::Run()
 			ProfilingSample prof("Physics Update");
 			/* Update the Collision System */
 			physics.Update(timestep);
+		}
+
+		{
+			ProfilingSample prof("Animation Update");
+			/* Update the Collision System */
+			animationSystem.Update(timestep);
 		}
 
 		{

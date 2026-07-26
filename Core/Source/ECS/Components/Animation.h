@@ -3,12 +3,12 @@
 
 namespace Mupfel
 {
-class Application;
+class AnimationSystem;
 class ECSRenderer;
 
 struct Animation
 {
-	friend class Application;
+	friend class AnimationSystem;
 	friend class ECSRenderer;
 	uint32_t firstFrame = 0;
 	uint32_t frameCount = 1;

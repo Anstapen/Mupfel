@@ -14,6 +14,7 @@
 #include "Physics/PhysicsSimulation.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/ImageManager.h"
+#include "Renderer/AnimationSystem.h"
 #include <optional>
 #include "Logger/Logger.h"
 
@@ -21,6 +22,7 @@
 namespace Mupfel {
 
 	class ECSRenderer;
+	class DebugRenderer;
 
 	/**
 	 * @brief Defines the specification parameters used to initialize the Application.
@@ -53,6 +55,7 @@ namespace Mupfel {
 	{
 		friend class DebugLayer;
 		friend class ECSRenderer;
+		friend class DebugRenderer;
 
 	public:
 		/**
@@ -263,6 +266,8 @@ namespace Mupfel {
 
 		/** @brief The global physics simulation system. */
 		PhysicsSimulation physics;
+
+		AnimationSystem animationSystem;
 
 		/** @brief Thread pool for multi-threaded jobs (e.g., physics, AI). */
 		ThreadPool thread_pool;
