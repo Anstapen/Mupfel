@@ -1,19 +1,17 @@
-#include "Ping/Device.h"
 #include "Application.h"
-#include <algorithm>
+#include "Logger/Logger.h"
+#include "Ping/Device.h"
+#include "Ping/Ping.h"
 #include "Profiler.h"
 #include "Renderer/Renderer.h"
-#include <iostream>
+#include <algorithm>
 #include <chrono>
-#include "Ping/Ping.h"
-#include "Logger/Logger.h"
-
+#include <iostream>
 
 #include "GLFW/glfw3.h"
 
 using Clock = std::chrono::steady_clock;
 static const Clock::time_point start_time = Clock::now();
-
 
 using namespace Mupfel;
 
@@ -23,23 +21,17 @@ Application& Application::Get()
 	return app;
 }
 
-Application::Application() :
-	window(Window::GetInstance()),
-	evt_system(),
-	input_manager(evt_system),
-	registry(evt_system),
-	physics(registry, evt_system),
-	thread_pool(std::thread::hardware_concurrency())
+Application::Application()
+	: window(Window::GetInstance()), evt_system(), input_manager(evt_system), registry(evt_system),
+	  physics(registry, evt_system), thread_pool(std::thread::hardware_concurrency())
 {
 }
 
-Application::~Application()
-{
-}
+Application::~Application() {}
 
 bool Application::Init(const ApplicationSpecification& in_spec)
 {
-	auto &app = Get();
+	auto& app = Get();
 	app.spec = in_spec;
 
 	if (app.spec.name.empty())
@@ -65,7 +57,11 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	gpu = Ping::Device(Ping::DeviceSpecification(), Window::GetInstance().GetGLFWHandle());
 
-	renderer.Init(gpu.value(), Window::GetInstance());
+	if (!renderer.Init(gpu.value(), Window::GetInstance()))
+	{
+		logger->error("Renderer Initialization failed!");
+		return false;
+	}
 
 	physics.Init();
 
@@ -76,20 +72,11 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	return true;
 }
 
-void Application::Stop()
-{
-	running = false;
-}
+void Application::Stop() { running = false; }
 
-double Application::GetTime()
-{
-	return std::chrono::duration<double>(Clock::now() - start_time).count();
-}
+double Application::GetTime() { return std::chrono::duration<double>(Clock::now() - start_time).count(); }
 
-void Mupfel::Application::StartFrameTime()
-{
-	Get().start_frame_time = GetTime();
-}
+void Mupfel::Application::StartFrameTime() { Get().start_frame_time = GetTime(); }
 
 void Mupfel::Application::EndFrameTime()
 {
@@ -108,67 +95,61 @@ void Mupfel::Application::EndFrameTime()
 	Get().last_frame_time = frame_time;
 }
 
-void Mupfel::Application::WaitTime(double time)
+void Mupfel::Application::WaitTime(double time) { std::this_thread::sleep_for(std::chrono::duration<double>(time)); }
+
+float Mupfel::Application::GetLastFrameTime() { return static_cast<float>(Get().last_frame_time); }
+
+int Mupfel::Application::GetCurrentRenderWidth()
 {
-	std::this_thread::sleep_for(std::chrono::duration<double>(time));
+	int32_t width, height;
+	Get().window.GetFramebufferSize(width, height);
+
+	return width;
 }
 
-float Mupfel::Application::GetLastFrameTime()
+int Mupfel::Application::GetCurrentRenderHeight()
 {
-	return static_cast<float>(Get().last_frame_time);
+	int32_t width, height;
+	Get().window.GetFramebufferSize(width, height);
+
+	return height;
 }
 
-bool Mupfel::Application::isDebugModeEnabled()
+bool Mupfel::Application::isDebugModeEnabled() { return Get().debugModeEnabled; }
+
+EventSystem& Application::GetCurrentEventSystem() { return Get().evt_system; }
+
+InputManager& Mupfel::Application::GetCurrentInputManager() { return Get().input_manager; }
+
+Registry& Mupfel::Application::GetCurrentRegistry() { return Get().registry; }
+
+PhysicsSimulation& Mupfel::Application::GetCurrentPhysicsSim() { return Get().physics; }
+
+Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
 {
-	return Get().debugModeEnabled;
+	return Get().image_manager.Load(Get().gpu.value(), path);
 }
 
-EventSystem& Application::GetCurrentEventSystem()
+Expected<ImageHandle> Mupfel::Application::LoadAnimatedImage(const std::string path, const ImageSpecification& spec)
 {
-	return Get().evt_system;
+	return Get().image_manager.LoadAnimated(Get().gpu.value(), path, spec);
 }
 
-InputManager& Mupfel::Application::GetCurrentInputManager()
+Expected<std::vector<ImageHandle>>
+Mupfel::Application::LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec)
 {
-	return Get().input_manager;
+	return Get().image_manager.LoadSpriteSheet(Get().gpu.value(), path, spec);
 }
 
-Registry& Mupfel::Application::GetCurrentRegistry()
-{
-	return Get().registry;
-}
+ThreadPool& Mupfel::Application::GetCurrentThreadPool() { return Get().thread_pool; }
 
-PhysicsSimulation& Mupfel::Application::GetCurrentPhysicsSim()
-{
-	return Get().physics;
-}
+void Mupfel::Application::SetTimeScale(double time_scale) { Get().physics.SetTimeMultiplier(time_scale); }
 
-ThreadPool& Mupfel::Application::GetCurrentThreadPool()
-{
-	return Get().thread_pool;
-}
+void Mupfel::Application::TogglePhysicsSingleStep() { Get().physics.ToggleSingleStep(); }
 
-void Mupfel::Application::SetTimeScale(double time_scale)
-{
-	Get().physics.SetTimeMultiplier(time_scale);
-}
+void Mupfel::Application::PhysicsStep() { Get().physics.Step(); }
 
-void Mupfel::Application::TogglePhysicsSingleStep()
-{
-	Get().physics.ToggleSingleStep();
-}
-
-void Mupfel::Application::PhysicsStep()
-{
-	Get().physics.Step();
-}
-
-uint64_t Mupfel::Application::GetFrameCount()
-{
-	return Get().frame_count;
-}
-
-
+uint64_t Mupfel::Application::GetFrameCount() { return Get().frame_count; }
 
 void Application::Run()
 {
@@ -210,7 +191,7 @@ void Application::Run()
 				}
 			}
 		}
-		
+
 		{
 			ProfilingSample prof("Layers - OnUpdate ");
 			/* Update all layers */
@@ -220,20 +201,18 @@ void Application::Run()
 			}
 			debug_layer.OnUpdate(timestep);
 		}
-		
+
 		{
 			ProfilingSample prof("Physics Update");
 			/* Update the Collision System */
 			physics.Update(timestep);
 		}
 
-		
-
 		{
-			ProfilingSample prof("Engine Renderer");
-			renderer.RenderNextFrame(gpu.value(), Window::GetInstance());
+			ProfilingSample prof("Engine Renderer Begin");
+			renderer.Begin(gpu.value(), Window::GetInstance(), timestep);
 		}
-		
+
 		{
 			ProfilingSample prof("Layer Rendering");
 			for (const std::unique_ptr<Layer>& layer : layerStack)
@@ -251,7 +230,11 @@ void Application::Run()
 				debug_layer.OnRender();
 				Profiler::Clear();
 			}
+		}
 
+		{
+			ProfilingSample prof("Engine Renderer End");
+			renderer.End(gpu.value(), Window::GetInstance(), timestep);
 		}
 
 		{
@@ -259,12 +242,12 @@ void Application::Run()
 			/* Update the EventSystem */
 			evt_system.Update();
 		}
-		
+
 		{
 			ProfilingSample prof2("Input Manager Update");
 			input_manager.Update(timestep);
 		}
-		
+
 		Application::EndFrameTime();
 	}
 
@@ -272,10 +255,11 @@ void Application::Run()
 	DeInit();
 }
 
-
 void Application::DeInit()
 {
 	physics.DeInit();
 	gpu.value().WaitForCommands();
 	Ping::Shutdown();
 }
+
+ImageManager& Mupfel::Application::GetCurrentImageManager() { return Get().image_manager; }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 #include "Window.h"
 #include "Layer.h"
 #include <memory>
@@ -12,13 +13,14 @@
 #include "ThreadPool.h"
 #include "Physics/PhysicsSimulation.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/ImageManager.h"
 #include <optional>
 #include "Logger/Logger.h"
 
 
 namespace Mupfel {
 
-	class Renderer;
+	class ECSRenderer;
 
 	/**
 	 * @brief Defines the specification parameters used to initialize the Application.
@@ -50,6 +52,7 @@ namespace Mupfel {
 	class Application
 	{
 		friend class DebugLayer;
+		friend class ECSRenderer;
 
 	public:
 		/**
@@ -145,6 +148,34 @@ namespace Mupfel {
 		static PhysicsSimulation& GetCurrentPhysicsSim();
 
 		/**
+		 * Load a simple image.
+		 * 
+		 * \param path Path to image.
+		 * \return Image Handle or error code.
+		 */
+		static [[nodiscard]] Expected<ImageHandle> LoadBasicImage(const std::string path);
+
+		/**
+		 * Load an image with animations.
+		 * 
+		 * \param path Path to image.
+		 * \param spec image specification.
+		 * \return Image Handle or error code.
+		 */
+		static [[nodiscard]] Expected<ImageHandle>
+		LoadAnimatedImage(const std::string path, const ImageSpecification& spec);
+
+		/**
+		 * Load multiple images from a spritesheet.
+		 * 
+		 * \param path Path to spritesheet.
+		 * \param spec image specification.
+		 * \return Image Handles or error code.
+		 */
+		static [[nodiscard]] Expected<std::vector<ImageHandle>>
+		LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec);
+
+		/**
 		 * @brief Provides access to the global Thread Pool.
 		 */
 		static ThreadPool& GetCurrentThreadPool();
@@ -191,6 +222,8 @@ namespace Mupfel {
 		 */
 		void DeInit();
 
+		static ImageManager& GetCurrentImageManager();
+
 	private:
 		/** @brief The startup specification of the application. */
 		ApplicationSpecification spec;
@@ -221,6 +254,9 @@ namespace Mupfel {
 
 		/** Renders to the screen. */
 		Renderer renderer;
+
+		/** Image Manager. */
+		ImageManager image_manager;
 
 		/** @brief The ECS Registry that holds all entities and components. */
 		Registry registry;

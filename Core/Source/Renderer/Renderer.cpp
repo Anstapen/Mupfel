@@ -1,214 +1,141 @@
 #include "Renderer.h"
 #include "Ping/Types.h"
 
-#include <chrono>
-#include <functional>
-#include <glm/gtc/matrix_transform.hpp>
-#include <imgui.h>
+#include "ECSRenderer.h"
 
 using namespace Mupfel;
 
-struct UniformBufferObject
+bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 proj;
-};
+	logger = Logger::Create("RenderingSystem");
+	logger->info("Rendering System initializing...");
 
-/* For now a private class */
-struct Vertex
-{
-	/** 2D position, bound to vertex shader location 0. */
-	glm::vec2 pos;
-	/** RGB color, bound to vertex shader location 1. */
-	glm::vec2 texCoord;
-
-	/** The `Ping::VertexBinding` matching `Transform`'s memory layout, for `PipelineSpecification::vertexLayout`. */
-	static Ping::VertexBinding GetVertexLayout()
-	{
-		return {
-			.binding = 0,
-			.stride = sizeof(Vertex),
-			.inputRate = Ping::VertexInputRate::Vertex,
-			.attributes = {
-				{0, Ping::VertexFormat::Float32x2, offsetof(Vertex, pos)},
-				{1, Ping::VertexFormat::Float32x2, offsetof(Vertex, texCoord)}} };
-	}
-};
-
-static const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f}, {1.0f, 0.0f}},
-	{{0.5f, -0.5f}, {0.0f, 0.0f}},
-	{{0.5f, 0.5f}, {0.0f, 1.0f}},
-	{{-0.5f, 0.5f}, {1.0f, 1.0f}}};
-
-static const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
-
-static const std::string defaul_image_path = "Images/texture.jpg";
-
-void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
-{
-	logger = Logger::Create("Renderer");
-	logger->info("Init");
+	/* The swapchain is owned by the rendering system */
 	swapchain = device.CreateSwapChain(window.GetGLFWHandle(), frames_in_flight);
-	Ping::PipelineSpecification pipeline_spec{
-		"Shaders/slang.spv",
-		Vertex::GetVertexLayout(),
-		{{.set = uboSetIndex,
-		  .binding = 0,
-		  .type = Ping::DescriptorType::UniformBuffer,
-		  .stageFlags = Ping::ShaderStage::Vertex},
-		 {.set = samplerSetIndex,
-		  .binding = 0,
-		  .type = Ping::DescriptorType::CombinedImageSampler,
-		  .stageFlags = Ping::ShaderStage::Fragment}}};
-	pipeline = device.CreatePipeline(pipeline_spec, swapchain.value());
+
+	if (!swapchain)
+	{
+		logger->error("Unable to create Swapchain!");
+		return false;
+	}
+
+	depthBuffer = device.CreateDepthBuffer(swapchain.value());
+
+	if (!depthBuffer)
+	{
+		logger->error("Unable to create Depth Buffer!");
+		return false;
+	}
+
 	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
-	assert(commandBuffers.has_value() && commandBuffers.value().size() > 0);
 
-	/* We need one vertex buffer for each frame in flight */
-	for (uint32_t i = 0; i < frames_in_flight; i++)
+	if (!commandBuffers)
 	{
-		auto& buffer = vertex_buffers.emplace_back(device.CreateBuffer(
-			sizeof(Vertex) * vertices.size(), Ping::BufferUsage::VertexBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
-		auto* mapped_ptr = static_cast<Vertex*>(buffer.GetMappedPtr());
-
-		/* Copy vertices */
-		std::memcpy(mapped_ptr, vertices.data(), buffer.Size());
-
-		uniformBuffers.emplace_back(device.CreateBuffer(
-			sizeof(UniformBufferObject), Ping::BufferUsage::UniformBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
+		logger->error("Unable to create Command Buffers!");
+		return false;
 	}
 
-	index_buffer = std::move(device.CreateBuffer(
-		sizeof(uint16_t) * indices.size(), Ping::BufferUsage::IndexBuffer | Ping::BufferUsage::TransferDst,
-		Ping::MemoryProperty::DeviceLocal));
+	/* Create the SubRenderers */
+	subRenderers.emplace_back(std::move(std::make_unique<ECSRenderer>(frames_in_flight)));
 
-	/* Copy indices */
-	index_buffer.value().CopyHostData(device, indices.data(), sizeof(uint16_t) * indices.size());
-
-	/* Create descriptor sets */
-	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uboSetIndex, uniformBuffers);
-
-	gui = device.CreateGui(window.GetGLFWHandle(), swapchain.value(), frames_in_flight);
-
-	/* Try to open a default image */
-	std::optional<Ping::Image> defaul_image = device.CreateImage(defaul_image_path, Ping::ImageUsage::Sampled);
-
-	if (!defaul_image.has_value())
+	for (uint32_t i = 0; i < subRenderers.size(); i++)
 	{
-		logger->warn("Unable to load {}.", defaul_image_path);
-		return;
+		if (!subRenderers[i]->Init(device, swapchain.value().GetFormat()))
+		{
+			return false;
+		}
 	}
 
-	images.push_back(std::move(defaul_image.value()));
-	samplers.push_back(device.CreateSampler(
-		{.filterMode = Ping::SamplerFilterMode::Linear,
-		 .mipmapMode = Ping::SamplerMipMapMode::Linear,
-		 .addressMode = Ping::SamplerAddressMode::Repeat,
-		 .anisotropyEnable = true}));
-
-	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
-
-	samplerDescriptorSets = device.CreateSamplerDescriptorSets(pipeline.value(), samplerSetIndex, images, sampler_refs);
+	return true;
 }
 
-void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
+void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, double delta_time)
 {
-	auto [width, height] = swapchain.value().GetExtent();
 
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
-	auto  currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-	UniformBufferObject ubo{};
-	ubo.model = rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj =
-		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 10.0f);
-	ubo.proj[1][1] *= -1;
-	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
-}
-
-void Mupfel::Renderer::RenderNextFrame(const Ping::Device& device, const Window& window)
-{
-#if 0
 	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
-
 	current_command_buffer.WaitForFences(device);
 
-	updateMVP(uniformBuffers[frameIndex]);
-
-	uint32_t image_index = swapchain.value().AcquireNextImage(frameIndex);
+	imageIndex = swapchain.value().AcquireNextImage(frameIndex);
 
 	/* Check if the index is valid */
-	if (image_index == std::numeric_limits<uint32_t>::max())
+	if (imageIndex == std::numeric_limits<uint32_t>::max())
 	{
 		/* Image was resized, swapchain needs to be recreated */
 		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
+		depthBuffer = device.CreateDepthBuffer(swapchain.value());
 		return;
 	}
 
-	gui.value().NewFrame();
-	ImGui::ShowDemoWindow();
-
+	/* Start command recording */
 	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
 
+	/* transition the current swapchain image to be a color attachment. */
 	Ping::ImageLayoutTransition layout_transition = {
 		.oldLayout = Ping::ImageLayout::Undefined,
 		.newLayout = Ping::ImageLayout::ColorAttachmentOptimal,
 		.srcAccessMask = Ping::AccessMask::None,
 		.dstAccessMask = Ping::AccessMask::ColorAttachmentWrite,
 		.srcStage = Ping::PipelineStage::ColorAttachmentOutput,
-		.dstStage = Ping::PipelineStage::ColorAttachmentOutput};
+		.dstStage = Ping::PipelineStage::ColorAttachmentOutput,
+		.aspect = Ping::ImageAspect::Color};
 
-	current_command_buffer.transitionImageLayout(swapchain.value(), image_index, layout_transition);
+	current_command_buffer.transitionImageLayout(swapchain.value(), imageIndex, layout_transition);
 
-	current_command_buffer.BeginRendering(swapchain.value(), image_index);
+	/* transition the depth buffer. */
+	layout_transition.oldLayout = Ping::ImageLayout::Undefined;
+	layout_transition.newLayout = Ping::ImageLayout::DepthAttachmentOptimal;
+	layout_transition.srcAccessMask = Ping::AccessMask::DepthStencilAttachmentWrite;
+	layout_transition.dstAccessMask = Ping::AccessMask::DepthStencilAttachmentWrite;
+	layout_transition.srcStage = Ping::PipelineStage::EarlyFragmentTests | Ping::PipelineStage::LateFragmentTests;
+	layout_transition.dstStage = Ping::PipelineStage::EarlyFragmentTests | Ping::PipelineStage::LateFragmentTests;
+	layout_transition.aspect = Ping::ImageAspect::Depth;
 
-	current_command_buffer.BindPipeline(pipeline.value());
+	current_command_buffer.transitionImageLayout(depthBuffer.value(), layout_transition);
 
-	current_command_buffer.BindDescriptorSet(pipeline.value(), descriptorSets.value(), frameIndex, uboSetIndex);
+	/* start rendering to the swapchain image. */
+	current_command_buffer.BeginRendering(swapchain.value(), depthBuffer.value(), imageIndex);
 
-	if (samplerDescriptorSets.has_value())
+	for (uint32_t i = 0; i < subRenderers.size(); i++)
 	{
-		current_command_buffer.BindDescriptorSet(pipeline.value(), samplerDescriptorSets.value(), 0, samplerSetIndex);
+		subRenderers[i]->PreUser(device, current_command_buffer);
+	}
+}
+
+void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, double delta_time)
+{
+	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
+
+	for (uint32_t i = 0; i < subRenderers.size(); i++)
+	{
+		subRenderers[i]->PostUser(device, current_command_buffer);
 	}
 
-	current_command_buffer.BindVertexBuffer(vertex_buffers[frameIndex], 0);
-
-	current_command_buffer.BindIndexBuffer(index_buffer.value());
-
-	// current_command_buffer.Draw(3);
-	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()));
-
-	current_command_buffer.DrawGui(device, gui.value(), frameIndex);
-
+	
 	current_command_buffer.EndRendering();
 
-	layout_transition.oldLayout = Ping::ImageLayout::ColorAttachmentOptimal;
-	layout_transition.newLayout = Ping::ImageLayout::PresentSource;
-	layout_transition.srcAccessMask = Ping::AccessMask::ColorAttachmentWrite;
-	layout_transition.dstAccessMask = Ping::AccessMask::None;
-	layout_transition.dstStage = Ping::PipelineStage::BottomOfPipe;
+	Ping::ImageLayoutTransition layout_transition = {
+		.oldLayout = Ping::ImageLayout::ColorAttachmentOptimal,
+		.newLayout = Ping::ImageLayout::PresentSource,
+		.srcAccessMask = Ping::AccessMask::ColorAttachmentWrite,
+		.dstAccessMask = Ping::AccessMask::None,
+		.srcStage = Ping::PipelineStage::ColorAttachmentOutput,
+		.dstStage = Ping::PipelineStage::BottomOfPipe,
+		.aspect = Ping::ImageAspect::Color};
 
-	current_command_buffer.transitionImageLayout(swapchain.value(), image_index, layout_transition);
+	current_command_buffer.transitionImageLayout(swapchain.value(), imageIndex, layout_transition);
 
 	current_command_buffer.End();
 
-	current_command_buffer.Submit(device, swapchain.value(), frameIndex, image_index);
+	current_command_buffer.Submit(device, swapchain.value(), frameIndex, imageIndex);
 
-	if (!swapchain.value().Present(device, image_index))
+	if (!swapchain.value().Present(device, imageIndex))
 	{
 		/* Image was resized, swapchain needs to be recreated */
 		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
+		depthBuffer = device.CreateDepthBuffer(swapchain.value());
 	}
 
 	incrementFrameIndex();
-#endif
 }
 
 void Mupfel::Renderer::Shutdown() {}

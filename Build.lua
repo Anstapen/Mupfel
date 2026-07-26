@@ -33,7 +33,7 @@ OutputDir = "%{cfg.system}-%{cfg.architecture}/%{cfg.buildcfg}"
 -- place instead of being copy-pasted per project file.
 function ApplyDefaultProjectSettings()
     language "C++"
-    cppdialect "C++20"
+    cppdialect "C++23"
     staticruntime "off"
 
     targetdir ("%{wks.location}/Binaries/" .. OutputDir .. "/%{prj.name}")
