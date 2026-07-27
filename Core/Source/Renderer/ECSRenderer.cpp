@@ -433,7 +433,7 @@ void Mupfel::ECSRenderer::UpdateSamplerDescriptors(const Ping::Device& device)
 	{
 		return;
 	}
-	currentImageCount = images.size();
+	currentImageCount = static_cast<uint32_t>(images.size());
 
 	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
 

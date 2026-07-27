@@ -39,6 +39,9 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 		app.spec.name.insert(0, "Application");
 	}
 
+	/* Try to get the config. */
+	configManager.LoadConfig("mupfel.ini");
+
 	Logger::Init();
 
 	logger = Logger::Create(app.spec.name);
@@ -255,11 +258,6 @@ void Application::Run()
 			evt_system.Update();
 		}
 
-		{
-			ProfilingSample prof2("Input Manager Update");
-			input_manager.Update(timestep);
-		}
-
 		Application::EndFrameTime();
 	}
 
@@ -272,6 +270,9 @@ void Application::DeInit()
 	physics.DeInit();
 	gpu.value().WaitForCommands();
 	Ping::Shutdown();
+
+	/* At the end, write the config. */
+	configManager.SaveConfig("mupfel.ini");
 }
 
 ImageManager& Mupfel::Application::GetCurrentImageManager() { return Get().image_manager; }

@@ -4,14 +4,20 @@
 #include <array>
 #include "EventSystem.h"
 
+struct GLFWwindow;
+typedef struct GLFWwindow GLFWwindow;
+
 
 namespace Mupfel {
+
+    class Window;
 
     /**
      * @brief All the keyboard keys that
      * are known to the Engine.
      */
-    enum Key {
+    enum class Key : uint32_t
+    {
         KEY_NULL = 0,        // Key: NULL, used for no key pressed
         // Alphanumeric keys
         KEY_APOSTROPHE = 39,       // Key: '
@@ -216,6 +222,14 @@ namespace Mupfel {
         TOGGLE_DEBUG_MODE
 	};
 
+    enum class KeyAction
+	{
+        NONE,
+		PRESSED,
+		RELEASED,
+		REPEATED
+	};
+
     /**
      * @brief Event class representing an input action triggered by the user.
      *
@@ -233,7 +247,7 @@ namespace Mupfel {
          * @brief Constructs a UserInputEvent for the given user input.
          * @param in_input The type of user input that occurred.
          */
-		UserInputEvent(UserInput in_input);
+		UserInputEvent(UserInput in_input, KeyAction in_action);
 
 		/**
 		 * @brief Default Destructor.
@@ -243,6 +257,7 @@ namespace Mupfel {
 	public:
         /** @brief The user input action represented by this event. */
         UserInput input;
+		KeyAction action;
 	};
 
     /**
@@ -254,6 +269,7 @@ namespace Mupfel {
      * Which UserInputEvent is issued is based on a mapping that can be edited at runtime.
      */
 	class InputManager {
+		friend class Window;
 	public:
 		/**
 		 * @brief The Input Manager either listens to Gamepad or Mouse + Keyboard events.
@@ -269,7 +285,7 @@ namespace Mupfel {
          * @param evt_system Reference to the global EventSystem.
          * @param in_mode The active input mode (default: Mouse + Keyboard).
          */
-		InputManager(EventSystem& evt_system, Mode in_mode = Mode::MOUSE_KEYBOARD);
+		InputManager(EventSystem & evt_system, Mode in_mode = Mode::MOUSE_KEYBOARD);
 
 		/**
 		 * @brief Destructor
@@ -277,23 +293,16 @@ namespace Mupfel {
 		virtual ~InputManager() = default;
 
         /**
-         * @brief Scans all input devices and issues input events accordingly.
-         * @note This should be called once per frame.
-         * @param elapsedTime The time (in seconds) since the previous frame.
-         */
-		void Update(double elapsedTime);
-
-        /**
          * @brief Returns the current X position of the mouse cursor.
          * @return The X coordinate of the cursor in screen space.
          */
-        float GetCurrentCursorX() const;
+        double GetCurrentCursorX() const;
 
         /**
          * @brief Returns the current Y position of the mouse cursor.
          * @return The Y coordinate of the cursor in screen space.
          */
-        float GetCurrentCursorY() const;
+        double GetCurrentCursorY() const;
 
         /**
          * @brief Maps a keyboard key to trigger a specific UserInput event.
@@ -318,16 +327,15 @@ namespace Mupfel {
 		 */
 		void MapGamepadButton(GamepadButton button, UserInput new_input);
 
-	protected:
-		/**
-		 * @brief Updates Buttons (Gamepad or Keyboard, depending on the mode).
-		 */
-		void UpdateButtons();
+        
 
+	protected:
 		/**
 		 * @brief Updates the Cursor (Mouse or Gamepad joystick, depending on the mode).
 		 */
-		void UpdateCursor();
+		void UpdateCursor(double new_pos_x, double new_pos_y);
+
+        void KeyPressed(Key key, KeyAction action);
 
         /**
          * @brief Updates the state of all mouse buttons.
@@ -354,13 +362,16 @@ namespace Mupfel {
         EventSystem& event_system;
 
         /** @brief Mapping of keyboard keys to input events. */
-        std::array<UserInputEvent, 512> keyboard_map;
+        std::array<UserInput, 512> keyboard_map;
 
         /** @brief Mapping of mouse buttons to input events. */
-        std::array<UserInputEvent, 16> mouse_map;
+		std::array<UserInput, 16> mouse_map;
 
         /** @brief Mapping of gamepad buttons to input events. */
-        std::array<UserInputEvent, 32> gamepad_map;
+		std::array<UserInput, 32> gamepad_map;
+
+        double current_mouse_pos_x;
+		double current_mouse_pos_y;
 	};
 
 }

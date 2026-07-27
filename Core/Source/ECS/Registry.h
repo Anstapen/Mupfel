@@ -179,12 +179,12 @@ inline void Registry::ParallelForEach(F&& function)
 	auto view = this->view<Components...>();
 
 	auto&		   pool = Application::GetCurrentThreadPool();
-	const uint32_t num_threads = pool.GetThreadCount();
+	const uint32_t num_threads = static_cast<uint32_t>(pool.GetThreadCount());
 
 	using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 	auto&		   array = GetComponentArray<BaseComponent>();
 	const auto&	   dense = array.dense;
-	const uint32_t total = dense.size();
+	const uint32_t total = static_cast<uint32_t>(dense.size());
 
 	auto arrays = std::make_tuple(&GetComponentArray<Components>()...);
 
@@ -263,7 +263,7 @@ template <typename T> inline void Registry::AddComponent(Entity e, T component)
 
 template <typename T> inline void Registry::RemoveComponent(Entity e)
 {
-	uint32_t id = ComponentIndex::Index<T>();
+	size_t id = ComponentIndex::Index<T>();
 	/* Send a ComponentRemoved Event */
 	evt_system.AddImmediateEvent<ComponentRemovedEvent>({e, signatures[e.Index()], id});
 

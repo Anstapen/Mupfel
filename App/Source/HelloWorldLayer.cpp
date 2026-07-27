@@ -3,16 +3,15 @@
 #include "Core/Profiler.h"
 #include "ECS/View.h"
 
-#include "ECS/Components/Transform.h"
-#include "ECS/Components/Movement.h"
-#include "ECS/Components/Texture.h"
 #include "ECS/Components/Animation.h"
 #include "ECS/Components/Light.h"
+#include "ECS/Components/Movement.h"
+#include "ECS/Components/Texture.h"
+#include "ECS/Components/Transform.h"
 
 #include "EditorLayer.h"
 
 using namespace Mupfel;
-
 
 void HelloWorldLayer::OnInit()
 {
@@ -56,7 +55,7 @@ void HelloWorldLayer::OnInit()
 		Transform g;
 		g.scale_x = 300.0f;
 		g.scale_y = 300.0f;
-		
+
 		registry.AddComponent<Transform>(e, g);
 
 		if (image_map.contains("DefaultGrass"))
@@ -78,7 +77,7 @@ void HelloWorldLayer::OnInit()
 			Transform g;
 			g.scale_x = 1.0f;
 			g.scale_y = 1.0f;
-			
+
 			g.pos_x = pos_x;
 			g.pos_y = pos_y;
 			g.pos_z = 0.5f;
@@ -97,7 +96,8 @@ void HelloWorldLayer::OnInit()
 
 	// Player: an upright billboard at the origin; the camera follows this entity.
 	{
-		Entity	  e = registry.CreateEntity();
+		Entity e = registry.CreateEntity();
+		player = e;
 		Transform p;
 		p.pos_y = 2.0f;
 		p.scale_x = 5.0f;
@@ -149,6 +149,8 @@ void HelloWorldLayer::OnInit()
 
 void HelloWorldLayer::OnUpdate(double timestep)
 {
+	CheckRelevantEvents();
+	UpdatePlayerPosition(timestep);
 	Mupfel::Registry& registry = Application::GetCurrentRegistry();
 	// Orbit the light(s) around the world origin on the x/y plane; radius matches the prop ring.
 	constexpr float orbitRadius = 15.0f;
@@ -167,12 +169,55 @@ void HelloWorldLayer::OnUpdate(double timestep)
 	}
 }
 
-void HelloWorldLayer::OnRender()
+void HelloWorldLayer::OnRender() {}
+
+void HelloWorldLayer::ProcessEvents() {}
+
+void HelloWorldLayer::UpdatePlayerPosition(double timestep)
 {
+	Mupfel::Transform& t = Application::GetCurrentRegistry().GetComponent<Transform>(this->player);
+
+	if (moving_right)
+	{
+		t.pos_x += 10.0f * timestep;
+	}
+	if (moveing_left)
+	{
+		t.pos_x -= 10.0f * timestep;
+	}
+	if (moving_up)
+	{
+		t.pos_y -= 10.0f * timestep;
+	}
+	if (moving_down)
+	{
+		t.pos_y += 10.0f * timestep;
+	}
 }
 
-
-void HelloWorldLayer::ProcessEvents()
+void HelloWorldLayer::CheckRelevantEvents()
 {
+	Mupfel::EventSystem& evt_system = Application::GetCurrentEventSystem();
+	for (auto& event : evt_system.GetEvents<UserInputEvent>())
+	{
+		if (event.input == UserInput::MOVE_BACKKWARDS)
+		{
+			this->moving_up = event.action == KeyAction::PRESSED;
+		}
 
+		if (event.input == UserInput::MOVE_FORWARD)
+		{
+			this->moving_down = event.action == KeyAction::PRESSED;
+		}
+
+		if (event.input == UserInput::MOVE_LEFT)
+		{
+			this->moveing_left = event.action == KeyAction::PRESSED;
+		}
+
+		if (event.input == UserInput::MOVE_RIGHT)
+		{
+			this->moving_right = event.action == KeyAction::PRESSED;
+		}
+	}
 }

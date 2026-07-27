@@ -3,6 +3,7 @@
 #include "Core/Layer.h"
 #include "Renderer/ImageManager.h"
 #include <random>
+#include "ECS/Entity.h"
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -11,6 +12,8 @@ class HelloWorldLayer : public Mupfel::Layer
 	void OnRender() override;
 private:
 	void ProcessEvents();
+	void UpdatePlayerPosition(double timestep);
+	void CheckRelevantEvents();
 
 private:
 	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
@@ -18,6 +21,11 @@ private:
 	/** Shared RNG for `SpawnRandomEntities`. */
 	std::mt19937 rng{std::random_device{}()};
 	/** Accumulated orbit angle in radians for `UpdateLights`. */
-	float lightOrbitAngle = 0.0f;
+	double lightOrbitAngle = 0.0f;
+	Mupfel::Entity player;
+	bool		   moving_right = false;
+	bool		   moveing_left = false;
+	bool		   moving_up = false;
+	bool		   moving_down = false;
 };
 

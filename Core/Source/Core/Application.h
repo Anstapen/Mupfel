@@ -17,6 +17,7 @@
 #include "Renderer/AnimationSystem.h"
 #include <optional>
 #include "Logger/Logger.h"
+#include "ConfigManager.h"
 
 
 namespace Mupfel {
@@ -178,6 +179,10 @@ namespace Mupfel {
 		static [[nodiscard]] Expected<std::vector<ImageHandle>>
 		LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec);
 
+		template <typename T> static std::optional<T> GetConfigEntry(const std::string key);
+
+		template <typename T> static void SetConfigEntry(const std::string key, T value);
+
 		/**
 		 * @brief Provides access to the global Thread Pool.
 		 */
@@ -230,6 +235,8 @@ namespace Mupfel {
 	private:
 		/** @brief The startup specification of the application. */
 		ApplicationSpecification spec;
+
+		ConfigManager configManager;
 
 		/** @brief Reference to the Window singleton. */
 		Window& window;
@@ -284,7 +291,17 @@ namespace Mupfel {
 		/** @brief A frame counter (mostly for debugging purposes) */
 		uint64_t frame_count = 0;
 	};
-}
+
+	template <typename T> inline std::optional<T> Application::GetConfigEntry(const std::string key)
+	{
+		return Get().configManager.Get<T>(key);
+	}
+
+	template <typename T> inline void Application::SetConfigEntry(const std::string key, T value)
+	{
+		Get().configManager.Set<T>(key, value);
+	}
+	}
 
 
 

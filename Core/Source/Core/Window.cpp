@@ -1,27 +1,46 @@
 #include "Window.h"
-#include <GLFW/glfw3.h>
+#include "Application.h"
 #include "Core/Profiler.h"
+#include <GLFW/glfw3.h>
 
 using namespace Mupfel;
 
-void Mupfel::Window::WaitEvents() const
+void Window::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	glfwWaitEvents();
+	KeyAction keyaction;
+	switch (action)
+	{
+	case GLFW_PRESS:
+		keyaction = KeyAction::PRESSED;
+		break;
+	case GLFW_RELEASE:
+		keyaction = KeyAction::RELEASED;
+		break;
+	case GLFW_REPEAT:
+		keyaction = KeyAction::REPEATED;
+		break;
+	default:
+		keyaction = KeyAction::PRESSED;
+		break;
+	}
+	Application::GetCurrentInputManager().KeyPressed(static_cast<Key>(key), keyaction);
 }
 
-GLFWwindow* Mupfel::Window::GetGLFWHandle() const
+void Window::cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	return window;
+	Application::GetCurrentInputManager().UpdateCursor(xpos, ypos);
 }
+
+void Mupfel::Window::WaitEvents() const { glfwWaitEvents(); }
+
+GLFWwindow* Mupfel::Window::GetGLFWHandle() const { return window; }
 
 void Mupfel::Window::GetFramebufferSize(int32_t& width, int32_t& height) const
 {
 	glfwGetFramebufferSize(window, &width, &height);
 }
 
-Mupfel::Window::Window()
-{
-}
+Mupfel::Window::Window() {}
 
 Mupfel::Window::~Window()
 {
@@ -37,15 +56,9 @@ Window& Mupfel::Window::GetInstance()
 	return window;
 }
 
-bool Window::ShouldClose()
-{
-	return glfwWindowShouldClose(window);
-}
+bool Window::ShouldClose() { return glfwWindowShouldClose(window); }
 
-void Mupfel::Window::PollEvents() const
-{
-	glfwPollEvents();
-}
+void Mupfel::Window::PollEvents() const { glfwPollEvents(); }
 
 bool Window::Init(const WindowSpecification& spec)
 {
@@ -64,20 +77,22 @@ bool Window::Init(const WindowSpecification& spec)
 		return false;
 	}
 
+	glfwSetKeyCallback(window, key_callback);
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+
 	return true;
 }
 
 void Mupfel::Window::ToggleFS()
 {
-	
 
 	if (is_currently_fullscreen)
 	{
 		// TODO: set windowed size
 	}
-	else {
+	else
+	{
 		// TODO: set fullscreen
 	}
 	is_currently_fullscreen = !is_currently_fullscreen;
-
 }
