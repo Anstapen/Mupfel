@@ -12,24 +12,6 @@
 
 #include "EditorLayer.h"
 
-enum class PlayerMovement
-{
-	NONE,
-	FORWARD,
-	BACKWARDS,
-	LEFT,
-	RIGHT
-};
-
-class PlayerMovedEvent : public Mupfel::Event
-{
-public:
-	PlayerMovedEvent() : movement(PlayerMovement::NONE) {};
-	PlayerMovedEvent(PlayerMovement in_movement) : movement(in_movement) {};
-
-	PlayerMovement movement;
-};
-
 using namespace Mupfel;
 
 void HelloWorldLayer::OnInit()
@@ -49,22 +31,15 @@ void HelloWorldLayer::OnInit()
 	result = Application::LoadAnimatedImage("Images/Soldier.png", {.rows = 7, .columns = 9})
 				 .transform([this](ImageHandle handle) { this->image_map["Soldier"] = handle; });
 
+	result = Application::LoadAnimatedImage("Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4})
+				 .transform([this](ImageHandle handle) { this->image_map["Vampire"] = handle; });
+
 	auto handles = Application::LoadSpriteSheetImages("Images/magecity.png", {.rows = 44, .columns = 8});
 
 	if (handles.has_value())
 	{
 		spritesheet = handles.value();
 	}
-
-	std::vector<std::pair<uint32_t, uint32_t>> animations;
-
-	animations.push_back({0, 6});
-	animations.push_back({9, 8});
-	animations.push_back({18, 6});
-	animations.push_back({27, 6});
-	animations.push_back({36, 9});
-	animations.push_back({45, 4});
-	animations.push_back({54, 4});
 
 	Mupfel::Registry& registry = Application::GetCurrentRegistry();
 
@@ -113,28 +88,9 @@ void HelloWorldLayer::OnInit()
 		}
 	}
 
-	// Player: an upright billboard at the origin; the camera follows this entity.
-	{
-		Entity e = registry.CreateEntity();
-		player = e;
-		Transform p;
-		p.pos_y = 2.0f;
-		p.scale_x = 5.0f;
-		p.scale_y = 5.0f;
-		registry.AddComponent<Transform>(e, p);
-		if (image_map.contains("Soldier"))
-		{
-			Texture tex;
-			tex.index = image_map["Soldier"];
-			registry.AddComponent<Texture>(e, tex);
-		}
+	player.Init();
 
-		Animation anim;
-		anim.firstFrame = 0;
-		anim.frameCount = 6;
-		anim.fps = 6.0f;
-		registry.AddComponent<Animation>(e, anim);
-	}
+	
 
 	// A ring of billboard props; every third one floats above the plane.
 	for (int i = 0; i < 12; i++)
@@ -164,13 +120,11 @@ void HelloWorldLayer::OnInit()
 			registry.AddComponent<Texture>(e, tex);
 		}
 	}
-	InitKeybinds();
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)
 {
-	CheckRelevantEvents();
-	UpdatePlayerPosition(timestep);
+	player.UpdateMovement(timestep);
 	Mupfel::Registry& registry = Application::GetCurrentRegistry();
 	// Orbit the light(s) around the world origin on the x/y plane; radius matches the prop ring.
 	constexpr float orbitRadius = 15.0f;
@@ -192,68 +146,3 @@ void HelloWorldLayer::OnUpdate(double timestep)
 void HelloWorldLayer::OnRender() {}
 
 void HelloWorldLayer::ProcessEvents() {}
-
-void HelloWorldLayer::UpdatePlayerPosition(double timestep)
-{
-	Mupfel::Transform& t = Application::GetCurrentRegistry().GetComponent<Transform>(this->player);
-
-	if (moving_right)
-	{
-		t.pos_x += 10.0f * timestep;
-	}
-	if (moving_left)
-	{
-		t.pos_x -= 10.0f * timestep;
-	}
-	if (moving_up)
-	{
-		t.pos_y -= 10.0f * timestep;
-	}
-	if (moving_down)
-	{
-		t.pos_y += 10.0f * timestep;
-	}
-}
-
-#include <iostream>
-
-void HelloWorldLayer::CheckRelevantEvents()
-{
-	Mupfel::EventSystem& evt_system = Application::GetCurrentEventSystem();
-	for (auto& event : evt_system.GetEvents<PlayerMovedEvent>())
-	{
-		if (event.movement == PlayerMovement::BACKWARDS)
-		{
-			moving_up = !moving_up;
-		}
-
-		if (event.movement == PlayerMovement::FORWARD)
-		{
-			std::cout << "A" << std::endl;
-			moving_down = !moving_down;
-		}
-
-		if (event.movement == PlayerMovement::LEFT)
-		{
-			moving_left = !moving_left;
-		}
-
-		if (event.movement == PlayerMovement::RIGHT)
-		{
-			moving_right = !moving_right;
-		}
-	}
-}
-
-void HelloWorldLayer::InitKeybinds()
-{
-	Mupfel::InputManager& input_manager = Mupfel::Application::GetCurrentInputManager();
-	input_manager.MapKeyboardButton<PlayerMovedEvent>(
-		Key::KEY_W, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::FORWARD});
-	input_manager.MapKeyboardButton<PlayerMovedEvent>(
-		Key::KEY_A, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::LEFT});
-	input_manager.MapKeyboardButton<PlayerMovedEvent>(
-		Key::KEY_S, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::BACKWARDS});
-	input_manager.MapKeyboardButton<PlayerMovedEvent>(
-		Key::KEY_D, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::RIGHT});
-}

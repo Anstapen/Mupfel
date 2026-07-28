@@ -4,6 +4,7 @@
 #include "Renderer/ImageManager.h"
 #include <random>
 #include "ECS/Entity.h"
+#include "Player.h"
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -12,9 +13,6 @@ class HelloWorldLayer : public Mupfel::Layer
 	void OnRender() override;
 private:
 	void ProcessEvents();
-	void UpdatePlayerPosition(double timestep);
-	void CheckRelevantEvents();
-	void InitKeybinds();
 
 private:
 	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
@@ -23,10 +21,6 @@ private:
 	std::mt19937 rng{std::random_device{}()};
 	/** Accumulated orbit angle in radians for `UpdateLights`. */
 	double lightOrbitAngle = 0.0f;
-	Mupfel::Entity player;
-	bool		   moving_right = false;
-	bool		   moving_left = false;
-	bool		   moving_up = false;
-	bool		   moving_down = false;
+	Player player;
 };
 
