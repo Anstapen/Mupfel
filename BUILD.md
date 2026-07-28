@@ -14,7 +14,7 @@ Dependencies.lua           Single source of truth for third-party dependencies: 
                             source lives (Deps table) and how to fetch it (DepPath, fetch_dependency).
 
 Vendor/
-  Build-Vendor.lua         Builds vendored third-party static libs: spdlog, imgui, Logger, Ping.
+  Build-Vendor.lua         Builds vendored third-party static libs: spdlog, imgui, Logger, Ping, box2d.
   Sources/                 Fetched/vendored source trees (gitignored, populated by Dependencies.lua).
   Binaries/Premake/        Vendored premake5 executables (checked into git).
 
@@ -56,11 +56,11 @@ belong to that tier — `Vendor/Build-Vendor.lua` never reaches into `Core/` or 
                       (spdlog/glfw/  │        └─────┬──────┘
                      imgui/stb/vk)   │              │ link
                                      │              ▼
-                                ┌────┴───────────────────┐
-                                │          Core           │  Mupfel's engine (Core/Source)
-                                │  links: Ping, Logger,    │  headers: nlohmann, ping, vulkan,
-                                │  spdlog, imgui, glfw3,   │           glfw, spdlog, imgui
-                                │  vulkan                 │
+     ┌────────────┐             ┌────┴───────────────────┐
+     │   box2d    ├────────────►│          Core           │  Mupfel's engine (Core/Source)
+     │  (C17, no  │    link     │  links: Ping, Logger,    │  headers: nlohmann, ping, vulkan,
+     │  int. deps)│             │  spdlog, imgui, glfw3,   │           glfw, spdlog, imgui,
+     └────────────┘             │  vulkan, box2d          │           box2d
                                 └────────────┬─────────────┘
                                              │ link
                                              ▼
@@ -84,7 +84,8 @@ serialization) and `App`; `glm` (math) is only used by `App` today; `nanobench` 
 | `imgui`  | —                                                  | glfw                             |
 | `Logger` | —                                                  | spdlog                           |
 | `Ping`   | Logger                                             | spdlog, glfw, imgui, stb, vulkan |
-| `Core`   | Ping, Logger, spdlog, imgui, glfw3, vulkan         | nlohmann                         |
+| `box2d`  | —                                                  | —                                |
+| `Core`   | Ping, Logger, spdlog, imgui, glfw3, vulkan, box2d  | nlohmann                         |
 | `App`    | Core                                               | nlohmann, glm, ping, spdlog, vulkan |
 | `Benchmarks` | Core                                           | nanobench, + Core's header set (for ParallelForEach's Application.h) |
 
@@ -142,13 +143,48 @@ project "Core"
 Only what's genuinely project-specific (`kind`, `files`, `includedirs`, `links`, extra `defines`)
 stays in each `Build-*.lua` file.
 
+## Box2D — the one project that isn't C++
+
+Box2D 3.x (we vendor the [v3.1.1 release](https://github.com/erincatto/box2d/releases/tag/v3.1.1)) is a
+rewrite of the old C++ 2.x line into **plain C**, so `Vendor/Build-Vendor.lua`'s `box2d` project is the
+only one that overrides what `ApplyDefaultProjectSettings()` sets:
+
+```lua
+language "C"
+cdialect "C17"   -- Box2D needs C17 for _Static_assert and anonymous unions
+```
+
+Three consequences worth knowing:
+
+- **The workspace-wide MSVC options in `Build.lua` are C++-only.** `/EHsc` and `/Zc:__cplusplus` make MSVC
+  emit `D9002 unknown option` on a C compiland, so the project calls `removebuildoptions` for those two
+  under `filter "system:windows"`. `/Zc:preprocessor` and `/execution-charset:utf-8` are valid for C and
+  stay. Premake emits the dialect as `<LanguageStandard_C>stdc17</LanguageStandard_C>`, which is separate
+  from the `<LanguageStandard>stdcpp23</LanguageStandard>` that C++ projects use.
+- **Consumers still `#include <box2d/box2d.h>` from C++ normally.** Every public entry point is declared
+  `extern "C"` by `include/box2d/base.h`, so no `extern "C" { }` wrapper is needed on our side.
+- **Floating-point contraction is disabled on GCC/Clang** (`-ffp-contract=off`), matching upstream's CMake.
+  Box2D depends on strict IEEE 754 evaluation order for [cross-platform determinism](https://box2d.org/posts/2024/08/determinism/),
+  which FMA contraction breaks. MSVC's default `/fp:precise` already disables it, so the flag is guarded
+  by `filter "system:not windows"`.
+
+Upstream's CMake options are mirrored at their defaults: SIMD **on** (SSE2, which is baseline on x64) and
+`BOX2D_AVX2` **off**, so the binaries stay portable — define `BOX2D_AVX2` and add `/arch:AVX2` in the
+project block if you ever want it. Box2D's asserts are gated by `NDEBUG`, which `ApplyDefaultProjectSettings()`
+already defines for `Release`/`Dist`, so they're live in `Debug` only — the same policy as the ECS asserts.
+
+Only `Core` sees Box2D today (`includedirs` + `links`). If a *public* `Core` header ever exposes Box2D
+types (e.g. a `b2BodyId` on a physics component), `App` and `Benchmarks` will need
+`DepPath("box2d", "include")` added to their `includedirs` too — exactly how they already carry
+Ping/spdlog/Vulkan header paths for the types `Application.h` exposes.
+
 ## Solution grouping
 
 `Build.lua` wraps the includes so the generated solution mirrors the three tiers:
 
 ```lua
 group "Vendor"
-   include "Vendor/Build-Vendor.lua"   -- spdlog, imgui, Logger, Ping
+   include "Vendor/Build-Vendor.lua"   -- spdlog, imgui, Logger, Ping, box2d
 group ""
 
 group "Engine"

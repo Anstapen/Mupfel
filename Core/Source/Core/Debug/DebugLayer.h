@@ -10,13 +10,7 @@ namespace Mupfel {
 		void OnUpdate(double timestep) override;
 		void OnRender() override;
 	private:
-		void DrawDebugInfo();
-		void DrawCollisionGrid();
-		void DrawEntityColliders();
-		void DrawEntityVelocity();
-		void DrawEntityIndex();
 		void DrawPerformanceMetrics();
-		void DrawDebugGUI();
 	private:
 		static const uint32_t anchor_x = 10;
 		static const uint32_t anchor_y = 70;

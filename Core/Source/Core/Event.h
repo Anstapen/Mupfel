@@ -1,6 +1,8 @@
 #pragma once
+#include <concepts>
 
 namespace Mupfel {
+
 	/**
 	* @brief This is the abstract base class that defines an Event.
 	* Currently events are basically just small data objects that hold information
@@ -28,5 +30,9 @@ namespace Mupfel {
 		 */
 		float ts= 0.0f;
 	};
+
+	/* This concept combines all type-related constraints for the child classes of Event. */
+	template <typename T>
+	concept EventType = std::derived_from<T, Event> && std::move_constructible<T>;
 
 }

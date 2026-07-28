@@ -1,6 +1,6 @@
 #include "EventSystem.h"
 
-Mupfel::EventSystem::EventSystem() : current(0), next(1)
+Mupfel::EventSystem::EventSystem()
 {
 }
 

@@ -1,13 +1,16 @@
 #include "InputManager.h"
+#include "Application.h"
 
 using namespace Mupfel;
 
 InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system(evt_system), current_mode(in_mode)
 {
 	/* First, reset all mappings */
-	keyboard_map.fill({UserInput::NONE});
-	mouse_map.fill({UserInput::NONE});
-	gamepad_map.fill({UserInput::NONE});
+	Binding default_binding;
+	default_binding.emitter = [](EventSystem& es) { es.AddEvent<UserInputEvent>({UserInput::NONE, KeyAction::NONE}); };
+	keyboard_map.fill(default_binding);
+	mouse_map.fill(default_binding);
+	gamepad_map.fill(default_binding);
 
 	/* Set the GLFW key callback */
 
@@ -17,51 +20,14 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 		saved mappings from somewhere (probably a local json file?).
 	*/
 
-	MapKeyboardButton(Key::KEY_W, UserInput::MOVE_FORWARD);
-	MapKeyboardButton(Key::KEY_A, UserInput::MOVE_LEFT);
-	MapKeyboardButton(Key::KEY_S, UserInput::MOVE_BACKKWARDS);
-	MapKeyboardButton(Key::KEY_D, UserInput::MOVE_RIGHT);
-	MapKeyboardButton(Key::KEY_F, UserInput::WINDOW_FULLSCREEN);
-	MapKeyboardButton(Key::KEY_F1, UserInput::TOGGLE_DEBUG_MODE);
-
-	MapMouseButton(MOUSE_BUTTON_LEFT, UserInput::LEFT_MOUSE_CLICK);
-	MapMouseButton(MOUSE_BUTTON_RIGHT, UserInput::RIGHT_MOUSE_CLICK);
-	MapMouseButton(MOUSE_BUTTON_MIDDLE, UserInput::MIDDLE_MOUSE_CLICK);
+	MapKeyboardButton<UserInputEvent>(Key::KEY_F, KeyAction::PRESSED, {UserInput::WINDOW_FULLSCREEN, KeyAction::NONE});
+	MapKeyboardButton<UserInputEvent>(Key::KEY_F1, KeyAction::PRESSED, {UserInput::TOGGLE_DEBUG_MODE, KeyAction::NONE});
 }
 
 double Mupfel::InputManager::GetCurrentCursorX() const { return current_mouse_pos_x; }
 
 double Mupfel::InputManager::GetCurrentCursorY() const { return current_mouse_pos_y; }
 
-void Mupfel::InputManager::MapKeyboardButton(Key key, UserInput new_input)
-{
-	auto key_index = static_cast<size_t>(key);
-	if (key_index >= keyboard_map.size())
-	{
-		return;
-	}
-	keyboard_map[key_index] = new_input;
-}
-
-void Mupfel::InputManager::MapMouseButton(MouseButton button, UserInput new_input)
-{
-	if (button >= mouse_map.size())
-	{
-		return;
-	}
-	mouse_map[button] = new_input;
-}
-
-void Mupfel::InputManager::MapGamepadButton(GamepadButton button, UserInput new_input)
-{
-	if (button >= gamepad_map.size())
-	{
-		return;
-	}
-	gamepad_map[button] = new_input;
-}
-
-#include <iostream>
 void Mupfel::InputManager::UpdateCursor(double new_pos_x, double new_pos_y)
 {
 	current_mouse_pos_x = new_pos_x;
@@ -114,9 +80,15 @@ void Mupfel::InputManager::KeyPressed(Key key, KeyAction action)
 	}
 
 	/* Check if the key is mapped to a function. */
-	if (keyboard_map[key_index] != UserInput::NONE)
+	if (HasFlag(keyboard_map[key_index].actionMask, action))
 	{
-		event_system.AddEvent<UserInputEvent>({keyboard_map.at(key_index), action});
+		keyboard_map[key_index].emitter(event_system);
 	}
-	
 }
+
+bool Mupfel::HasFlag(KeyAction& action, KeyAction flag)
+{
+	return (static_cast<uint32_t>(action) & static_cast<uint32_t>(flag)) != 0;
+}
+
+KeyAction Mupfel::operator|(KeyAction l, KeyAction r) { return static_cast<KeyAction>(static_cast<uint32_t>(l) | static_cast<uint32_t>(r)); }

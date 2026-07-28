@@ -12,6 +12,7 @@
 --   Logger   -> spdlog headers            (Logger is split out of Ping's own source tree so it can be
 --                                           linked independently by both Ping and Core)
 --   Ping     -> Logger (linked), spdlog/glfw/imgui/stb headers, Vulkan SDK headers
+--   box2d    (no internal deps)           (collision detection/resolution, linked by Core)
 
 project "spdlog"
     kind "StaticLib"
@@ -73,3 +74,41 @@ project "Ping"
     }
 
     links { "Logger" }
+
+-- Box2D 3.x (unlike the C++ 2.x line) is a pure C library requiring C17 for _Static_assert and
+-- anonymous unions, so this is the one project that overrides the C++ language/dialect that
+-- ApplyDefaultProjectSettings() applies. Configuration flags mirror upstream's CMake defaults:
+-- SIMD on (SSE2 baseline on x64, BOX2D_AVX2 deliberately left off so binaries stay portable),
+-- and asserts gated by NDEBUG, which Build.lua already defines for Release/Dist.
+project "box2d"
+    kind "StaticLib"
+    ApplyDefaultProjectSettings()
+
+    language "C"
+    cdialect "C17"
+
+    files
+    {
+        DepPath("box2d", "src/**.c"),
+        DepPath("box2d", "src/**.h"),
+        DepPath("box2d", "include/**.h"),
+    }
+
+    includedirs
+    {
+        DepPath("box2d", "include"), -- public API, included as <box2d/box2d.h>
+        DepPath("box2d", "src"),     -- internal headers, included unqualified by the .c files
+    }
+
+    -- The workspace-wide MSVC options in Build.lua are C++-only; MSVC rejects them on a C compiland.
+    filter "system:windows"
+        removebuildoptions { "/EHsc", "/Zc:__cplusplus" }
+        files { DepPath("box2d", "src/box2d.natvis") } -- debugger visualizers for b2Vec2 & friends
+
+    -- Box2D relies on strict IEEE 754 evaluation order for cross-platform determinism, which FMA
+    -- contraction breaks (https://box2d.org/posts/2024/08/determinism/). MSVC's default /fp:precise
+    -- already disables contraction; GCC/Clang default to -ffp-contract=fast and need this opt-out.
+    filter "system:not windows"
+        buildoptions { "-ffp-contract=off" }
+
+    filter {}

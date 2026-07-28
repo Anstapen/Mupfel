@@ -24,7 +24,6 @@ void Mupfel::DebugRenderer::PreUser(const Ping::Device& device, Ping::CommandBuf
 
 void Mupfel::DebugRenderer::PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
 {
-	ImGui::ShowMetricsWindow();
 	current_command_buffer.DrawGui(device, gui.value(), frameIndex);
 	IncrementFrameIndex();
 }

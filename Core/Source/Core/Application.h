@@ -126,6 +126,8 @@ namespace Mupfel {
 		 */
 		static int GetCurrentRenderHeight();
 
+		static bool IsWindowMinimized();
+
 		/**
 		 * @brief Returns whether the Debug Mode is currently enabled.
 		 */

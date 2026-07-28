@@ -4,7 +4,7 @@
 -- pipeline, renderer, event system, etc.), see Core/Source. Everything it links against is vendored
 -- (see Vendor/Build-Vendor.lua) or a system dependency (Vulkan SDK, GLFW prebuilt binary).
 --
--- Dependency graph: Core -> Ping, Logger, spdlog, imgui (linked); glfw3, vulkan (prebuilt/system,
+-- Dependency graph: Core -> Ping, Logger, spdlog, imgui, box2d (linked); glfw3, vulkan (prebuilt/system,
 -- linked via libdirs); nlohmann json headers only (entity (de)serialization, no link needed).
 
 project "Core"
@@ -22,6 +22,7 @@ project "Core"
         DepPath("glfw", "include"),
         DepPath("spdlog", "include"),
         DepPath("imgui"),
+        DepPath("box2d", "include"),
     }
 
     libdirs
@@ -38,4 +39,5 @@ project "Core"
         "imgui",
         "glfw3",
         "vulkan",
+        "box2d",
     }

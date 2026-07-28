@@ -24,3 +24,7 @@ App/Images/
 App/logs/
 
 *.ini
+
+.claude/agents/
+
+Reviews/

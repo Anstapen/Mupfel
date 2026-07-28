@@ -40,6 +40,10 @@ Deps = {
         relpath = "Vendor/Sources/vulkan_starter-main/Ping",
         url     = "https://github.com/Anstapen/vulkan_starter/archive/refs/heads/main.zip",
     },
+    box2d = {
+        relpath = "Vendor/Sources/box2d-3.1.1",
+        url     = "https://github.com/erincatto/box2d/archive/refs/tags/v3.1.1.zip",
+    },
     nanobench = {
         relpath     = "Vendor/Sources/nanobench",
         url         = "https://raw.githubusercontent.com/martinus/nanobench/v4.3.11/src/include/nanobench.h",
@@ -101,6 +105,7 @@ function build_externals()
     fetch_dependency("imgui")
     fetch_dependency("glm")
     fetch_dependency("nanobench")
+    fetch_dependency("box2d")
     if os.target() == "windows" then
         fetch_dependency("glfw")
     end

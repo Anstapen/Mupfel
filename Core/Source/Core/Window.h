@@ -22,12 +22,6 @@ struct WindowSpecification
 	/** @brief Title of the application window. */
 	std::string title;
 
-	/** @brief Initial width of the window in pixels. */
-	uint32_t width = 2000;
-
-	/** @brief Initial height of the window in pixels. */
-	uint32_t height = 1000;
-
 	/** @brief Determines whether the window can be resized by the user. */
 	bool isResizeable = true;
 
@@ -107,6 +101,12 @@ private:
 	 */
 	bool ShouldClose();
 
+	bool IsMinimized() const;
+
+	int32_t GetWindowWidth() const;
+
+	int32_t GetWindowHeight() const;
+
 	/** Processes pending window/input events. Call once per frame from the main loop. */
 	void PollEvents() const;
 
@@ -145,6 +145,12 @@ private:
 
 	/** @brief The current window height (used for restoring size when exiting fullscreen). */
 	int current_height = 0;
+
+	/** @brief The current window x position (used for restoring size when exiting fullscreen). */
+	int current_pos_x = 0;
+
+	/** @brief The current window y position (used for restoring size when exiting fullscreen). */
+	int current_pos_y = 0;
 
 	/** Owning GLFW window handle. */
 	GLFWwindow* window;

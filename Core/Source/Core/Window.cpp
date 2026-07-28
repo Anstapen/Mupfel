@@ -2,6 +2,7 @@
 #include "Application.h"
 #include "Core/Profiler.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 
 using namespace Mupfel;
 
@@ -58,24 +59,46 @@ Window& Mupfel::Window::GetInstance()
 
 bool Window::ShouldClose() { return glfwWindowShouldClose(window); }
 
+bool Mupfel::Window::IsMinimized() const
+{
+	int32_t width, height;
+	GetFramebufferSize(width, height);
+
+	return (width == 0) || (height == 0);
+}
+
+int32_t Mupfel::Window::GetWindowWidth() const { return current_width; }
+
+int32_t Mupfel::Window::GetWindowHeight() const { return current_height; }
+
 void Mupfel::Window::PollEvents() const { glfwPollEvents(); }
 
 bool Window::Init(const WindowSpecification& spec)
 {
 	this->spec = spec;
 
+	/* Zero dimensions in the spec mean that we should search for a good default. */
+	const std::string window_name = (spec.title.empty()) ? "Mupfel" : spec.title;
+
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	const std::string window_name("Vulkan Playground");
-	uint32_t		  window_size_x = spec.width;
-	uint32_t		  window_size_y = spec.height;
-	this->window = glfwCreateWindow(window_size_x, window_size_y, window_name.c_str(), nullptr, nullptr);
+	glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
+
+	GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
+
+	const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+
+	this->window = glfwCreateWindow(mode->width, mode->height, window_name.c_str(), nullptr, nullptr);
 	glfwSetWindowUserPointer(window, this);
 	if (!this->window)
 	{
 		return false;
 	}
+
+	glfwGetWindowPos(window, &current_pos_x, &current_pos_y);
+	glfwSetWindowPos(window, 0, current_pos_y);
+	glfwGetWindowSize(window, &current_width, &current_height);
 
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
@@ -88,11 +111,18 @@ void Mupfel::Window::ToggleFS()
 
 	if (is_currently_fullscreen)
 	{
-		// TODO: set windowed size
+		glfwSetWindowMonitor(window, NULL, current_pos_x, current_pos_y, current_width, current_height, 0);
 	}
 	else
 	{
 		// TODO: set fullscreen
+		glfwGetWindowPos(window, &current_pos_x, &current_pos_y);
+		glfwGetWindowSize(window, &current_width, &current_height);
+		GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
+
+		const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+
+		glfwSetWindowMonitor(window, primary_monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
 	}
 	is_currently_fullscreen = !is_currently_fullscreen;
 }

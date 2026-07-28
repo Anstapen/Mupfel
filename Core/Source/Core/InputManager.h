@@ -1,377 +1,443 @@
 #pragma once
-#include <cstdint>
 #include "Event.h"
-#include <array>
 #include "EventSystem.h"
+#include <array>
+#include <cstdint>
 
 struct GLFWwindow;
 typedef struct GLFWwindow GLFWwindow;
 
+namespace Mupfel
+{
 
-namespace Mupfel {
+class Window;
 
-    class Window;
+/**
+ * @brief All the keyboard keys that
+ * are known to the Engine.
+ */
+enum class Key : uint32_t
+{
+	KEY_NULL = 0, // Key: NULL, used for no key pressed
+	// Alphanumeric keys
+	KEY_APOSTROPHE = 39,	// Key: '
+	KEY_COMMA = 44,			// Key: ,
+	KEY_MINUS = 45,			// Key: -
+	KEY_PERIOD = 46,		// Key: .
+	KEY_SLASH = 47,			// Key: /
+	KEY_ZERO = 48,			// Key: 0
+	KEY_ONE = 49,			// Key: 1
+	KEY_TWO = 50,			// Key: 2
+	KEY_THREE = 51,			// Key: 3
+	KEY_FOUR = 52,			// Key: 4
+	KEY_FIVE = 53,			// Key: 5
+	KEY_SIX = 54,			// Key: 6
+	KEY_SEVEN = 55,			// Key: 7
+	KEY_EIGHT = 56,			// Key: 8
+	KEY_NINE = 57,			// Key: 9
+	KEY_SEMICOLON = 59,		// Key: ;
+	KEY_EQUAL = 61,			// Key: =
+	KEY_A = 65,				// Key: A | a
+	KEY_B = 66,				// Key: B | b
+	KEY_C = 67,				// Key: C | c
+	KEY_D = 68,				// Key: D | d
+	KEY_E = 69,				// Key: E | e
+	KEY_F = 70,				// Key: F | f
+	KEY_G = 71,				// Key: G | g
+	KEY_H = 72,				// Key: H | h
+	KEY_I = 73,				// Key: I | i
+	KEY_J = 74,				// Key: J | j
+	KEY_K = 75,				// Key: K | k
+	KEY_L = 76,				// Key: L | l
+	KEY_M = 77,				// Key: M | m
+	KEY_N = 78,				// Key: N | n
+	KEY_O = 79,				// Key: O | o
+	KEY_P = 80,				// Key: P | p
+	KEY_Q = 81,				// Key: Q | q
+	KEY_R = 82,				// Key: R | r
+	KEY_S = 83,				// Key: S | s
+	KEY_T = 84,				// Key: T | t
+	KEY_U = 85,				// Key: U | u
+	KEY_V = 86,				// Key: V | v
+	KEY_W = 87,				// Key: W | w
+	KEY_X = 88,				// Key: X | x
+	KEY_Y = 89,				// Key: Y | y
+	KEY_Z = 90,				// Key: Z | z
+	KEY_LEFT_BRACKET = 91,	// Key: [
+	KEY_BACKSLASH = 92,		// Key: '\'
+	KEY_RIGHT_BRACKET = 93, // Key: ]
+	KEY_GRAVE = 96,			// Key: `
+	// Function keys
+	KEY_SPACE = 32,			 // Key: Space
+	KEY_ESCAPE = 256,		 // Key: Esc
+	KEY_ENTER = 257,		 // Key: Enter
+	KEY_TAB = 258,			 // Key: Tab
+	KEY_BACKSPACE = 259,	 // Key: Backspace
+	KEY_INSERT = 260,		 // Key: Ins
+	KEY_DELETE = 261,		 // Key: Del
+	KEY_RIGHT = 262,		 // Key: Cursor right
+	KEY_LEFT = 263,			 // Key: Cursor left
+	KEY_DOWN = 264,			 // Key: Cursor down
+	KEY_UP = 265,			 // Key: Cursor up
+	KEY_PAGE_UP = 266,		 // Key: Page up
+	KEY_PAGE_DOWN = 267,	 // Key: Page down
+	KEY_HOME = 268,			 // Key: Home
+	KEY_END = 269,			 // Key: End
+	KEY_CAPS_LOCK = 280,	 // Key: Caps lock
+	KEY_SCROLL_LOCK = 281,	 // Key: Scroll down
+	KEY_NUM_LOCK = 282,		 // Key: Num lock
+	KEY_PRINT_SCREEN = 283,	 // Key: Print screen
+	KEY_PAUSE = 284,		 // Key: Pause
+	KEY_F1 = 290,			 // Key: F1
+	KEY_F2 = 291,			 // Key: F2
+	KEY_F3 = 292,			 // Key: F3
+	KEY_F4 = 293,			 // Key: F4
+	KEY_F5 = 294,			 // Key: F5
+	KEY_F6 = 295,			 // Key: F6
+	KEY_F7 = 296,			 // Key: F7
+	KEY_F8 = 297,			 // Key: F8
+	KEY_F9 = 298,			 // Key: F9
+	KEY_F10 = 299,			 // Key: F10
+	KEY_F11 = 300,			 // Key: F11
+	KEY_F12 = 301,			 // Key: F12
+	KEY_LEFT_SHIFT = 340,	 // Key: Shift left
+	KEY_LEFT_CONTROL = 341,	 // Key: Control left
+	KEY_LEFT_ALT = 342,		 // Key: Alt left
+	KEY_LEFT_SUPER = 343,	 // Key: Super left
+	KEY_RIGHT_SHIFT = 344,	 // Key: Shift right
+	KEY_RIGHT_CONTROL = 345, // Key: Control right
+	KEY_RIGHT_ALT = 346,	 // Key: Alt right
+	KEY_RIGHT_SUPER = 347,	 // Key: Super right
+	KEY_KB_MENU = 348,		 // Key: KB menu
+	// Keypad keys
+	KEY_KP_0 = 320,		   // Key: Keypad 0
+	KEY_KP_1 = 321,		   // Key: Keypad 1
+	KEY_KP_2 = 322,		   // Key: Keypad 2
+	KEY_KP_3 = 323,		   // Key: Keypad 3
+	KEY_KP_4 = 324,		   // Key: Keypad 4
+	KEY_KP_5 = 325,		   // Key: Keypad 5
+	KEY_KP_6 = 326,		   // Key: Keypad 6
+	KEY_KP_7 = 327,		   // Key: Keypad 7
+	KEY_KP_8 = 328,		   // Key: Keypad 8
+	KEY_KP_9 = 329,		   // Key: Keypad 9
+	KEY_KP_DECIMAL = 330,  // Key: Keypad .
+	KEY_KP_DIVIDE = 331,   // Key: Keypad /
+	KEY_KP_MULTIPLY = 332, // Key: Keypad *
+	KEY_KP_SUBTRACT = 333, // Key: Keypad -
+	KEY_KP_ADD = 334,	   // Key: Keypad +
+	KEY_KP_ENTER = 335,	   // Key: Keypad Enter
+	KEY_KP_EQUAL = 336,	   // Key: Keypad =
+	// Android key buttons
+	KEY_BACK = 4,		 // Key: Android back button
+	KEY_MENU = 5,		 // Key: Android menu button
+	KEY_VOLUME_UP = 24,	 // Key: Android volume up button
+	KEY_VOLUME_DOWN = 25 // Key: Android volume down button
+};
 
-    /**
-     * @brief All the keyboard keys that
-     * are known to the Engine.
-     */
-    enum class Key : uint32_t
-    {
-        KEY_NULL = 0,        // Key: NULL, used for no key pressed
-        // Alphanumeric keys
-        KEY_APOSTROPHE = 39,       // Key: '
-        KEY_COMMA = 44,       // Key: ,
-        KEY_MINUS = 45,       // Key: -
-        KEY_PERIOD = 46,       // Key: .
-        KEY_SLASH = 47,       // Key: /
-        KEY_ZERO = 48,       // Key: 0
-        KEY_ONE = 49,       // Key: 1
-        KEY_TWO = 50,       // Key: 2
-        KEY_THREE = 51,       // Key: 3
-        KEY_FOUR = 52,       // Key: 4
-        KEY_FIVE = 53,       // Key: 5
-        KEY_SIX = 54,       // Key: 6
-        KEY_SEVEN = 55,       // Key: 7
-        KEY_EIGHT = 56,       // Key: 8
-        KEY_NINE = 57,       // Key: 9
-        KEY_SEMICOLON = 59,       // Key: ;
-        KEY_EQUAL = 61,       // Key: =
-        KEY_A = 65,       // Key: A | a
-        KEY_B = 66,       // Key: B | b
-        KEY_C = 67,       // Key: C | c
-        KEY_D = 68,       // Key: D | d
-        KEY_E = 69,       // Key: E | e
-        KEY_F = 70,       // Key: F | f
-        KEY_G = 71,       // Key: G | g
-        KEY_H = 72,       // Key: H | h
-        KEY_I = 73,       // Key: I | i
-        KEY_J = 74,       // Key: J | j
-        KEY_K = 75,       // Key: K | k
-        KEY_L = 76,       // Key: L | l
-        KEY_M = 77,       // Key: M | m
-        KEY_N = 78,       // Key: N | n
-        KEY_O = 79,       // Key: O | o
-        KEY_P = 80,       // Key: P | p
-        KEY_Q = 81,       // Key: Q | q
-        KEY_R = 82,       // Key: R | r
-        KEY_S = 83,       // Key: S | s
-        KEY_T = 84,       // Key: T | t
-        KEY_U = 85,       // Key: U | u
-        KEY_V = 86,       // Key: V | v
-        KEY_W = 87,       // Key: W | w
-        KEY_X = 88,       // Key: X | x
-        KEY_Y = 89,       // Key: Y | y
-        KEY_Z = 90,       // Key: Z | z
-        KEY_LEFT_BRACKET = 91,       // Key: [
-        KEY_BACKSLASH = 92,       // Key: '\'
-        KEY_RIGHT_BRACKET = 93,       // Key: ]
-        KEY_GRAVE = 96,       // Key: `
-        // Function keys
-        KEY_SPACE = 32,       // Key: Space
-        KEY_ESCAPE = 256,      // Key: Esc
-        KEY_ENTER = 257,      // Key: Enter
-        KEY_TAB = 258,      // Key: Tab
-        KEY_BACKSPACE = 259,      // Key: Backspace
-        KEY_INSERT = 260,      // Key: Ins
-        KEY_DELETE = 261,      // Key: Del
-        KEY_RIGHT = 262,      // Key: Cursor right
-        KEY_LEFT = 263,      // Key: Cursor left
-        KEY_DOWN = 264,      // Key: Cursor down
-        KEY_UP = 265,      // Key: Cursor up
-        KEY_PAGE_UP = 266,      // Key: Page up
-        KEY_PAGE_DOWN = 267,      // Key: Page down
-        KEY_HOME = 268,      // Key: Home
-        KEY_END = 269,      // Key: End
-        KEY_CAPS_LOCK = 280,      // Key: Caps lock
-        KEY_SCROLL_LOCK = 281,      // Key: Scroll down
-        KEY_NUM_LOCK = 282,      // Key: Num lock
-        KEY_PRINT_SCREEN = 283,      // Key: Print screen
-        KEY_PAUSE = 284,      // Key: Pause
-        KEY_F1 = 290,      // Key: F1
-        KEY_F2 = 291,      // Key: F2
-        KEY_F3 = 292,      // Key: F3
-        KEY_F4 = 293,      // Key: F4
-        KEY_F5 = 294,      // Key: F5
-        KEY_F6 = 295,      // Key: F6
-        KEY_F7 = 296,      // Key: F7
-        KEY_F8 = 297,      // Key: F8
-        KEY_F9 = 298,      // Key: F9
-        KEY_F10 = 299,      // Key: F10
-        KEY_F11 = 300,      // Key: F11
-        KEY_F12 = 301,      // Key: F12
-        KEY_LEFT_SHIFT = 340,      // Key: Shift left
-        KEY_LEFT_CONTROL = 341,      // Key: Control left
-        KEY_LEFT_ALT = 342,      // Key: Alt left
-        KEY_LEFT_SUPER = 343,      // Key: Super left
-        KEY_RIGHT_SHIFT = 344,      // Key: Shift right
-        KEY_RIGHT_CONTROL = 345,      // Key: Control right
-        KEY_RIGHT_ALT = 346,      // Key: Alt right
-        KEY_RIGHT_SUPER = 347,      // Key: Super right
-        KEY_KB_MENU = 348,      // Key: KB menu
-        // Keypad keys
-        KEY_KP_0 = 320,      // Key: Keypad 0
-        KEY_KP_1 = 321,      // Key: Keypad 1
-        KEY_KP_2 = 322,      // Key: Keypad 2
-        KEY_KP_3 = 323,      // Key: Keypad 3
-        KEY_KP_4 = 324,      // Key: Keypad 4
-        KEY_KP_5 = 325,      // Key: Keypad 5
-        KEY_KP_6 = 326,      // Key: Keypad 6
-        KEY_KP_7 = 327,      // Key: Keypad 7
-        KEY_KP_8 = 328,      // Key: Keypad 8
-        KEY_KP_9 = 329,      // Key: Keypad 9
-        KEY_KP_DECIMAL = 330,      // Key: Keypad .
-        KEY_KP_DIVIDE = 331,      // Key: Keypad /
-        KEY_KP_MULTIPLY = 332,      // Key: Keypad *
-        KEY_KP_SUBTRACT = 333,      // Key: Keypad -
-        KEY_KP_ADD = 334,      // Key: Keypad +
-        KEY_KP_ENTER = 335,      // Key: Keypad Enter
-        KEY_KP_EQUAL = 336,      // Key: Keypad =
-        // Android key buttons
-        KEY_BACK = 4,        // Key: Android back button
-        KEY_MENU = 5,        // Key: Android menu button
-        KEY_VOLUME_UP = 24,       // Key: Android volume up button
-        KEY_VOLUME_DOWN = 25        // Key: Android volume down button
-    };
+/**
+ * @brief The Mouse Buttons that are known to the Engine.
+ */
+enum MouseButton
+{
+	MOUSE_BUTTON_LEFT = 0,	  // Mouse button left
+	MOUSE_BUTTON_RIGHT = 1,	  // Mouse button right
+	MOUSE_BUTTON_MIDDLE = 2,  // Mouse button middle (pressed wheel)
+	MOUSE_BUTTON_SIDE = 3,	  // Mouse button side (advanced mouse device)
+	MOUSE_BUTTON_EXTRA = 4,	  // Mouse button extra (advanced mouse device)
+	MOUSE_BUTTON_FORWARD = 5, // Mouse button forward (advanced mouse device)
+	MOUSE_BUTTON_BACK = 6,	  // Mouse button back (advanced mouse device)
+};
 
+/**
+ * @brief The possible Mouse Cursor shapes.
+ */
+enum MouseCursor
+{
+	MOUSE_CURSOR_DEFAULT = 0,		// Default pointer shape
+	MOUSE_CURSOR_ARROW = 1,			// Arrow shape
+	MOUSE_CURSOR_IBEAM = 2,			// Text writing cursor shape
+	MOUSE_CURSOR_CROSSHAIR = 3,		// Cross shape
+	MOUSE_CURSOR_POINTING_HAND = 4, // Pointing hand cursor
+	MOUSE_CURSOR_RESIZE_EW = 5,		// Horizontal resize/move arrow shape
+	MOUSE_CURSOR_RESIZE_NS = 6,		// Vertical resize/move arrow shape
+	MOUSE_CURSOR_RESIZE_NWSE = 7,	// Top-left to bottom-right diagonal resize/move arrow shape
+	MOUSE_CURSOR_RESIZE_NESW = 8,	// The top-right to bottom-left diagonal resize/move arrow shape
+	MOUSE_CURSOR_RESIZE_ALL = 9,	// The omnidirectional resize/move cursor shape
+	MOUSE_CURSOR_NOT_ALLOWED = 10	// The operation-not-allowed shape
+};
 
-    /**
-     * @brief The Mouse Buttons that are known to the Engine.
-     */
-    enum MouseButton {
-        MOUSE_BUTTON_LEFT = 0,       // Mouse button left
-        MOUSE_BUTTON_RIGHT = 1,       // Mouse button right
-        MOUSE_BUTTON_MIDDLE = 2,       // Mouse button middle (pressed wheel)
-        MOUSE_BUTTON_SIDE = 3,       // Mouse button side (advanced mouse device)
-        MOUSE_BUTTON_EXTRA = 4,       // Mouse button extra (advanced mouse device)
-        MOUSE_BUTTON_FORWARD = 5,       // Mouse button forward (advanced mouse device)
-        MOUSE_BUTTON_BACK = 6,       // Mouse button back (advanced mouse device)
-    };
+/**
+ * @brief The known Gamepad buttons.
+ */
+enum GamepadButton
+{
+	GAMEPAD_BUTTON_UNKNOWN = 0,		 // Unknown button, just for error checking
+	GAMEPAD_BUTTON_LEFT_FACE_UP,	 // Gamepad left DPAD up button
+	GAMEPAD_BUTTON_LEFT_FACE_RIGHT,	 // Gamepad left DPAD right button
+	GAMEPAD_BUTTON_LEFT_FACE_DOWN,	 // Gamepad left DPAD down button
+	GAMEPAD_BUTTON_LEFT_FACE_LEFT,	 // Gamepad left DPAD left button
+	GAMEPAD_BUTTON_RIGHT_FACE_UP,	 // Gamepad right button up (i.e. PS3: Triangle, Xbox: Y)
+	GAMEPAD_BUTTON_RIGHT_FACE_RIGHT, // Gamepad right button right (i.e. PS3: Circle, Xbox: B)
+	GAMEPAD_BUTTON_RIGHT_FACE_DOWN,	 // Gamepad right button down (i.e. PS3: Cross, Xbox: A)
+	GAMEPAD_BUTTON_RIGHT_FACE_LEFT,	 // Gamepad right button left (i.e. PS3: Square, Xbox: X)
+	GAMEPAD_BUTTON_LEFT_TRIGGER_1,	 // Gamepad top/back trigger left (first), it could be a trailing button
+	GAMEPAD_BUTTON_LEFT_TRIGGER_2,	 // Gamepad top/back trigger left (second), it could be a trailing button
+	GAMEPAD_BUTTON_RIGHT_TRIGGER_1,	 // Gamepad top/back trigger right (first), it could be a trailing button
+	GAMEPAD_BUTTON_RIGHT_TRIGGER_2,	 // Gamepad top/back trigger right (second), it could be a trailing button
+	GAMEPAD_BUTTON_MIDDLE_LEFT,		 // Gamepad center buttons, left one (i.e. PS3: Select)
+	GAMEPAD_BUTTON_MIDDLE,			 // Gamepad center buttons, middle one (i.e. PS3: PS, Xbox: XBOX)
+	GAMEPAD_BUTTON_MIDDLE_RIGHT,	 // Gamepad center buttons, right one (i.e. PS3: Start)
+	GAMEPAD_BUTTON_LEFT_THUMB,		 // Gamepad joystick pressed button left
+	GAMEPAD_BUTTON_RIGHT_THUMB		 // Gamepad joystick pressed button right
+};
 
-    /**
-     * @brief The possible Mouse Cursor shapes.
-     */
-    enum MouseCursor {
-        MOUSE_CURSOR_DEFAULT = 0,     // Default pointer shape
-        MOUSE_CURSOR_ARROW = 1,     // Arrow shape
-        MOUSE_CURSOR_IBEAM = 2,     // Text writing cursor shape
-        MOUSE_CURSOR_CROSSHAIR = 3,     // Cross shape
-        MOUSE_CURSOR_POINTING_HAND = 4,     // Pointing hand cursor
-        MOUSE_CURSOR_RESIZE_EW = 5,     // Horizontal resize/move arrow shape
-        MOUSE_CURSOR_RESIZE_NS = 6,     // Vertical resize/move arrow shape
-        MOUSE_CURSOR_RESIZE_NWSE = 7,     // Top-left to bottom-right diagonal resize/move arrow shape
-        MOUSE_CURSOR_RESIZE_NESW = 8,     // The top-right to bottom-left diagonal resize/move arrow shape
-        MOUSE_CURSOR_RESIZE_ALL = 9,     // The omnidirectional resize/move cursor shape
-        MOUSE_CURSOR_NOT_ALLOWED = 10     // The operation-not-allowed shape
-    };
+/**
+ * @brief The known Gamepad axies.
+ */
+enum GamepadAxis
+{
+	GAMEPAD_AXIS_LEFT_X = 0,	   // Gamepad left stick X axis
+	GAMEPAD_AXIS_LEFT_Y = 1,	   // Gamepad left stick Y axis
+	GAMEPAD_AXIS_RIGHT_X = 2,	   // Gamepad right stick X axis
+	GAMEPAD_AXIS_RIGHT_Y = 3,	   // Gamepad right stick Y axis
+	GAMEPAD_AXIS_LEFT_TRIGGER = 4, // Gamepad back trigger left, pressure level: [1..-1]
+	GAMEPAD_AXIS_RIGHT_TRIGGER = 5 // Gamepad back trigger right, pressure level: [1..-1]
+};
 
-    /**
-     * @brief The known Gamepad buttons.
-     */
-    enum GamepadButton {
-        GAMEPAD_BUTTON_UNKNOWN = 0,         // Unknown button, just for error checking
-        GAMEPAD_BUTTON_LEFT_FACE_UP,        // Gamepad left DPAD up button
-        GAMEPAD_BUTTON_LEFT_FACE_RIGHT,     // Gamepad left DPAD right button
-        GAMEPAD_BUTTON_LEFT_FACE_DOWN,      // Gamepad left DPAD down button
-        GAMEPAD_BUTTON_LEFT_FACE_LEFT,      // Gamepad left DPAD left button
-        GAMEPAD_BUTTON_RIGHT_FACE_UP,       // Gamepad right button up (i.e. PS3: Triangle, Xbox: Y)
-        GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,    // Gamepad right button right (i.e. PS3: Circle, Xbox: B)
-        GAMEPAD_BUTTON_RIGHT_FACE_DOWN,     // Gamepad right button down (i.e. PS3: Cross, Xbox: A)
-        GAMEPAD_BUTTON_RIGHT_FACE_LEFT,     // Gamepad right button left (i.e. PS3: Square, Xbox: X)
-        GAMEPAD_BUTTON_LEFT_TRIGGER_1,      // Gamepad top/back trigger left (first), it could be a trailing button
-        GAMEPAD_BUTTON_LEFT_TRIGGER_2,      // Gamepad top/back trigger left (second), it could be a trailing button
-        GAMEPAD_BUTTON_RIGHT_TRIGGER_1,     // Gamepad top/back trigger right (first), it could be a trailing button
-        GAMEPAD_BUTTON_RIGHT_TRIGGER_2,     // Gamepad top/back trigger right (second), it could be a trailing button
-        GAMEPAD_BUTTON_MIDDLE_LEFT,         // Gamepad center buttons, left one (i.e. PS3: Select)
-        GAMEPAD_BUTTON_MIDDLE,              // Gamepad center buttons, middle one (i.e. PS3: PS, Xbox: XBOX)
-        GAMEPAD_BUTTON_MIDDLE_RIGHT,        // Gamepad center buttons, right one (i.e. PS3: Start)
-        GAMEPAD_BUTTON_LEFT_THUMB,          // Gamepad joystick pressed button left
-        GAMEPAD_BUTTON_RIGHT_THUMB          // Gamepad joystick pressed button right
-    };
+/**
+ * @brief All possible User Input.
+ */
+enum class UserInput
+{
+	NONE,
+	CURSOR_POS_CHANGED,
+	RIGHT_MOUSE_CLICK,
+	RIGHT_MOUSE_HOLD,
+	LEFT_MOUSE_CLICK,
+	LEFT_MOUSE_HOLD,
+	MIDDLE_MOUSE_CLICK,
+	SCROLLWHEEL_UP,
+	SCROLLWHEEL_DOWN,
+	WINDOW_FULLSCREEN,
+	TOGGLE_DEBUG_MODE
+};
 
-    /**
-     * @brief The known Gamepad axies.
-     */
-    enum GamepadAxis {
-        GAMEPAD_AXIS_LEFT_X = 0,     // Gamepad left stick X axis
-        GAMEPAD_AXIS_LEFT_Y = 1,     // Gamepad left stick Y axis
-        GAMEPAD_AXIS_RIGHT_X = 2,     // Gamepad right stick X axis
-        GAMEPAD_AXIS_RIGHT_Y = 3,     // Gamepad right stick Y axis
-        GAMEPAD_AXIS_LEFT_TRIGGER = 4,     // Gamepad back trigger left, pressure level: [1..-1]
-        GAMEPAD_AXIS_RIGHT_TRIGGER = 5      // Gamepad back trigger right, pressure level: [1..-1]
-    };
+enum class KeyAction : uint32_t
+{
+	NONE = 0,
+	PRESSED = 1 << 0,
+	RELEASED = 1 << 1,
+	REPEATED = 1 << 2
+};
+
+bool HasFlag(KeyAction& action, KeyAction flag);
+
+KeyAction operator|(KeyAction l, KeyAction r);
+
+/**
+ * @brief Event class representing an input action triggered by the user.
+ *
+ * This event type is generated whenever a mapped key, mouse button,
+ * or gamepad button is pressed, or when the cursor position changes.
+ */
+class UserInputEvent : public Event
+{
+public:
+	/**
+	 * @brief Default constructor. Creates a UserInputEvent with no active input.
+	 */
+	UserInputEvent();
 
 	/**
-	 * @brief All possible User Input.
+	 * @brief Constructs a UserInputEvent for the given user input.
+	 * @param in_input The type of user input that occurred.
 	 */
-    enum class UserInput {
-        NONE,
-        CURSOR_POS_CHANGED,
-        MOVE_FORWARD,
-        MOVE_LEFT,
-        MOVE_RIGHT,
-        MOVE_BACKKWARDS,
-        RIGHT_MOUSE_CLICK,
-        RIGHT_MOUSE_HOLD,
-        LEFT_MOUSE_CLICK,
-        LEFT_MOUSE_HOLD,
-        MIDDLE_MOUSE_CLICK,
-        SCROLLWHEEL_UP,
-        SCROLLWHEEL_DOWN,
-        WINDOW_FULLSCREEN,
-        TOGGLE_DEBUG_MODE
-	};
+	UserInputEvent(UserInput in_input, KeyAction in_action);
 
-    enum class KeyAction
+	/**
+	 * @brief Default Destructor.
+	 */
+	virtual ~UserInputEvent() = default;
+
+public:
+	/** @brief The user input action represented by this event. */
+	UserInput input;
+	KeyAction action;
+};
+
+struct Binding
+{
+	KeyAction									 actionMask;
+	std::function<void(EventSystem&)> emitter;
+};
+
+/**
+ * @brief The InputManager handles user input from the keyboard, mouse, and gamepad.
+ *
+ * It scans input devices each frame and generates corresponding
+ * UserInputEvent instances that are pushed into the EventSystem.
+ *
+ * Which UserInputEvent is issued is based on a mapping that can be edited at runtime.
+ */
+class InputManager
+{
+	friend class Window;
+
+public:
+	/**
+	 * @brief The Input Manager either listens to Gamepad or Mouse + Keyboard events.
+	 */
+	enum class Mode
 	{
-        NONE,
-		PRESSED,
-		RELEASED,
-		REPEATED
+		MOUSE_KEYBOARD,
+		GAMEPAD
 	};
 
-    /**
-     * @brief Event class representing an input action triggered by the user.
-     *
-     * This event type is generated whenever a mapped key, mouse button,
-     * or gamepad button is pressed, or when the cursor position changes.
-     */
-	class UserInputEvent : public Event {
-	public:
-        /**
-         * @brief Default constructor. Creates a UserInputEvent with no active input.
-         */
-		UserInputEvent();
+public:
+	/**
+	 * @brief Constructs the Input Manager and initializes default mappings.
+	 * @param evt_system Reference to the global EventSystem.
+	 * @param in_mode The active input mode (default: Mouse + Keyboard).
+	 */
+	InputManager(EventSystem& evt_system, Mode in_mode = Mode::MOUSE_KEYBOARD);
 
-        /**
-         * @brief Constructs a UserInputEvent for the given user input.
-         * @param in_input The type of user input that occurred.
-         */
-		UserInputEvent(UserInput in_input, KeyAction in_action);
+	/**
+	 * @brief Destructor
+	 */
+	virtual ~InputManager() = default;
 
-		/**
-		 * @brief Default Destructor.
-		 */
-		virtual ~UserInputEvent() = default;
+	/**
+	 * @brief Returns the current X position of the mouse cursor.
+	 * @return The X coordinate of the cursor in screen space.
+	 */
+	double GetCurrentCursorX() const;
 
-	public:
-        /** @brief The user input action represented by this event. */
-        UserInput input;
-		KeyAction action;
-	};
+	/**
+	 * @brief Returns the current Y position of the mouse cursor.
+	 * @return The Y coordinate of the cursor in screen space.
+	 */
+	double GetCurrentCursorY() const;
 
-    /**
-     * @brief The InputManager handles user input from the keyboard, mouse, and gamepad.
-     *
-     * It scans input devices each frame and generates corresponding
-     * UserInputEvent instances that are pushed into the EventSystem.
-     * 
-     * Which UserInputEvent is issued is based on a mapping that can be edited at runtime.
-     */
-	class InputManager {
-		friend class Window;
-	public:
-		/**
-		 * @brief The Input Manager either listens to Gamepad or Mouse + Keyboard events.
-		 */
-		enum class Mode {
-			MOUSE_KEYBOARD,
-			GAMEPAD
-		};
+	/**
+	 * Map a Keyboard button to an Event object.
+	 *
+	 * When the key \a key is pressed, the provided event object is emitted.
+	 *
+	 * \param key The keyboard key on which the event should be emitted.
+	 * \param in_action_mask The key actions on which the event should be emitted.
+	 * \param prototype The event object that should be emitted.
+	 */
+	template <typename T>
+		requires std::derived_from<T, Event>
+	void MapKeyboardButton(Key key, KeyAction in_action_mask, T prototype);
 
-	public:
-        /**
-         * @brief Constructs the Input Manager and initializes default mappings.
-         * @param evt_system Reference to the global EventSystem.
-         * @param in_mode The active input mode (default: Mouse + Keyboard).
-         */
-		InputManager(EventSystem & evt_system, Mode in_mode = Mode::MOUSE_KEYBOARD);
+	/**
+	 * Map a mouse button to an Event object.
+	 *
+	 * When the key \a key is pressed, the provided event object is emitted.
+	 *
+	 * \param button The mouse button on which the event should be emitted.
+	 * \param in_action_mask The key actions on which the event should be emitted.
+	 * \param prototype The event object that should be emitted.
+	 */
+	template <typename T>
+		requires std::derived_from<T, Event>
+	void MapMouseButton(MouseButton button, KeyAction in_action_mask, T prototype);
 
-		/**
-		 * @brief Destructor
-		 */
-		virtual ~InputManager() = default;
+	/**
+	 * Map a gamepad button to an Event object.
+	 *
+	 * When the key \a key is pressed, the provided event object is emitted.
+	 *
+	 * \param button The gamepad button on which the event should be emitted.
+	 * \param in_action_mask The key actions on which the event should be emitted.
+	 * \param prototype The event object that should be emitted.
+	 */
+	template <typename T>
+		requires std::derived_from<T, Event>
+	void MapGamepadButton(GamepadButton button, KeyAction in_action_mask, T prototype);
 
-        /**
-         * @brief Returns the current X position of the mouse cursor.
-         * @return The X coordinate of the cursor in screen space.
-         */
-        double GetCurrentCursorX() const;
+protected:
+	/**
+	 * @brief Updates the Cursor (Mouse or Gamepad joystick, depending on the mode).
+	 */
+	void UpdateCursor(double new_pos_x, double new_pos_y);
 
-        /**
-         * @brief Returns the current Y position of the mouse cursor.
-         * @return The Y coordinate of the cursor in screen space.
-         */
-        double GetCurrentCursorY() const;
+	void KeyPressed(Key key, KeyAction action);
 
-        /**
-         * @brief Maps a keyboard key to trigger a specific UserInput event.
-         * @param key The keyboard key to map.
-         * @param new_input The user input event to trigger when the key is pressed.
-         */
-		void MapKeyboardButton(Key key, UserInput new_input);
+	/**
+	 * @brief Updates the state of all mouse buttons.
+	 *
+	 * Iterates through all supported mouse buttons and triggers
+	 * corresponding input events for any button presses detected.
+	 */
+	void UpdateMouseButtons();
 
-		/**
-		 * @brief Maps the given mouse button so that the given UserInputEvent is triggered
-         * when it is pressed.
-		 * @param button The mouse button that should trigger the event.
-		 * @param new_input The event to be triggered.
-		 */
-		void MapMouseButton(MouseButton button, UserInput new_input);
+	/**
+	 * @brief Updates the state of a specific mouse button.
+	 * @param b The mouse button to check.
+	 *
+	 * If the given mouse button is pressed or held, the corresponding
+	 * mapped UserInput event is triggered.
+	 */
+	void UpdateMouseButton(MouseButton b);
 
-		/**
-		 * @brief Maps the given gamepad button so that the given UserInputEvent is triggered
-         * when it is pressed.
-		 * @param button The gamepad button that should trigger the event.
-		 * @param new_input The event to be triggered.
-		 */
-		void MapGamepadButton(GamepadButton button, UserInput new_input);
+private:
+	/** @brief The active input mode (Mouse + Keyboard or Gamepad). */
+	Mode current_mode;
 
-        
+	/** @brief Reference to the EventSystem used to dispatch input events. */
+	EventSystem& event_system;
 
-	protected:
-		/**
-		 * @brief Updates the Cursor (Mouse or Gamepad joystick, depending on the mode).
-		 */
-		void UpdateCursor(double new_pos_x, double new_pos_y);
+	/** @brief Mapping of keyboard keys to input events. */
+	std::array<Binding, 512> keyboard_map;
 
-        void KeyPressed(Key key, KeyAction action);
+	/** @brief Mapping of mouse buttons to input events. */
+	std::array<Binding, 16> mouse_map;
 
-        /**
-         * @brief Updates the state of all mouse buttons.
-         *
-         * Iterates through all supported mouse buttons and triggers
-         * corresponding input events for any button presses detected.
-         */
-        void UpdateMouseButtons();
+	/** @brief Mapping of gamepad buttons to input events. */
+	std::array<Binding, 32> gamepad_map;
 
-        /**
-         * @brief Updates the state of a specific mouse button.
-         * @param b The mouse button to check.
-         *
-         * If the given mouse button is pressed or held, the corresponding
-         * mapped UserInput event is triggered.
-         */
-        void UpdateMouseButton(MouseButton b);
+	double current_mouse_pos_x;
+	double current_mouse_pos_y;
+};
 
-	private:
-        /** @brief The active input mode (Mouse + Keyboard or Gamepad). */
-        Mode current_mode;
-
-        /** @brief Reference to the EventSystem used to dispatch input events. */
-        EventSystem& event_system;
-
-        /** @brief Mapping of keyboard keys to input events. */
-        std::array<UserInput, 512> keyboard_map;
-
-        /** @brief Mapping of mouse buttons to input events. */
-		std::array<UserInput, 16> mouse_map;
-
-        /** @brief Mapping of gamepad buttons to input events. */
-		std::array<UserInput, 32> gamepad_map;
-
-        double current_mouse_pos_x;
-		double current_mouse_pos_y;
-	};
-
+template <typename T>
+	requires std::derived_from<T, Event>
+inline void InputManager::MapKeyboardButton(Key key, KeyAction in_action_mask, T prototype)
+{
+	const auto idx = static_cast<size_t>(key);
+	if (idx >= keyboard_map.size())
+	{
+		return;
+	}
+	keyboard_map[idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
+	keyboard_map[idx].actionMask = in_action_mask;
 }
+
+template <typename T>
+	requires std::derived_from<T, Event>
+inline void InputManager::MapMouseButton(MouseButton button, KeyAction in_action_mask, T prototype)
+{
+	const auto idx = static_cast<size_t>(button);
+	if (idx >= mouse_map.size())
+	{
+		return;
+	}
+	mouse_map[idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
+	mouse_map[idx].actionMask = in_action_mask;
+}
+
+template <typename T>
+	requires std::derived_from<T, Event>
+inline void InputManager::MapGamepadButton(GamepadButton button, KeyAction in_action_mask, T prototype)
+{
+	const auto idx = static_cast<size_t>(button);
+	if (idx >= gamepad_map.size())
+	{
+		return;
+	}
+	gamepad_map[idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
+	gamepad_map[idx].actionMask = in_action_mask;
+}
+} // namespace Mupfel

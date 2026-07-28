@@ -5,6 +5,8 @@
 #include <optional>
 #include <ranges>
 #include <functional>
+#include <unordered_map>
+#include <atomic>
 #include "EventBuffer.h"
 
 namespace Mupfel {
@@ -60,7 +62,7 @@ namespace Mupfel {
 		 * @param event The event data.
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
+			requires EventType<T>
 		void AddEvent(T &&event);
 
 		/**
@@ -70,7 +72,7 @@ namespace Mupfel {
 		 * @param event The event that will be added.
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
+			requires EventType<T>
 		void AddImmediateEvent(T&& event);
 
 		/**
@@ -80,18 +82,8 @@ namespace Mupfel {
 		 * @return The number of events pending for the given Event type.
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
+			requires EventType<T>
 		uint64_t GetPendingEvents();
-
-		/**
-		 * @brief Retieve an Event of type \p T at the given index.
-		 * @tparam T The type of the wanted event.
-		 * @param index The index of the wanted event.
-		 * @return The event.
-		 */
-		template<typename T>
-			requires std::derived_from<T, Event>
-		std::optional<const T*> GetEvent(uint32_t index);
 
 		/**
 		 * @brief Retrieve the latest event of the given type.
@@ -99,8 +91,8 @@ namespace Mupfel {
 		 * @return The latest event.
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
-		std::optional<const T*> GetLatestEvent();
+			requires EventType<T>
+		std::optional<T> GetLatestEvent();
 
 		/**
 		 * @brief Return a subrange of the Eventbuffer of the given type T.
@@ -109,10 +101,8 @@ namespace Mupfel {
 		 * Eventbuffer.
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
-		auto GetEvents() const noexcept
-			-> std::ranges::subrange<typename EventBuffer<T>::const_iterator,
-			typename EventBuffer<T>::const_iterator>;
+			requires EventType<T>
+		std::span<const T> GetEvents() const noexcept;
 
 		/**
 		 * @brief Register an event callback for the given event type.
@@ -120,6 +110,7 @@ namespace Mupfel {
 		 * @param callback the callback.
 		 */
 		template<typename T>
+			requires EventType<T>
 		void RegisterListener(std::function<void(const T&)> callback);
 
 		/**
@@ -128,7 +119,7 @@ namespace Mupfel {
 		 * @return The ID of the given Event Type.
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
+			requires EventType<T>
 		size_t EventTypeToID();
 
 	private:
@@ -151,7 +142,7 @@ namespace Mupfel {
 		 * @return true if the entry exists, false otherwise
 		 */
 		template<typename T>
-			requires std::derived_from<T, Event>
+			requires EventType<T>
 		bool EventBufferEntryExists(uint32_t buffer_index) const;
 
 	private:
@@ -164,13 +155,13 @@ namespace Mupfel {
 		 * @brief The index of the current EventBufferMap. Events that are read 
 		 * this frame are read from this map.
 		 */
-		uint32_t current;
+		uint32_t current = 0;
 
 		/**
 		 * @brief The index of the next EventBufferMap. Events that are added
 		 * this frame are put in this buffer and are available in the next frame.
 		 */
-		uint32_t next;
+		uint32_t next = 1;
 
 		/**
 		 * @brief The amount of events that were issued last frame.
@@ -185,7 +176,7 @@ namespace Mupfel {
 		/**
 		 * @brief This counter serves as an ID for the different Event Types.
 		 */
-		static inline size_t evt_counter = 0;
+		static inline std::atomic<size_t> evt_counter = 0;
 
 		/**
 		 * @brief The type of callback that can be registered for event.
@@ -199,7 +190,7 @@ namespace Mupfel {
 	};
 
 	template<typename T>
-		requires std::derived_from<T, Event>
+		requires EventType<T>
 	inline void EventSystem::AddEvent(T &&event)
 	{
 		size_t evt_index = EventIndex<T>();
@@ -222,42 +213,27 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, Event>
+		requires EventType<T>
 	inline void EventSystem::AddImmediateEvent(T&& event)
 	{
-		AddEvent<T>(T(event));
+		AddEvent<T>(std::move(event));
 		size_t evt_index = EventIndex<T>();
 
 		auto it = listeners.find(evt_index);
 
 		if (it != listeners.end())
 		{
-			for (auto& callback : it->second)
+			/* Using an explicit for loop here, i case the user decides to call RegisterListener() inside a listener. */
+			for (uint32_t i = 0; i < it->second.size(); i++)
 			{
-				callback(event);
+				it->second[i](event);
 			}
 		}
 	}
 
 	template<typename T>
-		requires std::derived_from<T, Event>
-	inline std::optional<const T*> EventSystem::GetEvent(uint32_t index)
-	{
-		size_t evt_index = EventIndex<T>();
-
-		if (!EventBufferEntryExists<T>(current))
-		{
-			return std::nullopt;
-		}
-
-		EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(event_buffer_array[current][evt_index].get());
-		return buf->Get(index);
-
-	}
-
-	template<typename T>
-		requires std::derived_from<T, Event>
-	inline std::optional<const T*> EventSystem::GetLatestEvent()
+		requires EventType<T>
+	inline std::optional<T> EventSystem::GetLatestEvent()
 	{
 		size_t evt_index = EventIndex<T>();
 
@@ -272,8 +248,8 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, Event>
-	inline auto EventSystem::GetEvents() const noexcept -> std::ranges::subrange<typename EventBuffer<T>::const_iterator, typename EventBuffer<T>::const_iterator>
+		requires EventType<T>
+	inline std::span<const T> EventSystem::GetEvents() const noexcept
 	{
 
 		/*
@@ -282,15 +258,14 @@ namespace Mupfel {
 		*/
 		if (!EventBufferEntryExists<T>(current)) [[unlikely]]
 		{
-			static const EventBuffer<T> empty_buffer(0);
-			return std::ranges::subrange(empty_buffer.begin(), empty_buffer.end());
+			return {};
 		}
 
-		const EventBuffer<T>* buf = static_cast<EventBuffer<T> *>(event_buffer_array[current][EventIndex<T>()].get());
-		return std::ranges::subrange(buf->begin(), buf->end());
+		return static_cast<EventBuffer<T>*>(event_buffer_array[current][EventIndex<T>()].get())->View();
 	}
 
 	template<typename T>
+		requires EventType<T>
 	inline void EventSystem::RegisterListener(std::function<void(const T&)> callback)
 	{
 		size_t index = EventIndex<T>();
@@ -302,14 +277,14 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, Event>
+		requires EventType<T>
 	inline size_t EventSystem::EventTypeToID()
 	{
 		return EventIndex<T>();
 	}
 
 	template<typename T>
-		requires std::derived_from<T, Event>
+		requires EventType<T>
 	inline bool EventSystem::EventBufferEntryExists(uint32_t buffer_index) const
 	{
 		size_t evt_index = EventIndex<T>();
@@ -317,7 +292,7 @@ namespace Mupfel {
 	}
 
 	template<typename T>
-		requires std::derived_from<T, Event>
+		requires EventType<T>
 	inline uint64_t EventSystem::GetPendingEvents()
 	{
 		auto index = EventIndex<T>();

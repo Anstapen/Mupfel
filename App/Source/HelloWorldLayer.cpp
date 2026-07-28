@@ -1,5 +1,6 @@
 #include "HelloWorldLayer.h"
 #include "Core/Application.h"
+#include "Core/Event.h"
 #include "Core/Profiler.h"
 #include "ECS/View.h"
 
@@ -10,6 +11,24 @@
 #include "ECS/Components/Transform.h"
 
 #include "EditorLayer.h"
+
+enum class PlayerMovement
+{
+	NONE,
+	FORWARD,
+	BACKWARDS,
+	LEFT,
+	RIGHT
+};
+
+class PlayerMovedEvent : public Mupfel::Event
+{
+public:
+	PlayerMovedEvent() : movement(PlayerMovement::NONE) {};
+	PlayerMovedEvent(PlayerMovement in_movement) : movement(in_movement) {};
+
+	PlayerMovement movement;
+};
 
 using namespace Mupfel;
 
@@ -145,6 +164,7 @@ void HelloWorldLayer::OnInit()
 			registry.AddComponent<Texture>(e, tex);
 		}
 	}
+	InitKeybinds();
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)
@@ -181,7 +201,7 @@ void HelloWorldLayer::UpdatePlayerPosition(double timestep)
 	{
 		t.pos_x += 10.0f * timestep;
 	}
-	if (moveing_left)
+	if (moving_left)
 	{
 		t.pos_x -= 10.0f * timestep;
 	}
@@ -195,29 +215,45 @@ void HelloWorldLayer::UpdatePlayerPosition(double timestep)
 	}
 }
 
+#include <iostream>
+
 void HelloWorldLayer::CheckRelevantEvents()
 {
 	Mupfel::EventSystem& evt_system = Application::GetCurrentEventSystem();
-	for (auto& event : evt_system.GetEvents<UserInputEvent>())
+	for (auto& event : evt_system.GetEvents<PlayerMovedEvent>())
 	{
-		if (event.input == UserInput::MOVE_BACKKWARDS)
+		if (event.movement == PlayerMovement::BACKWARDS)
 		{
-			this->moving_up = event.action == KeyAction::PRESSED;
+			moving_up = !moving_up;
 		}
 
-		if (event.input == UserInput::MOVE_FORWARD)
+		if (event.movement == PlayerMovement::FORWARD)
 		{
-			this->moving_down = event.action == KeyAction::PRESSED;
+			std::cout << "A" << std::endl;
+			moving_down = !moving_down;
 		}
 
-		if (event.input == UserInput::MOVE_LEFT)
+		if (event.movement == PlayerMovement::LEFT)
 		{
-			this->moveing_left = event.action == KeyAction::PRESSED;
+			moving_left = !moving_left;
 		}
 
-		if (event.input == UserInput::MOVE_RIGHT)
+		if (event.movement == PlayerMovement::RIGHT)
 		{
-			this->moving_right = event.action == KeyAction::PRESSED;
+			moving_right = !moving_right;
 		}
 	}
+}
+
+void HelloWorldLayer::InitKeybinds()
+{
+	Mupfel::InputManager& input_manager = Mupfel::Application::GetCurrentInputManager();
+	input_manager.MapKeyboardButton<PlayerMovedEvent>(
+		Key::KEY_W, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::FORWARD});
+	input_manager.MapKeyboardButton<PlayerMovedEvent>(
+		Key::KEY_A, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::LEFT});
+	input_manager.MapKeyboardButton<PlayerMovedEvent>(
+		Key::KEY_S, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::BACKWARDS});
+	input_manager.MapKeyboardButton<PlayerMovedEvent>(
+		Key::KEY_D, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::RIGHT});
 }

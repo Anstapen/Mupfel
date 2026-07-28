@@ -4,11 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Mupfel is a C++20 2D game engine with a sparse-set ECS. Component data currently lives in host memory
-(CPU-backed sparse sets); the component structs keep 16-byte, SSBO-friendly alignment, but there is no
-GPU-backed component storage today — an earlier persistently-mapped-SSBO component backend has since
-been removed. The core feature under active development is a GPU broad/narrow-phase collision system
-built on a uniform spatial grid, where compute shaders operate on data uploaded to the GPU.
+Mupfel is a C++20 2D game engine with a focus on simplicity. Entity behavior is established using a lightweight and performant ECS. Every system apart from the Rendering is done on the GPU.
 
 Windowing and rendering are built on Vulkan via the vendored `Ping` library (see below): `Window` wraps
 GLFW, and `Renderer` drives `Ping`'s Vulkan device/swapchain/pipeline directly.
@@ -78,11 +74,7 @@ queries.
 
 Component storage is host-memory only: `CPUComponentArray<T>` — a plain `std::vector`-backed sparse set
 (parallel `sparse`/`dense`/`components` arrays, O(1) swap-remove). `Registry::GetComponentArray<T>()`
-lazily allocates one `CPUComponentArray<T>` per component type on first use (capacity 50,000).
-
-An earlier `GPUComponentArray<T>` backend (backed by `GPUVector<T>` / persistently-mapped SSBOs) has
-been removed; all components are CPU-backed today. This is also why the ECS can be exercised without a
-Vulkan device — e.g. by the `Benchmarks` project (`Benchmarks/`, see its README).
+lazily allocates one `CPUComponentArray<T>` per component type on first use.
 
 `Registry::view<Components...>()` (`ECS/View.h`) iterates entities matching a component signature.
 `Registry::ParallelForEach<Components...>(fn, changed_entities)` splits the dense array of the first
@@ -102,49 +94,13 @@ additionally invokes any callbacks registered with `RegisterListener<T>()` synch
 frame. Event types are not registered up front — each `T` derived from `Event` gets a lazily-assigned
 type ID the first time it's used, and buffers are created on demand.
 
-### GPU collision pipeline (`Core/Source/Physics`, `App/Shaders`)
-
-`PhysicsSimulation` runs `MovementSystem` (CPU, integrates velocity into position) and `CollisionSystem`
-(GPU) as fixed sub-steps per frame. The collision system is a uniform-grid broad phase followed by a
-GPU narrow phase:
-
-1. `fill_cell_count.glsl` — count entities per grid cell.
-2. `GPUPrefixSum` (`blelloch_prefix_sum.glsl`, `add_offsets.glsl`) — exclusive prefix sum over per-cell
-   counts to compute cell offsets into a flat entity array.
-3. `fill_cell_entity_array.glsl` — scatter entities into that flat array by cell.
-4. `gpu_narrow.glsl` — per-cell (and neighbor-cell) narrow-phase pair testing, producing
-   `CollisionSystem::CollisionPair` results in a `GPUVector`.
-
-Grid cell size is a power-of-two (`SetCellSizePow`) and grid dimensions are configurable
-(`SetNumCells`); live-tuning these through `DebugLayer`'s debug GUI is planned but not currently wired
-up (see Debug layer below). `RayCastSystem` / `Ray` reuse the same collision grid (`ray_caster.glsl`)
-for spatial queries instead of brute force.
-
-Shader source lives in `App/Shaders/*.glsl` (compiled/dispatched from `Core`, e.g. `CollisionSystem`,
-`Renderer`, `MovementSystem`), and shader files are included in the `App` project's file globs in
-`App/Build-App.lua` — new `.glsl` files under that directory are picked up automatically, no build file
-edit needed.
-
 ### Rendering
 
-`Renderer` (`Core/Source/Renderer`) owns the Vulkan swapchain, pipeline, command buffers, and
-per-frame-in-flight vertex/uniform buffers, built through `Ping::Device` in `Renderer::Init()`. Its
-`RenderNextFrame()` is invoked once per frame from `Application::Run()`, separate from `Layer::OnRender()`
-calls (engine renderer runs first, then layers, then `DebugLayer` last so debug overlays draw on top).
-Currently it draws a single hardcoded textured quad (loaded from `Images/texture.jpg`) each frame — the
-vertex/index data, model-view-projection matrix, and pipeline are not yet driven by ECS component data,
-so this is a minimal placeholder rather than a general-purpose batch renderer. `Renderer` also owns the
-ImGui integration (`Ping::Gui`, created in `Init()`): `RenderNextFrame()` calls `gui.NewFrame()` and
-currently just calls `ImGui::ShowDemoWindow()` before recording the draw commands.
+
 
 ### Debug layer
 
-`DebugLayer` (`Core/Source/Core/Debug`) is always constructed by `Application` but only rendered when
-debug mode is toggled at runtime. Its drawing methods (collision grid, entity colliders/velocity/index,
-performance metrics) and its debug GUI (`DrawDebugGUI()`) are currently stubs/no-ops — the old
-draw-call bodies are commented out pending reimplementation on top of ImGui, so none of the
-live-tuning-parameter or overlay functionality is active yet even though `DebugLayer` itself runs every
-frame debug mode is on.
+
 
 ### Ping (Vulkan wrapper, vendored)
 
@@ -166,6 +122,11 @@ for this reason.
 ## Third-party dependencies
 
 Vendored under `Vendor/Sources/` (downloaded on first Premake run, gitignored): glm (math), nlohmann/json
-(used by `FS/EntityFileManager` for entity serialization), and Ping's dependency chain (`vulkan_starter`,
-spdlog, ImGui, stb_image, GLFW) described above. Premake binaries themselves are checked into
-`Vendor/Binaries/`.
+(used by `FS/EntityFileManager` for entity serialization), Box2D v3.1.1 (collision detection/resolution,
+linked by `Core`), and Ping's dependency chain (`vulkan_starter`, spdlog, ImGui, stb_image, GLFW)
+described above. Premake binaries themselves are checked into `Vendor/Binaries/`.
+
+Box2D 3.x is a **C** library (not C++ like the 2.x line), so its project in `Vendor/Build-Vendor.lua` is
+the only one overriding `ApplyDefaultProjectSettings()`'s language/dialect (`language "C"`,
+`cdialect "C17"`) — see BUILD.md's "Box2D — the one project that isn't C++" for the MSVC flag and
+determinism caveats. Its public headers are `extern "C"`, so C++ code just does `#include <box2d/box2d.h>`.

@@ -14,6 +14,7 @@ private:
 	void ProcessEvents();
 	void UpdatePlayerPosition(double timestep);
 	void CheckRelevantEvents();
+	void InitKeybinds();
 
 private:
 	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
@@ -24,7 +25,7 @@ private:
 	double lightOrbitAngle = 0.0f;
 	Mupfel::Entity player;
 	bool		   moving_right = false;
-	bool		   moveing_left = false;
+	bool		   moving_left = false;
 	bool		   moving_up = false;
 	bool		   moving_down = false;
 };

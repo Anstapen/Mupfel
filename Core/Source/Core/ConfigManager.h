@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iomanip>
+#include <limits>
 
 namespace Mupfel
 {
@@ -61,7 +63,7 @@ private:
 	 *
 	 * @param config The raw config string that should be cleaned.
 	 */
-	void CleanUpRawConfig(std::string config);
+	void CleanUpRawConfig(std::string& config);
 
 	/**
 	 * @brief Splits the given continuous config string based on the newline
@@ -90,7 +92,10 @@ private:
 template <typename T> inline void ConfigManager::Set(const std::string key, T value)
 {
 	std::stringstream ss;
-
+	if constexpr (std::is_floating_point_v<T>)
+	{
+		ss << std::setprecision(std::numeric_limits<T>::max_digits10);
+	}
 	ss << value;
 
 	configEntries[key] = ss.str();
@@ -98,14 +103,18 @@ template <typename T> inline void ConfigManager::Set(const std::string key, T va
 
 template <typename T> inline std::optional<T> ConfigManager::Get(const std::string key)
 {
-	if (!configEntries.contains(key))
+	auto it = configEntries.find(key);
+	if (it == configEntries.end())
 	{
 		return std::nullopt;
 	}
 
-	std::stringstream ss{configEntries[key]};
-	T				  t;
-	ss >> t;
+	std::stringstream ss{it->second};
+	T				  t{}; // value-init, not default-init
+	if (!(ss >> t))
+	{
+		return std::nullopt;
+	}
 	return t;
 }
 } // namespace Mupfel

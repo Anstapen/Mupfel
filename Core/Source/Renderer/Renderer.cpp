@@ -3,6 +3,7 @@
 
 #include "ECSRenderer.h"
 #include "DebugRenderer.h"
+#include "Core/Application.h"
 
 using namespace Mupfel;
 
@@ -53,6 +54,11 @@ bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, double delta_time)
 {
+	/* Don't do anything if the window is minimized. */
+	if (Application::IsWindowMinimized())
+	{
+		return;
+	}
 
 	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
 	current_command_buffer.WaitForFences(device);
@@ -65,7 +71,6 @@ void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, d
 		/* Image was resized, swapchain needs to be recreated */
 		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
 		depthBuffer = device.CreateDepthBuffer(swapchain.value());
-		return;
 	}
 
 	/* Start command recording */
@@ -105,6 +110,12 @@ void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, d
 
 void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, double delta_time)
 {
+	/* Don't do anything if the window is minimized. */
+	if (Application::IsWindowMinimized())
+	{
+		return;
+	}
+
 	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
 
 	for (uint32_t i = 0; i < subRenderers.size(); i++)
@@ -112,7 +123,6 @@ void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, dou
 		subRenderers[i]->PostUser(device, current_command_buffer);
 	}
 
-	
 	current_command_buffer.EndRendering();
 
 	Ping::ImageLayoutTransition layout_transition = {

@@ -92,7 +92,8 @@ void Mupfel::Application::EndFrameTime()
 	double current_time = GetTime();
 	double frame_time = current_time - Get().start_frame_time;
 
-	double wait_time = (1.0f / 144.0f) - frame_time;
+#if 0
+	double wait_time = (1.0f / 500.0f) - frame_time;
 
 	if (wait_time > 0.0f)
 	{
@@ -100,7 +101,7 @@ void Mupfel::Application::EndFrameTime()
 		current_time = GetTime();
 		frame_time = (float)(current_time - Get().start_frame_time);
 	}
-
+#endif
 	Get().last_frame_time = frame_time;
 }
 
@@ -123,6 +124,8 @@ int Mupfel::Application::GetCurrentRenderHeight()
 
 	return height;
 }
+
+bool Mupfel::Application::IsWindowMinimized() { return Get().window.IsMinimized(); }
 
 bool Mupfel::Application::isDebugModeEnabled() { return Get().debugModeEnabled; }
 
@@ -190,12 +193,13 @@ void Application::Run()
 			{
 				if (evt.input == UserInput::WINDOW_FULLSCREEN)
 				{
+					logger->info("Toggling Full Screen...");
 					window.ToggleFS();
 				}
 
 				if (evt.input == UserInput::TOGGLE_DEBUG_MODE)
 				{
-					std::cout << "Toggled Debug Mode!" << std::endl;
+					logger->debug("Toggled Debug Mode.");
 					debugModeEnabled = !debugModeEnabled;
 				}
 			}
@@ -272,7 +276,11 @@ void Application::DeInit()
 	Ping::Shutdown();
 
 	/* At the end, write the config. */
+	configManager.Set<int32_t>("windowWidth", window.GetWindowWidth());
+	configManager.Set<int32_t>("windowHeight", window.GetWindowHeight());
 	configManager.SaveConfig("mupfel.ini");
+
+	logger->info("Wrote config to mupfel.ini.");
 }
 
 ImageManager& Mupfel::Application::GetCurrentImageManager() { return Get().image_manager; }

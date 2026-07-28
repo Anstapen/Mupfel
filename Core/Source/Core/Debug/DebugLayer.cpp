@@ -1,18 +1,17 @@
 #include "DebugLayer.h"
 #include "Core/Application.h"
-#include <string>
-#include <format>
+#include "Core/Profiler.h"
+#include "ECS/Components/Collider.h"
+#include "ECS/Components/Movement.h"
+#include "ECS/Components/Transform.h"
 #include "ECS/Registry.h"
 #include "ECS/View.h"
-#include "ECS/Components/Collider.h"
-#include "ECS/Components/Transform.h"
-#include "ECS/Components/Movement.h"
-#include "Core/Profiler.h"
+#include <format>
+#include <string>
 
+#include "imgui.h"
 
-void Mupfel::DebugLayer::OnInit()
-{
-}
+void Mupfel::DebugLayer::OnInit() {}
 
 void Mupfel::DebugLayer::OnUpdate(double timestep)
 {
@@ -26,153 +25,25 @@ void Mupfel::DebugLayer::OnUpdate(double timestep)
 
 void Mupfel::DebugLayer::OnRender()
 {
-	DrawDebugGUI();
-	DrawDebugInfo();
-
-	if (show_grid)
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+							 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar;
+	if (!ImGui::Begin("DebugInfo", nullptr, flags))
 	{
-		DrawCollisionGrid();
+		ImGui::End();
+		return;
 	}
+	auto height = static_cast<float>(Application::GetCurrentRenderHeight());
+	auto width =  static_cast<float>(Application::GetCurrentRenderWidth()) / 4.0f;
+	float window_x = static_cast<float>(Application::GetCurrentRenderWidth()) - width;
+	ImGui::SetWindowPos({window_x, 0.0f});
+	ImGui::SetWindowSize({width, height});
 
-	if (show_collider) {
-		DrawEntityColliders();
-	}
-
-	if (show_velocity)
-	{
-		DrawEntityVelocity();
-	}
-
-	if (show_entity_index)
-	{
-		DrawEntityIndex();
-	}
-
-	if (show_perf)
+	//ImGui::ShowDemoWindow();
+	if (ImGui::CollapsingHeader("Performance Metrics"))
 	{
 		DrawPerformanceMetrics();
 	}
-	
-}
-
-static float slider_val = 0.0f;
-
-void Mupfel::DebugLayer::DrawDebugInfo()
-{
-#if 0
-	uint32_t current_entities = Mupfel::Application::GetCurrentRegistry().GetCurrentEntities();
-	/* Get the time of the last frame. */
-	float last_frame_time = Mupfel::Application::GetLastFrameTime();
-	float fps = 1.0f / last_frame_time;
-
-	int screen_height = Mupfel::Application::GetCurrentRenderHeight();
-	int screen_width = Mupfel::Application::GetCurrentRenderWidth();
-
-	std::string text1 = std::vformat("FPS: {:.1f}", std::make_format_args(fps));
-	std::string text2 = std::vformat("Entities(GLOBAL): {}", std::make_format_args(current_entities));
-	//Text::RaylibDrawText(text1.c_str(), 10, 20);
-	//Text::RaylibDrawText(text2.c_str(), 10, 40);
-#endif
-}
-
-void Mupfel::DebugLayer::DrawCollisionGrid()
-{
-#if 0
-	/* Lets render the Collision Grid */
-	uint32_t screen_width = Mupfel::Application::GetCurrentRenderWidth();
-	uint32_t screen_height = Application::GetCurrentRenderHeight();
-
-	uint32_t num_rows = Mupfel::Application::Get().physics.collision_system->collision_grid.num_cells_y;
-	uint32_t num_columns = Mupfel::Application::Get().physics.collision_system->collision_grid.num_cells_x;
-	uint32_t cell_size = 1 << Mupfel::Application::Get().physics.collision_system->collision_grid.cell_size_pow;
-
-	uint32_t pos_x = 0;
-	uint32_t pos_y = 0;
-
-	for (uint32_t y = 0; y < num_rows; y++)
-	{
-
-		if (pos_y > screen_height)
-		{
-			break;
-		}
-
-		for (uint32_t x = 0; x < num_columns; x++)
-		{
-			if (pos_x > screen_width)
-			{
-				break;
-			}
-
-			uint32_t cell_index = Mupfel::Application::Get().physics.collision_system->WorldtoCell({ pos_x, pos_y });
-
-			//RaylibDrawRect(pos_x, pos_y, cell_size, cell_size, 230, 41, 55, 255);
-
-			pos_x += cell_size;
-		}
-		pos_x = 0;
-		pos_y += cell_size;
-	}
-#endif
-}
-
-void Mupfel::DebugLayer::DrawEntityColliders()
-{
-	Registry& reg = Mupfel::Application::GetCurrentRegistry();
-
-	auto spatial_view = reg.view<Mupfel::Transform, Mupfel::Collider>();
-
-	for (auto [entity, t, collider] : spatial_view)
-	{
-		
-
-		if (collider.info.type == ShapeType::Circle)
-		{
-			//Mupfel::Circle::RayLibDrawCircleLines(t.pos_x, t.pos_y, collider.GetCircle(), 102, 191, 255, 255);
-		}
-
-		if (collider.info.type == ShapeType::AABB)
-		{
-			//RaylibDrawRect(t.pos_x - collider.GetBoundingBoxX() / 2, t.pos_y - collider.GetBoundingBoxY() / 2, collider.GetBoundingBoxX(), collider.GetBoundingBoxY(), 102, 191, 255, 255);
-		}
-	}
-}
-
-void Mupfel::DebugLayer::DrawEntityVelocity()
-{
-	Registry& reg = Mupfel::Application::GetCurrentRegistry();
-
-
-	auto movement_view = reg.view<Mupfel::Transform, Mupfel::Movement>();
-
-	for (auto [entity, transform, movement] : movement_view)
-	{
-		if (fabs(movement.velocity_x) > 0.0f || fabs(movement.velocity_y) > 0.0f)
-		{
-			std::string text1 = std::vformat("{:.0f}{:.0f}", std::make_format_args(movement.velocity_x, movement.velocity_x));
-			//Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x, transform.pos_y, 15);
-			//TODO: implement using imgui
-		}
-
-	}
-}
-
-void Mupfel::DebugLayer::DrawEntityIndex()
-{
-	Registry& reg = Mupfel::Application::GetCurrentRegistry();
-
-
-	auto movement_view = reg.view<Mupfel::Transform>();
-
-	for (auto [entity, transform] : movement_view)
-	{
-		float idx = static_cast<float>(entity.Index());
-
-		std::string text1 = std::vformat("{:.0f}", std::make_format_args(idx));
-		//Mupfel::Text::RaylibDrawText(text1.c_str(), transform.pos_x + 15, transform.pos_y, 15);
-		// TODO: implement using imgui
-
-	}
+	ImGui::End();
 }
 
 void Mupfel::DebugLayer::DrawPerformanceMetrics()
@@ -185,10 +56,7 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 	if (!local.empty())
 	{
 		// Sortiere stabil nach Startzeit (aufsteigend)
-		std::stable_sort(local.begin(), local.end(),
-			[](auto const& a, auto const& b) {
-				return a.id < b.id;
-			});
+		std::stable_sort(local.begin(), local.end(), [](auto const& a, auto const& b) { return a.id < b.id; });
 
 		std::string t;
 		uint32_t offset = 200;
@@ -197,15 +65,9 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 			std::string indent(s.depth * 2, ' ');
 			double elapsed_ms = (s.end_time - s.start_time) * 1000.0f;
 			t = std::vformat("{}{}: {:.0f}ms", std::make_format_args(indent, s.name, elapsed_ms));
-			//Text::RaylibDrawText(t.c_str(), 10, offset);
-			// TODO: implement using imgui
+			ImGui::Text(t.c_str());
 			offset += 20;
 		}
 	}
-}
 
-#include <iostream>
-
-void Mupfel::DebugLayer::DrawDebugGUI()
-{
 }
