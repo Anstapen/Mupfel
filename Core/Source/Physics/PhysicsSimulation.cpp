@@ -1,6 +1,7 @@
 #include "PhysicsSimulation.h"
 #include "Core/Profiler.h"
 #include "MovementSystem.h"
+#include "ECS/Registry.h"
 
 
 using namespace Mupfel;

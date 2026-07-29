@@ -11,8 +11,15 @@
 #include "ECS/Components/Transform.h"
 
 #include "EditorLayer.h"
+#include "Level.h"
 
 using namespace Mupfel;
+
+class SceneChangedEvent : public Mupfel::Event
+{
+public:
+	SceneChangedEvent() {};
+};
 
 void HelloWorldLayer::OnInit()
 {
@@ -120,6 +127,13 @@ void HelloWorldLayer::OnInit()
 			registry.AddComponent<Texture>(e, tex);
 		}
 	}
+
+	Mupfel::InputManager& input_manager = Mupfel::Application::GetCurrentInputManager();
+	input_manager.MapKeyboardButton<SceneChangedEvent>(Mupfel::Key::KEY_N, Mupfel::KeyAction::PRESSED, {});
+
+
+	/* Create a Scene */
+	level = Application::CreateScene<Level>("Level");
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)
@@ -140,6 +154,21 @@ void HelloWorldLayer::OnUpdate(double timestep)
 		transform.pos_x = std::cos(lightOrbitAngle) * orbitRadius;
 		transform.pos_y = std::sin(lightOrbitAngle) * orbitRadius;
 		transform.pos_z = orbitHeight;
+	}
+
+	Mupfel::EventSystem& evt_system = Mupfel::Application::GetCurrentEventSystem();
+	for (auto& event : evt_system.GetEvents<SceneChangedEvent>())
+	{
+		/* Switch the scene */
+		if (Application::GetCurrentSceneHandle() == 0)
+		{
+			Mupfel::Application::QueueSceneSwitch(level);
+		}
+		else
+		{
+			Mupfel::Application::QueueSceneSwitch(0);
+		}
+		
 	}
 }
 

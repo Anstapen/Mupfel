@@ -8,6 +8,7 @@
 // reaches into the Application singleton for its thread pool; see Bench_ParallelForEach.cpp.)
 
 #include "Core/EventSystem.h"
+#include "Core/ThreadPool.h"
 #include "ECS/Registry.h"
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Movement.h"
@@ -45,7 +46,8 @@ inline ankerl::nanobench::Bench& ApplyDefaults(ankerl::nanobench::Bench& bench)
 struct World
 {
 	Mupfel::EventSystem			events;
-	Mupfel::Registry			registry{ events };
+	Mupfel::ThreadPool			thread_pool{std::thread::hardware_concurrency()};
+	Mupfel::Registry			registry{ events, thread_pool };
 	std::vector<Mupfel::Entity> entities;
 };
 

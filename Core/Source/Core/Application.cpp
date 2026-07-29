@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include "ECS/Registry.h"
+
+#include "DefaultScene.h"
 
 #include "GLFW/glfw3.h"
 
@@ -21,9 +24,28 @@ Application& Application::Get()
 	return app;
 }
 
+void Mupfel::Application::QueueSceneSwitch(SceneHandle handle)
+{
+	auto& app = Get();
+	if (handle >= Scene::MAX_SCENES)
+	{
+		return;
+	}
+	
+	if (!app.scenes[handle])
+	{
+		return;
+	}
+
+	app.queued_scene = handle;
+}
+
+SceneHandle Mupfel::Application::GetCurrentSceneHandle() { return Get().current_scene; }
+
 Application::Application()
-	: window(Window::GetInstance()), evt_system(), input_manager(evt_system), registry(evt_system),
-	  physics(registry, evt_system), thread_pool(std::thread::hardware_concurrency())
+	: window(Window::GetInstance()), evt_system(), input_manager(evt_system),
+	  thread_pool(std::thread::hardware_concurrency()), registry(evt_system, thread_pool),
+	  physics(registry, evt_system)
 {
 }
 
@@ -75,6 +97,12 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 		logger->error("Animation System Initialization failed!");
 		return false;
 	}
+
+	/* Add Scene 0 */
+	SceneHandle first_handle = CreateScene<DefaultScene>("DefaultScene");
+
+	/* We should be the first ones to create a Scene! */
+	assert(first_handle == 0);
 
 	frame_count = 0;
 
@@ -161,6 +189,28 @@ void Mupfel::Application::TogglePhysicsSingleStep() { Get().physics.ToggleSingle
 
 void Mupfel::Application::PhysicsStep() { Get().physics.Step(); }
 
+void Mupfel::Application::SwitchScene(SceneHandle new_scene)
+{
+	auto& app = Get();
+	if (new_scene >= Scene::MAX_SCENES)
+	{
+		return;
+	}
+
+	if (!app.scenes[new_scene])
+	{
+		return;
+	}
+
+	app.scenes[app.current_scene]->OnSwitchOut();
+	app.scenes[new_scene]->OnSwitchIn();
+
+	app.current_scene = new_scene;
+
+	/* The ECS needs to know the new scene. */
+	app.registry.SetActiveScene(new_scene);
+}
+
 uint64_t Mupfel::Application::GetFrameCount() { return Get().frame_count; }
 
 void Application::Run()
@@ -205,6 +255,15 @@ void Application::Run()
 			}
 		}
 
+		/* Check if a Scene switch is wanted. */
+		if (queued_scene != Scene::INVALID_HANDLE)
+		{
+			SwitchScene(queued_scene);
+			queued_scene = Scene::INVALID_HANDLE;
+		}
+
+		scenes[current_scene]->OnUpdate();
+
 		{
 			ProfilingSample prof("Layers - OnUpdate ");
 			/* Update all layers */
@@ -231,6 +290,8 @@ void Application::Run()
 			ProfilingSample prof("Engine Renderer Begin");
 			renderer.Begin(gpu.value(), Window::GetInstance(), timestep);
 		}
+
+		scenes[current_scene]->OnRender();
 
 		{
 			ProfilingSample prof("Layer Rendering");

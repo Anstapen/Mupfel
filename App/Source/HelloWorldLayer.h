@@ -5,6 +5,7 @@
 #include <random>
 #include "ECS/Entity.h"
 #include "Player.h"
+#include "Core/Scene.h"
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -22,5 +23,6 @@ private:
 	/** Accumulated orbit angle in radians for `UpdateLights`. */
 	double lightOrbitAngle = 0.0f;
 	Player player;
+	Mupfel::SceneHandle level;
 };
 

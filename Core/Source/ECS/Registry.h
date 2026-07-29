@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "ComponentArray.h"
+#include "Core/Scene.h"
+#include "Core/ThreadPool.h"
 #include "ECS/Components/ComponentIndex.h"
 
 namespace Mupfel
@@ -98,8 +100,11 @@ public:
 	using SafeComponentArrayPtr = std::unique_ptr<IComponentArray>;
 
 public:
-	/** `in_evt_sys` is where entity/component lifecycle events are fired; the registry only borrows it. */
-	Registry(EventSystem& in_evt_sys) : evt_system(in_evt_sys) {}
+	/**
+	 * `in_evt_sys` is where entity/component lifecycle events are fired, `in_pool` is what
+	 * `ParallelForEach` dispatches onto; the registry only borrows both.
+	 */
+	Registry(EventSystem& in_evt_sys, ThreadPool& in_pool) : evt_system(in_evt_sys), thread_pool(in_pool) {}
 
 	/** Creates a new entity (recycling a destroyed index if one is available) and fires `EntityCreatedEvent`. */
 	Entity CreateEntity();
@@ -116,12 +121,31 @@ public:
 	 */
 	Entity::Signature GetSignature(uint32_t index) const;
 
+	/**
+	 * @warning Asserts `index` refers to an entity that was created via `CreateEntity`.
+	 * @return The scene mask (which scenes it belongs to) of the entity at `index`.
+	 */
+	Scene::SceneMask GetSceneMask(uint32_t index) const;
+
+	/**
+	 * Sets the scene that `CreateEntity` assigns new entities to and that `view()`/`ParallelForEach`
+	 * filter on. Pushed down by `Application` on every scene switch, so the ECS never has to ask the
+	 * `Application` which scene is current.
+	 */
+	void SetActiveScene(SceneHandle scene);
+
+	/** The scene `CreateEntity` currently assigns new entities to. */
+	SceneHandle GetActiveScene() const;
+
+	/** `GetActiveScene()` as a mask, for signature-style comparisons against `GetSceneMask`. */
+	Scene::SceneMask GetActiveSceneMask() const;
+
 	/** Returns a `View` iterating every entity that has all of `Components...`. */
 	template <typename... Components> View<Components...> view() { return View<Components...>(*this); }
 
 	/**
 	 * Runs `function(Entity, Components&...)` over every entity with all of `Components...`, split
-	 * into chunks and dispatched across `Application::GetCurrentThreadPool()`.
+	 * into chunks and dispatched across the registry's thread pool.
 	 */
 	template <typename... Components, typename F>
 	void ParallelForEach(F&& function);
@@ -155,6 +179,13 @@ public:
 		return sig;
 	}
 
+	static inline std::bitset<Scene::MAX_SCENES> SceneMask(SceneHandle scene)
+	{
+		std::bitset<Scene::MAX_SCENES> sig;
+		sig.set(scene);
+		return sig;
+	}
+
 private:
 	/** Returns (creating on first use) the `ComponentArray<T>` for component type `T`. */
 	template <typename T> ComponentArray<T>& GetComponentArray();
@@ -165,12 +196,18 @@ private:
 private:
 	/** Where entity/component lifecycle events are fired. */
 	EventSystem& evt_system;
+	/** Where `ParallelForEach` dispatches its chunks. */
+	ThreadPool& thread_pool;
 	/** Allocates/recycles entity indices. */
 	EntityManager entity_manager;
 	/** Per-entity-index signature, resized alongside entities. */
 	std::vector<Entity::Signature> signatures;
+	/** Per-entity-index scene membership, resized alongside entities. */
+	std::vector<Scene::SceneMask> sceneMask;
 	/** Per-component-type storage, indexed by `ComponentIndex`. */
 	std::vector<SafeComponentArrayPtr> component_buffer;
+	/** Scene new entities are created in and that views filter on; owned here, set by `Application`. */
+	SceneHandle active_scene = 0;
 };
 
 template <typename... Components, typename F>
@@ -178,7 +215,7 @@ inline void Registry::ParallelForEach(F&& function)
 {
 	auto view = this->view<Components...>();
 
-	auto&		   pool = Application::GetCurrentThreadPool();
+	auto&		   pool = thread_pool;
 	const uint32_t num_threads = static_cast<uint32_t>(pool.GetThreadCount());
 
 	using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;

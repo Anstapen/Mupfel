@@ -1,12 +1,12 @@
 #pragma once
 #include <memory>
 #include "CollisionSystem.h"
-#include "ECS/Registry.h"
 #include "Core/EventSystem.h"
 
 namespace Mupfel {
 
 	class DebugLayer;
+	class Registry;
 
 	/**
 	 * @brief This is the class that is responsible for simulating several things:

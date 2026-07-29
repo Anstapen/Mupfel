@@ -21,7 +21,7 @@ public:
 	PlayerMovedEvent() : movement(PlayerMovement::NONE) {};
 	PlayerMovedEvent(PlayerMovement in_movement) : movement(in_movement) {};
 
-	PlayerMovement movement;
+	PlayerMovement movement = PlayerMovement::NONE;
 };
 
 void Player::Init()
@@ -77,10 +77,10 @@ void Player::UpdateMovement(double timestep)
 		switch (event.movement)
 		{
 		case PlayerMovement::FORWARD:
-			moving_up = !moving_up;
+			moving_down = !moving_down;
 			break;
 		case PlayerMovement::BACKWARDS:
-			moving_down = !moving_down;
+			moving_up = !moving_up;
 			break;
 		case PlayerMovement::LEFT:
 			moving_left = !moving_left;
@@ -105,11 +105,11 @@ void Player::UpdateMovement(double timestep)
 	std::string_view wanted;
 	if (moving_up)
 	{
-		wanted = "idle_back";
+		wanted = "idle_front";
 	}
 	else if (moving_down)
 	{
-		wanted = "idle_front";
+		wanted = "idle_back";
 	}
 	else if (moving_left)
 	{

@@ -1,6 +1,5 @@
 #pragma once
 #include "Core/Coordinate.h"
-#include "ECS/Registry.h"
 #include "Core/EventSystem.h"
 #include "CollisionGrid.h"
 #include <memory>

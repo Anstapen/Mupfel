@@ -1,309 +1,355 @@
 #pragma once
 
-#include <string>
-#include <cstdint>
-#include "Window.h"
-#include "Layer.h"
-#include <memory>
-#include <vector>
+#include "ConfigManager.h"
+#include "Debug/DebugLayer.h"
+#include "ECS/Registry.h"
 #include "EventSystem.h"
 #include "InputManager.h"
-#include "ECS/Registry.h"
-#include "Debug/DebugLayer.h"
-#include "ThreadPool.h"
-#include "Physics/PhysicsSimulation.h"
-#include "Renderer/Renderer.h"
-#include "Renderer/ImageManager.h"
-#include "Renderer/AnimationSystem.h"
-#include <optional>
+#include "Layer.h"
 #include "Logger/Logger.h"
-#include "ConfigManager.h"
+#include "Physics/PhysicsSimulation.h"
+#include "Renderer/AnimationSystem.h"
+#include "Renderer/ImageManager.h"
+#include "Renderer/Renderer.h"
+#include "Scene.h"
+#include "ThreadPool.h"
+#include "Window.h"
+#include <array>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
+namespace Mupfel
+{
 
-namespace Mupfel {
+class ECSRenderer;
+class DebugRenderer;
 
-	class ECSRenderer;
-	class DebugRenderer;
+/**
+ * @brief Defines the specification parameters used to initialize the Application.
+ *
+ * This structure provides all information needed for application setup,
+ * including the application name and window configuration.
+ */
+struct ApplicationSpecification
+{
+	/**
+	 * @brief The name of the application (used as window title).
+	 */
+	std::string name;
 
 	/**
-	 * @brief Defines the specification parameters used to initialize the Application.
-	 *
-	 * This structure provides all information needed for application setup,
-	 * including the application name and window configuration.
+	 * @brief The configuration of the main window (size, title, vSync, etc.).
 	 */
-	struct ApplicationSpecification {
-		/**
-		 * @brief The name of the application (used as window title).
-		 */
-		std::string name;
+	WindowSpecification windowSpec;
+};
 
-		/**
-		 * @brief The configuration of the main window (size, title, vSync, etc.).
-		 */
-		WindowSpecification windowSpec;
-	};
+/**
+ * @brief The main entry point of the Mupfel Engine.
+ *
+ * The Application class represents the central runtime controller
+ * of the entire engine. It manages window creation, event handling,
+ * rendering, physics simulation, input, debug overlay, and layer management.
+ *
+ * Only one instance of Application exists (Singleton pattern).
+ */
+class Application
+{
+	friend class DebugLayer;
+	friend class ECSRenderer;
+	friend class DebugRenderer;
+
+public:
+	/**
+	 * @brief Retrieves the global instance of the Application.
+	 * @return Reference to the singleton Application object.
+	 */
+	static Application& Get();
 
 	/**
-	 * @brief The main entry point of the Mupfel Engine.
-	 *
-	 * The Application class represents the central runtime controller
-	 * of the entire engine. It manages window creation, event handling,
-	 * rendering, physics simulation, input, debug overlay, and layer management.
-	 *
-	 * Only one instance of Application exists (Singleton pattern).
+	 * @brief Destructor. Cleans up engine systems and resources.
 	 */
-	class Application
+	~Application();
+
+	/**
+	 * @brief Initializes the engine subsystems and creates the main window.
+	 * @param spec The specification used for initialization.
+	 * @return True if initialization succeeded.
+	 */
+	bool Init(const ApplicationSpecification& spec);
+
+	/**
+	 * @brief Starts the main application loop.
+	 *
+	 * This function runs the engine until the window is closed or
+	 * Application::Stop() is called.
+	 */
+	void Run();
+
+	/**
+	 * @brief Stops the main application loop.
+	 */
+	void Stop();
+
+	/**
+	 * @brief Returns the current time in seconds since startup.
+	 */
+	static double GetTime();
+
+	/**
+	 * @brief Returns the time delta (in seconds) of the last rendered frame.
+	 */
+	static float GetLastFrameTime();
+
+	/**
+	 * @brief Returns the current width of the render surface in pixels.
+	 */
+	static int GetCurrentRenderWidth();
+
+	/**
+	 * @brief Returns the current height of the render surface in pixels.
+	 */
+	static int GetCurrentRenderHeight();
+
+	/**
+	 * Returns true if the window is currently minimized, false otherwise.
+	 */
+	static bool IsWindowMinimized();
+
+	/**
+	 * @brief Returns whether the Debug Mode is currently enabled.
+	 */
+	static bool isDebugModeEnabled();
+
+	/**
+	 * @brief Provides access to the global Event System.
+	 */
+	static EventSystem& GetCurrentEventSystem();
+
+	/**
+	 * @brief Provides access to the global Input Manager.
+	 */
+	static InputManager& GetCurrentInputManager();
+
+	/**
+	 * @brief Provides access to the global ECS Registry.
+	 */
+	static Registry& GetCurrentRegistry();
+
+	/**
+	 * @brief Provides access to the global Physics Simulation.
+	 */
+	static PhysicsSimulation& GetCurrentPhysicsSim();
+
+	/**
+	 * Load a simple image.
+	 *
+	 * \param path Path to image.
+	 * \return Image Handle or error code.
+	 */
+	static [[nodiscard]] Expected<ImageHandle> LoadBasicImage(const std::string path);
+
+	/**
+	 * Load an image with animations.
+	 *
+	 * \param path Path to image.
+	 * \param spec image specification.
+	 * \return Image Handle or error code.
+	 */
+	static [[nodiscard]] Expected<ImageHandle>
+	LoadAnimatedImage(const std::string path, const ImageSpecification& spec);
+
+	/**
+	 * Load multiple images from a spritesheet.
+	 *
+	 * \param path Path to spritesheet.
+	 * \param spec image specification.
+	 * \return Image Handles or error code.
+	 */
+	static [[nodiscard]] Expected<std::vector<ImageHandle>>
+	LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec);
+
+	template <typename T> static std::optional<T> GetConfigEntry(const std::string key);
+
+	template <typename T> static void SetConfigEntry(const std::string key, T value);
+
+	/**
+	 * @brief Provides access to the global Thread Pool.
+	 */
+	static ThreadPool& GetCurrentThreadPool();
+
+	static uint64_t GetFrameCount();
+
+	/**
+	 * @brief Pushes a new layer onto the applicationï¿½s layer stack.
+	 *
+	 * Layers are used for modular engine and game logic that can
+	 * respond to updates and rendering calls.
+	 *
+	 * @tparam TLayer A class derived from Layer.
+	 */
+	template <typename TLayer>
+		requires(std::is_base_of_v<Layer, TLayer>)
+	void PushLayer()
 	{
-		friend class DebugLayer;
-		friend class ECSRenderer;
-		friend class DebugRenderer;
-
-	public:
-		/**
-		 * @brief Retrieves the global instance of the Application.
-		 * @return Reference to the singleton Application object.
-		 */
-		static Application& Get();
-
-		/**
-		 * @brief Destructor. Cleans up engine systems and resources.
-		 */
-		~Application();
-
-		/**
-		 * @brief Initializes the engine subsystems and creates the main window.
-		 * @param spec The specification used for initialization.
-		 * @return True if initialization succeeded.
-		 */
-		bool Init(const ApplicationSpecification& spec);
-
-		/**
-		 * @brief Starts the main application loop.
-		 *
-		 * This function runs the engine until the window is closed or
-		 * Application::Stop() is called.
-		 */
-		void Run();
-
-		/**
-		 * @brief Stops the main application loop.
-		 */
-		void Stop();
-
-		/**
-		 * @brief Returns the current time in seconds since startup.
-		 */
-		static double GetTime();
-
-		/**
-		 * @brief Marks the beginning of a new frame for frame-time measurement.
-		 *
-		 * Should be called at the start of each frame.
-		 */
-		static void StartFrameTime();
-
-		/**
-		 * @brief Marks the end of a frame and optionally enforces a frame cap.
-		 *
-		 * Calculates frame time and applies frame limiting (e.g., 144 Hz).
-		 */
-		static void EndFrameTime();
-
-		static void WaitTime(double time);
-
-		/**
-		 * @brief Returns the time delta (in seconds) of the last rendered frame.
-		 */
-		static float GetLastFrameTime();
-
-		/**
-		 * @brief Returns the current width of the render surface in pixels.
-		 */
-		static int GetCurrentRenderWidth();
-
-		/**
-		 * @brief Returns the current height of the render surface in pixels.
-		 */
-		static int GetCurrentRenderHeight();
-
-		static bool IsWindowMinimized();
-
-		/**
-		 * @brief Returns whether the Debug Mode is currently enabled.
-		 */
-		static bool isDebugModeEnabled();
-
-		/**
-		 * @brief Provides access to the global Event System.
-		 */
-		static EventSystem& GetCurrentEventSystem();
-
-		/**
-		 * @brief Provides access to the global Input Manager.
-		 */
-		static InputManager& GetCurrentInputManager();
-
-		/**
-		 * @brief Provides access to the global ECS Registry.
-		 */
-		static Registry& GetCurrentRegistry();
-
-		/**
-		 * @brief Provides access to the global Physics Simulation.
-		 */
-		static PhysicsSimulation& GetCurrentPhysicsSim();
-
-		/**
-		 * Load a simple image.
-		 * 
-		 * \param path Path to image.
-		 * \return Image Handle or error code.
-		 */
-		static [[nodiscard]] Expected<ImageHandle> LoadBasicImage(const std::string path);
-
-		/**
-		 * Load an image with animations.
-		 * 
-		 * \param path Path to image.
-		 * \param spec image specification.
-		 * \return Image Handle or error code.
-		 */
-		static [[nodiscard]] Expected<ImageHandle>
-		LoadAnimatedImage(const std::string path, const ImageSpecification& spec);
-
-		/**
-		 * Load multiple images from a spritesheet.
-		 * 
-		 * \param path Path to spritesheet.
-		 * \param spec image specification.
-		 * \return Image Handles or error code.
-		 */
-		static [[nodiscard]] Expected<std::vector<ImageHandle>>
-		LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec);
-
-		template <typename T> static std::optional<T> GetConfigEntry(const std::string key);
-
-		template <typename T> static void SetConfigEntry(const std::string key, T value);
-
-		/**
-		 * @brief Provides access to the global Thread Pool.
-		 */
-		static ThreadPool& GetCurrentThreadPool();
-
-		/**
-		 * @brief Set the time scale for the movement system.
-		 * 
-		 * This function is mostly used for debugging purposes.
-		 * 
-		 * @param time_scale Time scale to be applied to the elapsed time
-		 */
-		static void SetTimeScale(double time_scale);
-
-		static void TogglePhysicsSingleStep();
-
-		static void PhysicsStep();
-
-		static uint64_t GetFrameCount();
-
-		/**
-		 * @brief Pushes a new layer onto the application’s layer stack.
-		 *
-		 * Layers are used for modular engine and game logic that can
-		 * respond to updates and rendering calls.
-		 *
-		 * @tparam TLayer A class derived from Layer.
-		 */
-		template<typename TLayer>
-			requires(std::is_base_of_v<Layer, TLayer>)
-		void PushLayer()
-		{
-			layerStack.push_back(std::make_unique<TLayer>());
-			layerStack.back().get()->OnInit();
-		}
-
-	private:
-		/**
-		 * @brief Private constructor (Singleton pattern).
-		 */
-		Application();
-
-		/**
-		 * @brief Frees resources and deinitializes subsystems.
-		 */
-		void DeInit();
-
-		static ImageManager& GetCurrentImageManager();
-
-	private:
-		/** @brief The startup specification of the application. */
-		ApplicationSpecification spec;
-
-		ConfigManager configManager;
-
-		/** @brief Reference to the Window singleton. */
-		Window& window;
-
-		/** @brief Indicates whether the main loop is currently running. */
-		bool running = false;
-
-		/** @brief Enables or disables debug overlay rendering. */
-		bool debugModeEnabled = false;
-
-		/** @brief Stack of all active layers, managed by the application. */
-		std::vector<std::unique_ptr<Layer>> layerStack;
-
-		/** The main application logger. */
-		Logger::SafeLoggerPtr logger;
-
-		/** @brief Global event management system for engine and user events. */
-		EventSystem evt_system;
-
-		/** @brief Manages user input and input event mapping. */
-		InputManager input_manager;
-
-		/** RHI interface handle. */
-		std::optional<Ping::Device> gpu;
-
-		/** Renders to the screen. */
-		Renderer renderer;
-
-		/** Image Manager. */
-		ImageManager image_manager;
-
-		/** @brief The ECS Registry that holds all entities and components. */
-		Registry registry;
-
-		/** @brief The global physics simulation system. */
-		PhysicsSimulation physics;
-
-		AnimationSystem animationSystem;
-
-		/** @brief Thread pool for multi-threaded jobs (e.g., physics, AI). */
-		ThreadPool thread_pool;
-
-		/** @brief The debug rendering layer used for profiling and visualization. */
-		DebugLayer debug_layer;
-
-		/** @brief Timestamp of the current frame’s start time. */
-		double start_frame_time = 0.0;
-
-		/** @brief Duration of the most recently completed frame (in seconds). */
-		double last_frame_time = 0.0;
-
-		/** @brief A frame counter (mostly for debugging purposes) */
-		uint64_t frame_count = 0;
-	};
-
-	template <typename T> inline std::optional<T> Application::GetConfigEntry(const std::string key)
-	{
-		return Get().configManager.Get<T>(key);
+		layerStack.push_back(std::make_unique<TLayer>());
+		layerStack.back().get()->OnInit();
 	}
 
-	template <typename T> inline void Application::SetConfigEntry(const std::string key, T value)
+	template <typename T>
+		requires SceneType<T>
+	static [[nodiscard]] SceneHandle CreateScene(const std::string& name, const std::string& path = {});
+
+	static void QueueSceneSwitch(SceneHandle handle);
+
+	static SceneHandle GetCurrentSceneHandle();
+
+private:
+	/**
+	 * @brief Private constructor (Singleton pattern).
+	 */
+	Application();
+
+	/**
+	 * @brief Frees resources and deinitializes subsystems.
+	 */
+	void DeInit();
+
+	static ImageManager& GetCurrentImageManager();
+
+	/**
+	 * @brief Marks the beginning of a new frame for frame-time measurement.
+	 *
+	 * Should be called at the start of each frame.
+	 */
+	static void StartFrameTime();
+
+	/**
+	 * @brief Marks the end of a frame and optionally enforces a frame cap.
+	 *
+	 * Calculates frame time and applies frame limiting (e.g., 144 Hz).
+	 */
+	static void EndFrameTime();
+
+	static void WaitTime(double time);
+
+	/**
+	 * @brief Set the time scale for the movement system.
+	 *
+	 * This function is mostly used for debugging purposes.
+	 *
+	 * @param time_scale Time scale to be applied to the elapsed time
+	 */
+	static void SetTimeScale(double time_scale);
+
+	static void TogglePhysicsSingleStep();
+
+	static void PhysicsStep();
+
+	static void SwitchScene(SceneHandle new_scene);
+
+private:
+	/** @brief The startup specification of the application. */
+	ApplicationSpecification spec;
+
+	ConfigManager configManager;
+
+	/** @brief Reference to the Window singleton. */
+	Window& window;
+
+	/** @brief Indicates whether the main loop is currently running. */
+	bool running = false;
+
+	/** @brief Enables or disables debug overlay rendering. */
+	bool debugModeEnabled = false;
+
+	/** @brief Stack of all active layers, managed by the application. */
+	std::vector<std::unique_ptr<Layer>> layerStack;
+
+	/** The main application logger. */
+	Logger::SafeLoggerPtr logger;
+
+	/** @brief Global event management system for engine and user events. */
+	EventSystem evt_system;
+
+	/** @brief Manages user input and input event mapping. */
+	InputManager input_manager;
+
+	/** RHI interface handle. */
+	std::optional<Ping::Device> gpu;
+
+	/** Renders to the screen. */
+	Renderer renderer;
+
+	/** Image Manager. */
+	ImageManager image_manager;
+
+	/**
+	 * @brief Thread pool for multi-threaded jobs (e.g., physics, AI).
+	 *
+	 * @warning Must stay declared before `registry`, which borrows it in its constructor.
+	 */
+	ThreadPool thread_pool;
+
+	/** @brief The ECS Registry that holds all entities and components. */
+	Registry registry;
+
+	/** @brief The global physics simulation system. */
+	PhysicsSimulation physics;
+
+	AnimationSystem animationSystem;
+
+	std::array<std::unique_ptr<Scene>, Scene::MAX_SCENES> scenes;
+
+	SceneHandle current_scene = 0;
+
+	SceneHandle queued_scene = Scene::INVALID_HANDLE;
+
+	SceneHandle next_free_handle = 0;
+
+	/** @brief The debug rendering layer used for profiling and visualization. */
+	DebugLayer debug_layer;
+
+	/** @brief Timestamp of the current frameï¿½s start time. */
+	double start_frame_time = 0.0;
+
+	/** @brief Duration of the most recently completed frame (in seconds). */
+	double last_frame_time = 0.0;
+
+	/** @brief A frame counter (mostly for debugging purposes) */
+	uint64_t frame_count = 0;
+};
+
+template <typename T> inline std::optional<T> Application::GetConfigEntry(const std::string key)
+{
+	return Get().configManager.Get<T>(key);
+}
+
+template <typename T> inline void Application::SetConfigEntry(const std::string key, T value)
+{
+	Get().configManager.Set<T>(key, value);
+}
+
+template <typename T>
+	requires SceneType<T>
+inline SceneHandle Application::CreateScene(const std::string& name, const std::string& path)
+{
+	auto& app = Get();
+	/* Check if there is space for another scene. */
+	if (app.next_free_handle >= Scene::MAX_SCENES)
 	{
-		Get().configManager.Set<T>(key, value);
+		return Scene::INVALID_HANDLE;
 	}
-	}
+	uint32_t handle = app.next_free_handle;
+	app.next_free_handle++;
 
+	app.scenes[handle] = std::move(std::make_unique<T>(handle, name));
 
+	app.scenes[handle]->Deserialize(path);
+	app.scenes[handle]->OnInit();
 
+	return handle;
+}
+} // namespace Mupfel

@@ -5,6 +5,7 @@
 #include <thread>
 #include "Core/Application.h"
 #include "CollisionProcessor.h"
+#include "ECS/Registry.h"
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Collider.h"
