@@ -24,6 +24,8 @@ public:
 	PlayerMovement movement = PlayerMovement::NONE;
 };
 
+Player::Player(Mupfel::Registry& registry) : e(registry.CreateEntity()) {}
+
 void Player::Init()
 {
 	auto result = Application::LoadAnimatedImage(

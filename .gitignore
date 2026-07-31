@@ -28,3 +28,9 @@ App/logs/
 .claude/agents/
 
 Reviews/
+
+*.rc
+
+*.aps
+
+Tests/resource.h

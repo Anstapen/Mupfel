@@ -8,81 +8,27 @@
 #include <memory>
 #include <typeindex>
 #include <vector>
+#include <concepts>
 
 #include "ComponentArray.h"
 #include "Core/Scene.h"
 #include "Core/ThreadPool.h"
+#include "ECSEvents.h"
 #include "ECS/Components/ComponentIndex.h"
 
 namespace Mupfel
 {
 
 template <typename FirstComponent, typename... Components> class View;
-
 class CollisionSystem;
 class Application;
 class MovementSystem;
 class RayCastSystem;
 
 /**
- * Fired via `EventSystem::AddImmediateEvent` from `Registry::AddComponent`, after the component
- * is inserted and the entity's signature updated.
- */
-class ComponentAddedEvent : public Event
-{
-public:
-	ComponentAddedEvent() = default;
-
-	/**
-	 * @param in_e The entity the component was added to.
-	 * @param in_sig The entity's signature after adding the component.
-	 * @param in_comp_id `ComponentIndex::Index` of the added component type.
-	 */
-	ComponentAddedEvent(Entity in_e, Entity::Signature in_sig, size_t in_comp_id)
-		: e(in_e), comp_id(in_comp_id), sig(in_sig) {};
-	virtual ~ComponentAddedEvent() = default;
-
-public:
-	/** The entity the component was added to. */
-	Entity e;
-	/** The entity's signature after adding the component. */
-	Entity::Signature sig;
-	/** `ComponentIndex::Index` of the added component type. */
-	size_t comp_id;
-};
-
-/**
- * Fired via `EventSystem::AddImmediateEvent` from `Registry::RemoveComponent`, before the
- * component is actually removed, so listeners can still inspect it.
- */
-class ComponentRemovedEvent : public Event
-{
-public:
-	ComponentRemovedEvent() = default;
-
-	/**
-	 * @param in_e The entity the component is being removed from.
-	 * @param in_sig The entity's signature before the component is removed.
-	 * @param in_comp_id `ComponentIndex::Index` of the component type being removed.
-	 */
-	ComponentRemovedEvent(Entity in_e, Entity::Signature in_sig, size_t in_comp_id)
-		: e(in_e), comp_id(in_comp_id), sig(in_sig) {};
-	virtual ~ComponentRemovedEvent() = default;
-
-public:
-	/** The entity the component is being removed from. */
-	Entity e;
-	/** The entity's signature before the component is removed. */
-	Entity::Signature sig;
-	/** `ComponentIndex::Index` of the component type being removed. */
-	size_t comp_id;
-};
-
-/**
- * Owns all entities and components for a `World`: entity lifecycle (via `EntityManager`), one
- * `ComponentArray<T>` per component type `T` ever used, and each entity's `Entity::Signature`
- * (which components it has). Fires `EntityCreatedEvent`/`EntityDestroyedEvent`/`ComponentAddedEvent`/
- * `ComponentRemovedEvent` on `evt_system` as entities and components change.
+ * A Registry holds a complete ECS context. It provides methods to create / destroy
+ * entities, add / remove components and means to iterate over entities based on a set
+ * of components.
  */
 class Registry
 {
@@ -93,39 +39,36 @@ class Registry
 	friend class RayCastSystem;
 
 public:
-	/**
-	 * Owning pointer type stored in `component_buffer`; `IComponentArray` is the type-erased base
-	 * so arrays of different component types can share one vector.
-	 */
+	/** Helper type for a unique ptr for component arrays. */
 	using SafeComponentArrayPtr = std::unique_ptr<IComponentArray>;
 
 public:
 	/**
-	 * `in_evt_sys` is where entity/component lifecycle events are fired, `in_pool` is what
-	 * `ParallelForEach` dispatches onto; the registry only borrows both.
+	 * The registry constructor needs an event system (to issue entity and component events) and
+	 * a thread pool (for parallel searches).
 	 */
 	Registry(EventSystem& in_evt_sys, ThreadPool& in_pool) : evt_system(in_evt_sys), thread_pool(in_pool) {}
 
-	/** Creates a new entity (recycling a destroyed index if one is available) and fires `EntityCreatedEvent`. */
+	/** Create an entity. Additonally, a "EntityCreatedEvent" event is fired to notify everyone. */
 	Entity CreateEntity();
 
-	/** Fires `EntityDestroyedEvent`, removes `e`'s components from every component array, then recycles its index. */
+	/** Destroy an entity. Additonally, a "EntityDestroyedEvent" event is fired to notify everyone. */
 	void DestroyEntity(Entity e);
 
-	/** Number of currently-live entities. */
+	/** Return the number of current entities in the registry. */
 	uint32_t GetCurrentEntities() const;
 
 	/**
 	 * @warning Asserts `index` refers to an entity that was created via `CreateEntity`.
 	 * @return The signature (which components it has) of the entity at `index`.
 	 */
-	Entity::Signature GetSignature(uint32_t index) const;
+	Entity::Signature GetSignature(Entity entity) const;
 
 	/**
 	 * @warning Asserts `index` refers to an entity that was created via `CreateEntity`.
 	 * @return The scene mask (which scenes it belongs to) of the entity at `index`.
 	 */
-	Scene::SceneMask GetSceneMask(uint32_t index) const;
+	Scene::SceneMask GetSceneMask(Entity entity) const;
 
 	/**
 	 * Sets the scene that `CreateEntity` assigns new entities to and that `view()`/`ParallelForEach`
@@ -148,6 +91,7 @@ public:
 	 * into chunks and dispatched across the registry's thread pool.
 	 */
 	template <typename... Components, typename F>
+		requires std::invocable<F&, Entity, Components&...>
 	void ParallelForEach(F&& function);
 
 	/** Constructs a `T` in place from `args` and adds it to `e` (see the `AddComponent(Entity, T)` overload). */
@@ -172,9 +116,9 @@ public:
 	template <typename T> bool HasComponent(Entity e);
 
 	/** The combined `Entity::Signature` bit for each of `Components...`, for signature comparisons. */
-	template <typename... Components> static inline std::bitset<64> ComponentSignature()
+	template <typename... Components> static inline Entity::Signature ComponentSignature()
 	{
-		std::bitset<64> sig;
+		Entity::Signature sig;
 		(sig.set(ComponentIndex::Index<Components>()), ...);
 		return sig;
 	}
@@ -211,12 +155,11 @@ private:
 };
 
 template <typename... Components, typename F>
+	requires std::invocable<F&, Entity, Components&...>
 inline void Registry::ParallelForEach(F&& function)
 {
-	auto view = this->view<Components...>();
-
 	auto&		   pool = thread_pool;
-	const uint32_t num_threads = static_cast<uint32_t>(pool.GetThreadCount());
+	const uint32_t num_threads = std::max<uint32_t>(1u, static_cast<uint32_t>(pool.GetThreadCount()));
 
 	using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
 	auto&		   array = GetComponentArray<BaseComponent>();
@@ -234,7 +177,8 @@ inline void Registry::ParallelForEach(F&& function)
 	std::vector<std::future<void>> jobs;
 	jobs.reserve(num_threads);
 
-	const auto required = Registry::ComponentSignature<Components...>();
+	const Entity::Signature required = Registry::ComponentSignature<Components...>();
+	const Scene::SceneMask	required_scene = Registry::GetActiveSceneMask();
 
 	for (uint32_t t = 0; t < num_threads; t++)
 	{
@@ -247,16 +191,17 @@ inline void Registry::ParallelForEach(F&& function)
 		}
 
 		jobs.push_back(pool.Enqueue(
-			[this, begin, end, function, &dense, required, &arrays]() mutable -> void
+			[this, begin, end, function, &dense, required, required_scene, arrays]() mutable -> void
 			{
 
 				for (size_t i = begin; i < end; ++i)
 				{
 					Entity		e{dense[i]};
-					const auto& sig = GetSignature(e.Index());
+					const auto& sig = GetSignature(e);
+					const Scene::SceneMask scene_mask = GetSceneMask(e);
 
 					/* check if the entity has all the needed components */
-					if ((sig & required) != required)
+					if (((sig & required) != required) || ((scene_mask & required_scene) != required_scene))
 						continue;
 
 					/* Call given function on the entity */
@@ -273,9 +218,28 @@ inline void Registry::ParallelForEach(F&& function)
 	}
 
 	/* Wait for all jobs to finish and collect the entities */
+	std::exception_ptr first;
 	for (auto& job : jobs)
 	{
-		job.get();
+
+		try
+		{
+			job.get();
+		}
+		catch (...)
+		{
+			/* Save the first exception that was thrown. */
+			if (!first)
+			{
+				first = std::current_exception();
+			}
+		}
+
+		/* If user code caused an exception, throw it now. */
+		if (first)
+		{
+			std::rethrow_exception(first);
+		}
 	}
 }
 
@@ -286,9 +250,14 @@ template <typename T, typename... Args> inline void Registry::AddComponent(Entit
 
 template <typename T> inline void Registry::AddComponent(Entity e, T component)
 {
+	/* Do not add a component to a dead entity! */
+	if (!entity_manager.IsAlive(e))
+	{
+		return;
+	}
 
 	ComponentArray<T>& storage = GetComponentArray<T>();
-	storage.Insert(e, component);
+	storage.Insert(e, std::move(component));
 
 	/* Update the Entity Signature */
 	uint32_t id = static_cast<uint32_t>(ComponentIndex::Index<T>());
@@ -300,11 +269,17 @@ template <typename T> inline void Registry::AddComponent(Entity e, T component)
 
 template <typename T> inline void Registry::RemoveComponent(Entity e)
 {
-	size_t id = ComponentIndex::Index<T>();
+	/* Check if the entity has the component. */
+	if (!HasComponent<T>(e))
+	{
+		return;
+	}
+
+	ComponentArray<T>& storage = GetComponentArray<T>();
+	size_t			   id = ComponentIndex::Index<T>();
 	/* Send a ComponentRemoved Event */
 	evt_system.AddImmediateEvent<ComponentRemovedEvent>({e, signatures[e.Index()], id});
 
-	ComponentArray<T>& storage = GetComponentArray<T>();
 	storage.Remove(e);
 
 	/* Update the Entity Signature */

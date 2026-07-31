@@ -1,9 +1,11 @@
 -- premake5.lua
 --
 -- Workspace layout (see BUILD.md for the full dependency-graph writeup):
---   Vendor group  -> Vendor/Build-Vendor.lua  (third-party libraries built from vendored source)
---   Engine group  -> Core/Build-Core.lua      (Mupfel's own engine static library, "Core")
---   (ungrouped)   -> App/Build-App.lua        (the executable, startproject)
+--   Vendor group     -> Vendor/Build-Vendor.lua          (third-party libraries built from vendored source)
+--   Engine group     -> Core/Build-Core.lua              (Mupfel's own engine static library, "Core")
+--   (ungrouped)      -> App/Build-App.lua                (the executable, startproject)
+--   Benchmarks group -> Benchmarks/Build-Benchmarks.lua  (nanobench microbenchmarks, links Core)
+--   Tests group      -> Tests/Build-Tests.lua            (Catch2 unit tests, links Core)
 
 -- Ping (Vendor/Build-Vendor.lua) needs the Vulkan SDK to compile
 vulkan_sdk_path = os.getenv("VULKAN_SDK")
@@ -81,4 +83,8 @@ include "App/Build-App.lua"
 
 group "Benchmarks"
    include "Benchmarks/Build-Benchmarks.lua"
+group ""
+
+group "Tests"
+   include "Tests/Build-Tests.lua"
 group ""

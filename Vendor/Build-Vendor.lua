@@ -13,6 +13,7 @@
 --                                           linked independently by both Ping and Core)
 --   Ping     -> Logger (linked), spdlog/glfw/imgui/stb headers, Vulkan SDK headers
 --   box2d    (no internal deps)           (collision detection/resolution, linked by Core)
+--   catch2   (no internal deps)           (unit test framework, linked by the Tests project)
 
 project "spdlog"
     kind "StaticLib"
@@ -112,3 +113,24 @@ project "box2d"
         buildoptions { "-ffp-contract=off" }
 
     filter {}
+
+-- Catch2 v3, built from the two "amalgamated" files upstream ships per release (see Deps.catch2 in
+-- Dependencies.lua for why we don't build the full source tree). Only the Tests project links it.
+--
+-- catch_amalgamated.cpp also defines the test runner's main(), which is why Tests/Source has none of
+-- its own. If a test run ever needs engine setup done before the first assertion, define
+-- CATCH_AMALGAMATED_CUSTOM_MAIN here and hand-write that main() in the Tests project instead.
+--
+-- DO_NOT_USE_WMAIN is what keeps that entry point linkable. ApplyDefaultProjectSettings() sets
+-- characterset "Unicode", so _UNICODE is defined and Catch2 would emit wmain() rather than main().
+-- MSVC picks the CRT entry point (mainCRTStartup vs. wmainCRTStartup) by looking only at the object
+-- files on the link line -- never inside a static lib -- so it would settle on mainCRTStartup and
+-- then fail with an unresolved "main". Forcing the narrow-char entry point sidesteps that entirely.
+project "catch2"
+    kind "StaticLib"
+    ApplyDefaultProjectSettings()
+
+    files { DepPath("catch2", "catch_amalgamated.hpp"), DepPath("catch2", "catch_amalgamated.cpp") }
+    includedirs { DepPath("catch2") }
+
+    defines { "DO_NOT_USE_WMAIN" }

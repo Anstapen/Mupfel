@@ -1,6 +1,8 @@
 #pragma once
 #include "Entity.h"
 #include <cstdint>
+#include <cstddef>
+#include <limits>
 
 namespace Mupfel
 {
@@ -21,7 +23,9 @@ public:
 	virtual bool Has(Entity e) const = 0;
 
 	/** Number of components currently stored. */
-	virtual uint32_t Size() = 0;
+	virtual uint32_t Size() const = 0;
+
+	virtual size_t ComponentID() const = 0;
 
 	/** Sentinel used by sparse-set implementations to mark "no component". */
 	static constexpr size_t invalid_entry = std::numeric_limits<size_t>::max();

@@ -49,6 +49,18 @@ Deps = {
         url         = "https://raw.githubusercontent.com/martinus/nanobench/v4.3.11/src/include/nanobench.h",
         single_file = "nanobench.h", -- header-only microbenchmark framework, used by the Benchmarks project
     },
+    -- Catch2 v3 is normally consumed through CMake, which generates catch_user_config.hpp from a .in
+    -- template before anything can compile. Upstream also publishes an "amalgamated" build of each
+    -- release - one header plus one .cpp, with that config already baked in - so we take those two
+    -- files instead and build them as an ordinary static lib (see Vendor/Build-Vendor.lua). Used by
+    -- the Tests project.
+    catch2 = {
+        relpath      = "Vendor/Sources/catch2-3.15.3",
+        single_files = {
+            "https://github.com/catchorg/Catch2/releases/download/v3.15.3/catch_amalgamated.hpp",
+            "https://github.com/catchorg/Catch2/releases/download/v3.15.3/catch_amalgamated.cpp",
+        },
+    },
 }
 
 -- Resolves a path inside a dependency's source tree, anchored to the workspace root via the
@@ -67,21 +79,41 @@ function download_progress(total, current)
     print("Download progress (" .. math.floor(ratio * 100) .. "%/100%)")
 end
 
--- Downloads dep.url into Vendor/Sources/, extracting it if it's a zip archive. No-ops if the
--- dependency is already present (its directory, or for single_file deps the file itself, exists).
+-- Downloads a dependency into Vendor/Sources/ if it isn't already there. Which of the three shapes a
+-- Deps entry takes decides how:
+--   dep.single_files -- a list of full file URLs, for deps distributed as a handful of loose files
+--                       rather than an archive (Catch2's amalgamated header + source). Each file is
+--                       checked and fetched on its own, so an interrupted run resumes rather than
+--                       leaving the directory half-populated (its mere existence would look "present"
+--                       to the checks below).
+--   dep.single_file  -- one loose file, dep.url pointing straight at it (json.hpp, stb_image.h).
+--   otherwise        -- dep.url is a zip archive, extracted into Vendor/Sources/.
 function fetch_dependency(name)
     local dep = Deps[name]
     local marker = dep.single_file and (dep.relpath .. "/" .. dep.single_file) or dep.relpath
 
-    if os.isdir(marker) or os.isfile(marker) then
+    if not dep.single_files and (os.isdir(marker) or os.isfile(marker)) then
         return
     end
 
-    print("Fetching " .. name .. " from " .. dep.url)
     local sources_dir = "Vendor/Sources"
     if not os.isdir(sources_dir) then
         os.mkdir(sources_dir)
     end
+
+    if dep.single_files then
+        for _, url in ipairs(dep.single_files) do
+            local target = dep.relpath .. "/" .. url:match("[^/]+$")
+            if not os.isfile(target) then
+                print("Fetching " .. name .. " from " .. url)
+                os.mkdir(dep.relpath)
+                http.download(url, target, { progress = download_progress, headers = { "From: Premake", "Referer: Premake" } })
+            end
+        end
+        return
+    end
+
+    print("Fetching " .. name .. " from " .. dep.url)
 
     if dep.single_file then
         os.mkdir(dep.relpath)
@@ -105,6 +137,7 @@ function build_externals()
     fetch_dependency("imgui")
     fetch_dependency("glm")
     fetch_dependency("nanobench")
+    fetch_dependency("catch2")
     fetch_dependency("box2d")
     if os.target() == "windows" then
         fetch_dependency("glfw")

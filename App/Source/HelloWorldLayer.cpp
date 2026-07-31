@@ -21,6 +21,8 @@ public:
 	SceneChangedEvent() {};
 };
 
+HelloWorldLayer::HelloWorldLayer() : player(Application::GetCurrentRegistry()) {}
+
 void HelloWorldLayer::OnInit()
 {
 	auto result = Application::LoadBasicImage("Images/grass_1.png")

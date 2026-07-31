@@ -9,6 +9,10 @@
 
 class HelloWorldLayer : public Mupfel::Layer
 {
+public:
+	HelloWorldLayer();
+
+private:
 	void OnInit() override;
 	void OnUpdate(double timestep) override;
 	void OnRender() override;

@@ -38,16 +38,27 @@ Entity Registry::CreateEntity()
 
 void Registry::DestroyEntity(Entity e)
 {
+	/* Check if the entity is alive. */
+	if (!entity_manager.IsAlive(e))
+	{
+		return;
+	}
+
 	/* Create an Entity Destroyed Event to give all Listeners time to react */
 	evt_system.AddImmediateEvent<EntityDestroyedEvent>(e);
 
 	/* We have to remove the entity from all component lists */
-	for (auto& storage : component_buffer)
+	for (uint32_t i = 0; i < component_buffer.size(); i++)
 	{
-		if (storage)
+		IComponentArray* storage = component_buffer[i].get();
+
+		if (!storage || !storage->Has(e))
 		{
-			storage->Remove(e);
+			continue;
 		}
+
+		evt_system.AddImmediateEvent<ComponentRemovedEvent>({e, signatures[e.Index()], storage->ComponentID()});
+		storage->Remove(e);
 	}
 
 	entity_manager.DestroyEntity(e);
@@ -57,18 +68,18 @@ void Registry::DestroyEntity(Entity e)
 
 uint32_t Registry::GetCurrentEntities() const { return entity_manager.GetCurrentEntities(); }
 
-Entity::Signature Registry::GetSignature(uint32_t index) const
+Entity::Signature Registry::GetSignature(Entity entity) const
 {
-	assert((index < signatures.size()) && "Given Entity was not created correctly!");
+	assert((entity.Index() < signatures.size()) && "Given Entity was not created correctly!");
 
-	return signatures[index];
+	return signatures[entity.Index()];
 }
 
-Scene::SceneMask Mupfel::Registry::GetSceneMask(uint32_t index) const
+Scene::SceneMask Mupfel::Registry::GetSceneMask(Entity entity) const
 {
-	assert((index < sceneMask.size()) && "Given Entity was not created correctly!");
+	assert((entity.Index() < sceneMask.size()) && "Given Entity was not created correctly!");
 
-	return sceneMask[index];
+	return sceneMask[entity.Index()];
 }
 
 void Mupfel::Registry::SetActiveScene(SceneHandle scene)

@@ -28,9 +28,7 @@ public:
 	 */
 	explicit View(Registry& in_reg) : reg(in_reg)
 	{
-		// Erzeuge die benoetigte Components-Signatur
-		required_signature = (1ull << ComponentIndex::Index<FirstComponent>()) |
-							 (0ull | ... | (1ull << ComponentIndex::Index<Components>()));
+		required_signature = Registry::ComponentSignature<FirstComponent, Components...>();
 		required_scene = reg.GetActiveSceneMask();
 	}
 
@@ -69,8 +67,8 @@ public:
 			while (index < base_component_array.Size())
 			{
 				Entity			  e{base_component_array.dense[index]};
-				Entity::Signature sig = registry.GetSignature(e.Index());
-				Scene::SceneMask  scene = registry.GetSceneMask(e.Index());
+				Entity::Signature sig = registry.GetSignature(e);
+				Scene::SceneMask  scene = registry.GetSceneMask(e);
 
 				if (((sig & required_signature) == required_signature) && ((scene & required_scene) == required_scene))
 					break;
@@ -80,7 +78,7 @@ public:
 		}
 
 		/** Whether `o` is at a different slot (used for the `begin() != end()` loop condition). */
-		bool operator!=(const Iterator& o) const { return index != o.index; }
+		bool operator!=(const Iterator& o) const { return o.index != base_component_array.Size(); }
 
 		/** Advances to the next matching entity. */
 		void operator++()

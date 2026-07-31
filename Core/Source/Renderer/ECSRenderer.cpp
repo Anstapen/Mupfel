@@ -382,11 +382,12 @@ void Mupfel::ECSRenderer::SyncLights(const Ping::Device& device, uint32_t frame_
 	Mupfel::Registry& registry = Mupfel::Application::GetCurrentRegistry();
 	uint32_t		  buffer_index = 0;
 
-	LightInstance* buffer = static_cast<LightInstance*>(lightInstanceBuffers[frame_index].GetMappedPtr());
-
 	for (auto [e, light, transform] : registry.view<Mupfel::Light, Mupfel::Transform>())
 	{
-		EnsureLightCapacity(device, buffer_index);
+
+		EnsureLightCapacity(device, buffer_index + 1);
+		LightInstance* buffer = static_cast<LightInstance*>(lightInstanceBuffers[frame_index].GetMappedPtr());
+		buffer[buffer_index].ambientStrength = light.ambientStrength;
 
 		/* Populate the LightInstance object for the fragment shader */
 		buffer[buffer_index].ambientStrength = light.ambientStrength;
