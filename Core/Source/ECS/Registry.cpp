@@ -57,7 +57,7 @@ void Registry::DestroyEntity(Entity e)
 			continue;
 		}
 
-		evt_system.AddImmediateEvent<ComponentRemovedEvent>({e, signatures[e.Index()], storage->ComponentID()});
+		evt_system.AddEvent<ComponentRemovedEvent>({e, signatures[e.Index()], storage->ComponentID()});
 		storage->Remove(e);
 	}
 

@@ -3,18 +3,18 @@
 #include "Entity.h"
 #include <algorithm>
 #include <cassert>
+#include <concepts>
 #include <functional>
 #include <future>
 #include <memory>
 #include <typeindex>
 #include <vector>
-#include <concepts>
 
 #include "ComponentArray.h"
 #include "Core/Scene.h"
 #include "Core/ThreadPool.h"
-#include "ECSEvents.h"
 #include "ECS/Components/ComponentIndex.h"
+#include "ECSEvents.h"
 
 namespace Mupfel
 {
@@ -173,7 +173,7 @@ inline void Registry::ParallelForEach(F&& function)
 		return;
 	}
 
-	const uint32_t								  chunk = (total + num_threads - 1) / num_threads;
+	const uint32_t				   chunk = (total + num_threads - 1) / num_threads;
 	std::vector<std::future<void>> jobs;
 	jobs.reserve(num_threads);
 
@@ -193,11 +193,10 @@ inline void Registry::ParallelForEach(F&& function)
 		jobs.push_back(pool.Enqueue(
 			[this, begin, end, function, &dense, required, required_scene, arrays]() mutable -> void
 			{
-
 				for (size_t i = begin; i < end; ++i)
 				{
-					Entity		e{dense[i]};
-					const auto& sig = GetSignature(e);
+					Entity				   e{dense[i]};
+					const auto&			   sig = GetSignature(e);
 					const Scene::SceneMask scene_mask = GetSceneMask(e);
 
 					/* check if the entity has all the needed components */
@@ -207,12 +206,7 @@ inline void Registry::ParallelForEach(F&& function)
 					/* Call given function on the entity */
 					// bool entity_changed = function(e, GetComponent<Components>(e)...);
 
-					std::apply(
-						[&](auto*... arr)
-						{
-							function(e, arr->Get(e)...);
-						},
-						arrays);
+					std::apply([&](auto*... arr) { function(e, arr->Get(e)...); }, arrays);
 				}
 			}));
 	}
@@ -234,12 +228,11 @@ inline void Registry::ParallelForEach(F&& function)
 				first = std::current_exception();
 			}
 		}
-
-		/* If user code caused an exception, throw it now. */
-		if (first)
-		{
-			std::rethrow_exception(first);
-		}
+	}
+	/* If user code caused an exception, throw it now. */
+	if (first)
+	{
+		std::rethrow_exception(first);
 	}
 }
 

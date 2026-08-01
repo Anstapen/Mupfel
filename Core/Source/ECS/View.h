@@ -2,133 +2,144 @@
 #include "Components/ComponentIndex.h"
 #include "Entity.h"
 #include "Registry.h"
-#include <functional>
+
+#include <cstddef>
+#include <iterator>
+#include <ranges>
 #include <tuple>
 
 namespace Mupfel
 {
 
 /**
- * Iterable range over every entity in `reg` that has all of `Components...`, yielding
- * `std::tuple<Entity, Components&...>` (usable with structured bindings, e.g.
- * `for (auto [e, transform, texture] : registry.view<Transform, Texture>())`).
- *
- * Iterates the dense array of the first component type in `Components...` and filters by
- * signature, so it's cheapest when that first type is the rarest of the requested components.
+ * This class can be used to iterate over entities that share a specific set of
+ * components. In the current implementation, the view internally iterates over
+ * entities which have the FirstComponent and check if the other components are
+ * present for that entity.
  */
-template <typename FirstComponent, typename... Components> class View
+template <typename FirstComponent, typename... Components>
+class View : public std::ranges::view_interface<View<FirstComponent, Components...>>
 {
 public:
-	/** The first requested component type; its dense array drives iteration. */
+	/**
+	 * The first requested component type. The view always iterates over all components.
+	 * of this type.
+	 */
 	using BaseComponent = FirstComponent;
 
 	/**
-	 * Computes the combined signature for `Components...` up front so each iterator step is a cheap
-	 * bitmask compare.
+	 * The Iterator class used for a range based iteration.
 	 */
-	explicit View(Registry& in_reg) : reg(in_reg)
-	{
-		required_signature = Registry::ComponentSignature<FirstComponent, Components...>();
-		required_scene = reg.GetActiveSceneMask();
-	}
-
-	/** Forward iterator over `BaseComponent`'s dense array, skipping entities missing any of `Components...`. */
 	struct Iterator
 	{
-		/** The registry being iterated. */
-		Registry& registry;
-		/** Current slot in `BaseComponent`'s dense array. */
-		size_t index;
-		/** Combined signature every yielded entity must satisfy. */
-		Entity::Signature required_signature;
+		/** The type of tuple that the user will get. */
+		using value_type = std::tuple<Entity, FirstComponent&, Components&...>;
+		using difference_type = std::ptrdiff_t;
+        using iterator_concept = std::forward_iterator_tag;
 
-		Scene::SceneMask required_scene;
-		/** Cached component array of first component. */
-		ComponentArray<BaseComponent>&			   base_component_array;
-		std::tuple<ComponentArray<Components>*...> component_arrays;
+		Iterator() = default;
 
-		/** Starts at slot `idx` and immediately skips forward past any entity missing a required component. */
-		Iterator(
-			Registry&								   reg,
-			Entity::Signature						   req,
-			Scene::SceneMask						   in_req_scene,
-			size_t									   idx,
-			ComponentArray<BaseComponent>&			   in_base_component_array,
-			std::tuple<ComponentArray<Components>*...> in_component_arrays)
-			: registry(reg), index(idx), required_signature(req), required_scene(in_req_scene),
-			  base_component_array(in_base_component_array), component_arrays(in_component_arrays)
+		/** Constructor for the iterator. */
+		Iterator(const View& in_view, size_t start) : view(&in_view), index(start) { SkipInvalid(); }
+
+		/** Dereference operator. Returns a tuple of the entity and references to its components. */
+		value_type operator*() const
 		{
-			SkipInvalid();
+			const Entity e{view->base_component_array->dense[index]};
+
+			return value_type(
+				e, view->base_component_array->components[index],
+				std::get<ComponentArray<Components>*>(view->component_arrays)->Get(e)...);
 		}
 
-		/** Advances `index` until it points at an entity satisfying `required_signature`, or past the end. */
+		/** Pre-increment operator. Returns the incremented iterator. */
+		Iterator& operator++()
+		{
+			++index;
+			SkipInvalid();
+			return *this;
+		}
+
+		/** Post increment operator. Returns the not-incremented iterator. */
+		Iterator operator++(int)
+		{
+			Iterator previous = *this;
+			++*this;
+			return previous;
+		}
+
+		/**
+		 * The comparison with the sentinel ("end iterator").
+		 * This comparison is true (i.e. the exit condition for the iteration is hit)
+		 * when the index hits the end of the base component array.
+		 */
+		bool operator==(std::default_sentinel_t) const { return index >= view->base_component_array->Size(); }
+
+		/**
+		 * Comparison with another Iterator.
+		 */
+		bool operator==(const Iterator& other) const { return index == other.index; }
+
+	private:
+		/** Advances index until it points at an entity satisfying required_signature, or past the end. */
 		void SkipInvalid()
 		{
-			while (index < base_component_array.Size())
+			while (index < view->base_component_array->Size() &&
+				   !view->Matches(Entity{view->base_component_array->dense[index]}))
 			{
-				Entity			  e{base_component_array.dense[index]};
-				Entity::Signature sig = registry.GetSignature(e);
-				Scene::SceneMask  scene = registry.GetSceneMask(e);
-
-				if (((sig & required_signature) == required_signature) && ((scene & required_scene) == required_scene))
-					break;
-
 				++index;
 			}
 		}
 
-		/** Whether `o` is at a different slot (used for the `begin() != end()` loop condition). */
-		bool operator!=(const Iterator& o) const { return o.index != base_component_array.Size(); }
-
-		/** Advances to the next matching entity. */
-		void operator++()
-		{
-			++index;
-			SkipInvalid();
-		}
-
-		/** @return `{entity, Components&...}` for the entity at the current slot. */
-		auto operator*()
-		{
-			Entity e{base_component_array.dense[index]};
-
-			return std::apply(
-				[&](auto*... arrays)
-				{
-					return std::tuple<Entity, FirstComponent&, Components&...>(
-						e, base_component_array.components[index], arrays->Get(e)...);
-				},
-				component_arrays);
-		}
+		/** Pointer to the view that created the iterator. */
+		const View* view = nullptr;
+		/** Current slot in the iteration. */
+		size_t index = 0;
 	};
 
 public:
-	/** Iterator at the first matching entity (or `end()` if there are none). */
-	Iterator begin()
+	/** Constructuor of a View. It takes a reference to the registry and initializes all
+	 * other members using it.
+	 */
+	explicit View(Registry& in_reg)
+		: reg(&in_reg), required_signature(Registry::ComponentSignature<FirstComponent, Components...>()),
+		  required_scene(in_reg.GetActiveSceneMask()),
+		  base_component_array(&in_reg.GetComponentArray<FirstComponent>()),
+		  component_arrays(&in_reg.GetComponentArray<Components>()...)
+
 	{
-		return Iterator(
-			reg, required_signature, required_scene, 0, reg.GetComponentArray<BaseComponent>(),
-			std::tuple<ComponentArray<Components>*...>(&reg.GetComponentArray<Components>()...));
 	}
 
+	/** Iterator at the first matching entity (or `end()` if there are none). */
+	Iterator begin() const { return Iterator(*this, 0); }
+
 	/**
-	 * @note Recomputes `BaseComponent`'s current size — only stable as long as the array isn't
-	 * mutated during iteration.
+	 * Return a default sentinel. The end condition will be checked dynamically by the iterator.
 	 */
-	Iterator end()
-	{
-		auto& array = reg.GetComponentArray<BaseComponent>();
-		return Iterator(
-			reg, required_signature, required_scene, array.Size(), reg.GetComponentArray<BaseComponent>(),
-			std::tuple<ComponentArray<Components>*...>(&reg.GetComponentArray<Components>()...));
-	}
+	std::default_sentinel_t end() const { return std::default_sentinel; }
+
+private:
+	bool Matches(Entity e) const;
 
 private:
 	/** The registry this view iterates. */
-	Registry& reg;
-	/** Combined signature bit for each of `Components...`. */
-	Entity::Signature required_signature = 0;
-	Scene::SceneMask  required_scene = 0;
+	Registry* reg = nullptr;
+	/** Combined signature mask. */
+	Entity::Signature required_signature{};
+	/**  Scene mask. */
+	Scene::SceneMask						   required_scene{};
+	ComponentArray<FirstComponent>*			   base_component_array = nullptr;
+	std::tuple<ComponentArray<Components>*...> component_arrays{};
 };
+
+template <typename FirstComponent, typename... Components>
+inline bool View<FirstComponent, Components...>::Matches(Entity e) const
+{
+	/* retrieve scene and signature from the entity. */
+	const Entity::Signature sig = reg->GetSignature(e);
+	const Scene::SceneMask	scene = reg->GetSceneMask(e);
+
+	return ((sig & required_signature) == required_signature) && ((scene & required_scene) == required_scene);
+}
 
 } // namespace Mupfel

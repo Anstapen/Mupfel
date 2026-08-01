@@ -54,7 +54,13 @@ public:
 	T&	 Get(Entity e);
 	void Set(Entity e, T val);
 
-	/** @warning Asserts `e` does not already have a component of this type. */
+	/**
+	 * Inserts a new component for the given entity.
+	 * If the entity already has a component of this type, it is overridden.
+	 * 
+	 * \param e The entity to insert the component for.
+	 * \param component The component to insert.
+	 */
 	void Insert(Entity e, T component);
 
 private:
@@ -138,7 +144,10 @@ template <ComponentType T> inline bool ComponentArray<T>::Has(Entity e) const
 
 template <ComponentType T> inline size_t ComponentArray<T>::ComponentID() const { return ComponentIndex::Index<T>(); }
 
-template <ComponentType T> inline std::span<const uint32_t> ComponentArray<T>::GetDense() { return dense.data(); }
+template <ComponentType T> inline std::span<const uint32_t> ComponentArray<T>::GetDense()
+{
+	return {dense.data(), dense.size()};
+}
 
 template <ComponentType T> inline uint32_t ComponentArray<T>::Size() const
 {
