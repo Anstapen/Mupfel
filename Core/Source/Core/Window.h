@@ -65,6 +65,11 @@ private:
 	 */
 	virtual ~Window();
 
+	Window(const Window&) = delete;
+	Window& operator=(const Window&) = delete;
+	Window(Window&&) = delete;
+	Window& operator=(Window&&) = delete;
+
 	/**
 	 * @brief Returns the global Window instance.
 	 * @return Reference to the singleton Window object.
@@ -153,6 +158,6 @@ private:
 	int current_pos_y = 0;
 
 	/** Owning GLFW window handle. */
-	GLFWwindow* window;
+	GLFWwindow* window = nullptr;
 };
 } // namespace Mupfel

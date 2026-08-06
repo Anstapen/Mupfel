@@ -130,5 +130,6 @@ uint32_t Mupfel::Profiler::GetId()
 void Mupfel::Profiler::AddSample(ProfilingSample&& sample)
 {
 	std::scoped_lock lock(mutex);
+	sample.active = false;
 	samples.push_back(std::move(sample));
 }

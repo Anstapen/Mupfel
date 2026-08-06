@@ -200,11 +200,14 @@ public:
 
 	template <typename T>
 		requires SceneType<T>
-	static [[nodiscard]] SceneHandle CreateScene(const std::string& name, const std::string& path = {});
+	static [[nodiscard]] SceneHandle
+	CreateScene(const std::string& name, const std::string& path = {}, Camera cam = {});
 
 	static void QueueSceneSwitch(SceneHandle handle);
 
 	static SceneHandle GetCurrentSceneHandle();
+
+	static Camera& GetCurrentSceneCamera();
 
 private:
 	/**
@@ -312,7 +315,7 @@ private:
 	/** @brief The debug rendering layer used for profiling and visualization. */
 	DebugLayer debug_layer;
 
-	/** @brief Timestamp of the current frame�s start time. */
+	/** @brief Timestamp of the current frame's start time. */
 	double start_frame_time = 0.0;
 
 	/** @brief Duration of the most recently completed frame (in seconds). */
@@ -334,7 +337,7 @@ template <typename T> inline void Application::SetConfigEntry(const std::string 
 
 template <typename T>
 	requires SceneType<T>
-inline SceneHandle Application::CreateScene(const std::string& name, const std::string& path)
+inline SceneHandle Application::CreateScene(const std::string& name, const std::string& path, Camera cam)
 {
 	auto& app = Get();
 	/* Check if there is space for another scene. */
@@ -343,9 +346,13 @@ inline SceneHandle Application::CreateScene(const std::string& name, const std::
 		return Scene::INVALID_HANDLE;
 	}
 	uint32_t handle = app.next_free_handle;
+
+	app.scenes[handle] = std::move(std::make_unique<T>(handle, name, cam));
+
 	app.next_free_handle++;
 
-	app.scenes[handle] = std::move(std::make_unique<T>(handle, name));
+	/* Switch scenes now. */
+	SwitchScene(handle);
 
 	app.scenes[handle]->Deserialize(path);
 	app.scenes[handle]->OnInit();

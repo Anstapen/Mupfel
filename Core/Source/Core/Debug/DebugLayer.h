@@ -11,6 +11,7 @@ namespace Mupfel {
 		void OnRender() override;
 	private:
 		void DrawPerformanceMetrics();
+		void DrawCameraControls();
 	private:
 		static const uint32_t anchor_x = 10;
 		static const uint32_t anchor_y = 70;

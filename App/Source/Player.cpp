@@ -32,16 +32,16 @@ void Player::Init()
 					  "Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4})
 					  .transform([this](ImageHandle handle) { this->image_map["Vampire"] = handle; });
 
-	animations["idle_front"] = {0, 4, 4.0f};
-	animations["idle_back"] = {4, 4, 4.0f};
-	animations["idle_left"] = {8, 4, 4.0f};
-	animations["idle_right"] = {12, 4, 4.0f};
+	animations["idle_front"] = {0, 4, 1.0f};
+	animations["idle_back"] = {4, 4, 1.0f};
+	animations["idle_left"] = {8, 4, 1.0f};
+	animations["idle_right"] = {12, 4, 1.0f};
 
 	auto& registry = Application::GetCurrentRegistry();
 
 	e = registry.CreateEntity();
 	Transform p;
-	p.pos_y = 2.0f;
+	p.pos_z = 0.1f;
 	p.scale_x = 5.0f;
 	p.scale_y = 5.0f;
 	registry.AddComponent<Transform>(e, p);
@@ -132,18 +132,18 @@ void Player::UpdateMovement(double timestep)
 
 	if (moving_right)
 	{
-		t.pos_x += 10.0f * timestep;
+		t.pos_x += 2.0f * timestep;
 	}
 	if (moving_left)
 	{
-		t.pos_x -= 10.0f * timestep;
+		t.pos_x -= 2.0f * timestep;
 	}
 	if (moving_up)
 	{
-		t.pos_y -= 10.0f * timestep;
+		t.pos_y -= 2.0f * timestep;
 	}
 	if (moving_down)
 	{
-		t.pos_y += 10.0f * timestep;
+		t.pos_y += 2.0f * timestep;
 	}
 }

@@ -42,6 +42,11 @@ void Mupfel::Application::QueueSceneSwitch(SceneHandle handle)
 
 SceneHandle Mupfel::Application::GetCurrentSceneHandle() { return Get().current_scene; }
 
+Camera& Mupfel::Application::GetCurrentSceneCamera()
+{
+	return Get().scenes[Get().current_scene]->camera;
+}
+
 Application::Application()
 	: window(Window::GetInstance()), evt_system(), input_manager(evt_system),
 	  thread_pool(std::thread::hardware_concurrency()), registry(evt_system, thread_pool),
@@ -72,7 +77,11 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	WindowSpecification window_spec;
 	window_spec.title = app.spec.name;
 
-	Window::GetInstance().Init(window_spec);
+	if (!Window::GetInstance().Init(window_spec))
+	{
+		logger->error("Window Initialization failed!");
+		return false;
+	}
 
 	if (!Ping::Init())
 	{
@@ -262,7 +271,7 @@ void Application::Run()
 			queued_scene = Scene::INVALID_HANDLE;
 		}
 
-		scenes[current_scene]->OnUpdate();
+		scenes[current_scene]->OnUpdate(timestep);
 
 		{
 			ProfilingSample prof("Layers - OnUpdate ");
@@ -308,8 +317,8 @@ void Application::Run()
 			{
 				/* Make sure the debug Layer is Rendered last */
 				debug_layer.OnRender();
-				Profiler::Clear();
 			}
+			Profiler::Clear();
 		}
 
 		{

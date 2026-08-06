@@ -13,8 +13,8 @@ struct Animation
 
 	Animation() = default;
 
-	Animation(uint32_t in_first_frame, uint32_t in_frame_count, float in_fps)
-		: firstFrame(in_first_frame), frameCount(in_frame_count), fps(in_fps)
+	Animation(uint32_t in_first_frame, uint32_t in_frame_count, float in_fps, float elapsed_time = 0.0f)
+		: firstFrame(in_first_frame), frameCount(in_frame_count), fps(in_fps), elapsed(elapsed_time)
 	{
 	}
 

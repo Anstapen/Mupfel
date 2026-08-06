@@ -110,7 +110,7 @@ public:
 	{
 	}
 
-	/** Iterator at the first matching entity (or `end()` if there are none). */
+	/** The starting iterator. */
 	Iterator begin() const { return Iterator(*this, 0); }
 
 	/**
@@ -119,8 +119,14 @@ public:
 	std::default_sentinel_t end() const { return std::default_sentinel; }
 
 private:
+	/**
+	 * Predicate stating whether or not the given entity has the wanted components AND
+	 * is part of the current scene.
+	 * 
+	 * \param e The entity to check.
+	 * \return True if the entity is part of the current scene AND has the wanted components, FALSE otherwise.
+	 */
 	bool Matches(Entity e) const;
-
 private:
 	/** The registry this view iterates. */
 	Registry* reg = nullptr;
@@ -128,7 +134,14 @@ private:
 	Entity::Signature required_signature{};
 	/**  Scene mask. */
 	Scene::SceneMask						   required_scene{};
+	/**
+	 * The component array of the first provided component type.
+	 * Currently, this component array is iterated and the contained entities
+	 * are checked for the other components.
+	 */
 	ComponentArray<FirstComponent>*			   base_component_array = nullptr;
+
+	/** Component arrays of the other component types. */
 	std::tuple<ComponentArray<Components>*...> component_arrays{};
 };
 

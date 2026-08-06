@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <thread>
 #include <vector>
 #include <queue>
@@ -6,6 +7,8 @@
 #include <future>
 #include <memory>
 #include <functional>
+#include <stdexcept>
+#include <concepts>
 
 namespace Mupfel {
 
@@ -36,7 +39,7 @@ namespace Mupfel {
 		 *
 		 * Each thread continuously waits for available tasks in the task queue.
 		 */
-		explicit ThreadPool(size_t num_threads = std::thread::hardware_concurrency());
+		explicit ThreadPool(size_t num_threads = std::max<size_t>(1, std::thread::hardware_concurrency()));
 
 		/**
 		 * @brief Destructor. Gracefully shuts down the pool.
@@ -71,6 +74,7 @@ namespace Mupfel {
 		 * @note This function is thread-safe and may be called from multiple threads concurrently.
 		 */
 		template<typename F, typename... Args>
+			requires std::invocable<F, Args...>
 		auto Enqueue(F&& function, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>>;
 
 	private:
@@ -97,6 +101,7 @@ namespace Mupfel {
 	 * and returns a std::future representing the result.
 	 */
 	template<typename F, typename... Args>
+		requires std::invocable<F, Args...>
 	inline auto ThreadPool::Enqueue(F&& function, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>>
 	{
 		using ReturnType = std::invoke_result_t<F, Args...>;
@@ -110,6 +115,10 @@ namespace Mupfel {
 
 		{
 			std::unique_lock<std::mutex> lock(q_mutex);
+			if (stop)
+			{
+				throw std::runtime_error("ThreadPool::Enqueue called after shutdown");
+			}
 			tasks.emplace([task]() { (*task)(); });
 		}
 

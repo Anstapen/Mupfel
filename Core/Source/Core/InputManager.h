@@ -267,8 +267,8 @@ public:
 
 struct Binding
 {
-	KeyAction									 actionMask;
-	std::function<void(EventSystem&)> emitter;
+	KeyAction						  actionMask = KeyAction::NONE;
+	std::function<void(EventSystem&)> emitter = nullptr;
 };
 
 /**
@@ -328,7 +328,7 @@ public:
 	 * \param prototype The event object that should be emitted.
 	 */
 	template <typename T>
-		requires std::derived_from<T, Event>
+		requires std::derived_from<T, Event> && std::copy_constructible<T>
 	void MapKeyboardButton(Key key, KeyAction in_action_mask, T prototype);
 
 	/**
@@ -341,7 +341,7 @@ public:
 	 * \param prototype The event object that should be emitted.
 	 */
 	template <typename T>
-		requires std::derived_from<T, Event>
+		requires std::derived_from<T, Event> && std::copy_constructible<T>
 	void MapMouseButton(MouseButton button, KeyAction in_action_mask, T prototype);
 
 	/**
@@ -354,7 +354,7 @@ public:
 	 * \param prototype The event object that should be emitted.
 	 */
 	template <typename T>
-		requires std::derived_from<T, Event>
+		requires std::derived_from<T, Event> && std::copy_constructible<T>
 	void MapGamepadButton(GamepadButton button, KeyAction in_action_mask, T prototype);
 
 protected:
@@ -398,12 +398,12 @@ private:
 	/** @brief Mapping of gamepad buttons to input events. */
 	std::array<Binding, 32> gamepad_map;
 
-	double current_mouse_pos_x;
-	double current_mouse_pos_y;
+	double current_mouse_pos_x = 0.0f;
+	double current_mouse_pos_y = 0.0f;
 };
 
 template <typename T>
-	requires std::derived_from<T, Event>
+	requires std::derived_from<T, Event> && std::copy_constructible<T>
 inline void InputManager::MapKeyboardButton(Key key, KeyAction in_action_mask, T prototype)
 {
 	const auto idx = static_cast<size_t>(key);
@@ -416,7 +416,7 @@ inline void InputManager::MapKeyboardButton(Key key, KeyAction in_action_mask, T
 }
 
 template <typename T>
-	requires std::derived_from<T, Event>
+	requires std::derived_from<T, Event> && std::copy_constructible<T>
 inline void InputManager::MapMouseButton(MouseButton button, KeyAction in_action_mask, T prototype)
 {
 	const auto idx = static_cast<size_t>(button);
@@ -429,7 +429,7 @@ inline void InputManager::MapMouseButton(MouseButton button, KeyAction in_action
 }
 
 template <typename T>
-	requires std::derived_from<T, Event>
+	requires std::derived_from<T, Event> && std::copy_constructible<T>
 inline void InputManager::MapGamepadButton(GamepadButton button, KeyAction in_action_mask, T prototype)
 {
 	const auto idx = static_cast<size_t>(button);

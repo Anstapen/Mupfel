@@ -68,22 +68,11 @@ void ConfigManager::FindExistingEntries(const std::vector<std::string>& config)
 
 	for (const auto& entry : config)
 	{
-		std::string key;
-		std::string value;
-		size_t		pos = entry.find('=');
-
+		size_t pos = entry.find('=');
 		if (pos == std::string::npos)
-		{
-			/* configuration entry was not valid */
 			continue;
-		}
-
-		key = entry.substr(0, pos);
-		value = entry.substr(pos + 1, std::string::npos);
-
-		if (!configEntries.contains(key))
-		{
-			configEntries[key] = value;
-		}
+		std::string key = entry.substr(0, pos);
+		std::string value = entry.substr(pos + 1, std::string::npos);
+		configEntries[key] = value; // file contents should win on (re)load
 	}
 }

@@ -1,16 +1,22 @@
 #pragma once
 #include "Core/Scene.h"
 #include "Core/Event.h"
-
-
+#include <unordered_map>
+#include <string>
+#include "Renderer/ImageManager.h"
+#include "Player.h"
+#include "Core/Application.h"
 
 class Level : public Mupfel::Scene
 {
 public:
-	Level(Mupfel::SceneHandle in_handle, const std::string& name) : Mupfel::Scene(in_handle, name) {}
+	Level(Mupfel::SceneHandle in_handle, const std::string& name, Mupfel::Camera cam = {})
+		: Mupfel::Scene(in_handle, name, cam), player(Mupfel::Application::GetCurrentRegistry())
+	{
+	}
 
 	void OnInit() final;
-	void OnUpdate() final;
+	void OnUpdate(double timestep) final;
 	void OnRender() final;
 	void OnSwitchIn() final;
 	void OnSwitchOut() final;
@@ -18,4 +24,8 @@ public:
 private:
 	void Serialize(const std::string& path) final;
 	void Deserialize(const std::string& path) final;
+
+private:
+	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
+	Player												 player;
 };

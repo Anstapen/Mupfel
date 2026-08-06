@@ -1,15 +1,23 @@
 #pragma once
+#include <concepts>
 #include <cstdint>
+#include <iomanip>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <iomanip>
-#include <limits>
 
 namespace Mupfel
 {
+
+template <typename T>
+concept ConfigValue = std::default_initializable<T> && requires(std::stringstream& ss, T& t, const T& ct) {
+	{ ss << ct } -> std::same_as<std::ostream&>;
+	{ ss >> t } -> std::same_as<std::istream&>;
+};
+
 class ConfigManager
 {
 public:
@@ -38,7 +46,7 @@ public:
 	 * @param key The name of the configuration entry.
 	 * @param value The value of the configuration entry.
 	 */
-	template <typename T> void Set(const std::string key, T value);
+	template <ConfigValue T> void Set(const std::string key, T value);
 
 	/**
 	 * @brief Retrieve the configuration value indicated by \a key.
@@ -52,7 +60,7 @@ public:
 	 * @return std::optional<T> The entry, converted to \a T, if present,
 	 *         std::nullopt otherwise.
 	 */
-	template <typename T> std::optional<T> Get(const std::string key);
+	template <ConfigValue T> std::optional<T> Get(const std::string key);
 
 private:
 	/**
@@ -89,19 +97,25 @@ private:
 	std::unordered_map<std::string, std::string> configEntries;
 };
 
-template <typename T> inline void ConfigManager::Set(const std::string key, T value)
+template <ConfigValue T> inline void ConfigManager::Set(const std::string key, T value)
 {
 	std::stringstream ss;
 	if constexpr (std::is_floating_point_v<T>)
 	{
 		ss << std::setprecision(std::numeric_limits<T>::max_digits10);
 	}
-	ss << value;
-
+	if constexpr (std::is_integral_v<T> && sizeof(T) == 1)
+	{
+		ss << static_cast<int>(value);
+	}
+	else
+	{
+		ss << value;
+	}
 	configEntries[key] = ss.str();
 }
 
-template <typename T> inline std::optional<T> ConfigManager::Get(const std::string key)
+template <ConfigValue T> inline std::optional<T> ConfigManager::Get(const std::string key)
 {
 	auto it = configEntries.find(key);
 	if (it == configEntries.end())
@@ -109,12 +123,19 @@ template <typename T> inline std::optional<T> ConfigManager::Get(const std::stri
 		return std::nullopt;
 	}
 
-	std::stringstream ss{it->second};
-	T				  t{}; // value-init, not default-init
-	if (!(ss >> t))
+	if constexpr (std::is_same_v<T, std::string>)
 	{
-		return std::nullopt;
+		return it->second;
 	}
-	return t;
+	else
+	{
+		std::stringstream ss{it->second};
+		T				  t{};
+		if (!(ss >> t))
+		{
+			return std::nullopt;
+		}
+		return t;
+	}
 }
 } // namespace Mupfel

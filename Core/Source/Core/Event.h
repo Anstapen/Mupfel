@@ -19,20 +19,22 @@ namespace Mupfel {
 		 */
 		virtual ~Event() = default;
 
+		Event();
+
 		/**
 		 * @brief Returns the event timestamp.
 		 * @return event timestamp.
 		 */
-		float GetTimeStamp() const;
+		double GetTimeStamp() const;
 	protected:
 		/**
 		 * @brief Timestamp of the Event.
 		 */
-		float ts= 0.0f;
+		double ts;
 	};
 
 	/* This concept combines all type-related constraints for the child classes of Event. */
 	template <typename T>
-	concept EventType = std::derived_from<T, Event> && std::move_constructible<T>;
+	concept EventType = std::derived_from<T, Event> && std::copy_constructible<T>;
 
 }

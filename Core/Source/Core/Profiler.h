@@ -165,7 +165,7 @@ namespace Mupfel {
 
 	private:
 		/** @brief Flag indicating whether the Profiler is currently being cleared. */
-		bool is_clearing = false;
+		std::atomic<bool> is_clearing = false;
 
 		/** @brief Mutex to ensure thread-safe access to the sample list. */
 		std::mutex mutex;

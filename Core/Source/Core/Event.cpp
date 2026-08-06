@@ -1,8 +1,10 @@
 #include "Event.h"
+#include "Application.h"
 
 using namespace Mupfel;
 
-float Event::GetTimeStamp() const
-{
+Mupfel::Event::Event() : ts(Application::GetTime()) {}
+
+double Event::GetTimeStamp() const {
 	return ts;
 }

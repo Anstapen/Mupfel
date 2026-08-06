@@ -52,15 +52,15 @@ struct TextureInstance
 	float	 pos_x = 0.0f;
 	float	 pos_y = 0.0f;
 	float	 pos_z = 0.0f;
-	float	 tilt = 0.0f;
+	float	 _pad0;
 	float	 scale_x = 1.0f;
 	float	 scale_y = 1.0f;
 	float	 rotation = 0.0f;
 	uint32_t index = 1;
-	uint32_t isBillboard = 1;
 	float	 uvScale = 1.0f;
 	uint32_t emitsLight = 0;
 	uint32_t frame = 0;
+	float	 _pad1;
 };
 
 struct LightInstance
@@ -83,10 +83,8 @@ static const uint32_t default_entity_capacity = 100000;
 static const uint32_t default_light_capacity = 100;
 
 /* TODO: encapsulate this in separate Camera class! */
-static float	 cameraYaw = glm::radians(-90.0f);
-static float	 cameraPitch = glm::radians(45.0f);
-static float	 cameraDistance = 25.0f;
-static glm::vec3 cameraTarget = glm::vec3(0.0f);
+//static float	 cameraYaw = glm::radians(-135.0f);
+//static float	 cameraPitch = glm::radians(30.0f);
 
 Mupfel::ECSRenderer::ECSRenderer(uint32_t frames_in_flight) : SubRenderer(frames_in_flight) {}
 
@@ -197,10 +195,10 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 	}
 
 	samplers.push_back(device.CreateSampler(
-		{.filterMode = Ping::SamplerFilterMode::Linear,
-		 .mipmapMode = Ping::SamplerMipMapMode::Linear,
-		 .addressMode = Ping::SamplerAddressMode::Repeat,
-		 .anisotropyEnable = true}));
+		{.filterMode = Ping::SamplerFilterMode::Nearest,
+		 .mipmapMode = Ping::SamplerMipMapMode::Nearest,
+		 .addressMode = Ping::SamplerAddressMode::ClampToEdge,
+		 .anisotropyEnable = false}));
 
 	transformDescriptorSets =
 		device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, textureInstanceBuffers);
@@ -346,13 +344,11 @@ void Mupfel::ECSRenderer::SyncRenderableObjects(const Ping::Device& device, uint
 	for (auto [e, texture, transform] : registry.view<Mupfel::Texture, Mupfel::Transform>())
 	{
 		buffer[buffer_index].index = texture.index;
-		buffer[buffer_index].isBillboard = texture.billboard ? 1u : 0u;
 		buffer[buffer_index].uvScale = texture.uvScale;
 		buffer[buffer_index].pos_x = transform.pos_x;
 		buffer[buffer_index].pos_y = transform.pos_y;
 		buffer[buffer_index].pos_z = transform.pos_z;
 		buffer[buffer_index].rotation = transform.rotation;
-		buffer[buffer_index].tilt = transform.tilt;
 		buffer[buffer_index].scale_x = transform.scale_x;
 		buffer[buffer_index].scale_y = transform.scale_y;
 
@@ -410,18 +406,26 @@ void Mupfel::ECSRenderer::UpdateMVP(Ping::Buffer& uniform_buffer)
 {
 	int32_t width = Application::GetCurrentRenderWidth();
 	int32_t height = Application::GetCurrentRenderHeight();
+	Camera	cam = Application::GetCurrentSceneCamera();
+
+	glm::vec3 cameraTarget = glm::vec3(cam.target_x, cam.target_y, cam.target_z);
+
 
 	glm::vec3 eye =
-		cameraTarget + cameraDistance * glm::vec3(
-											glm::cos(cameraPitch) * glm::cos(cameraYaw),
-											glm::cos(cameraPitch) * glm::sin(cameraYaw), glm::sin(cameraPitch));
+		cameraTarget + cam.distance * glm::vec3(
+											glm::cos(cam.pitch) * glm::cos(cam.yaw),
+														glm::cos(cam.pitch) * glm::sin(cam.yaw), glm::sin(cam.pitch));
 
 	UniformBufferObject ubo{};
 	ubo.view = lookAt(eye, cameraTarget, glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj =
-		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 500.0f);
+	const float aspect = static_cast<float>(width) / static_cast<float>(height);
+	const float half_height = cam.distance * glm::tan(glm::radians(45.0f) * 0.5f);
+	const float half_width = half_height * aspect;
+
+	ubo.proj = glm::ortho(-half_width, half_width, -half_height, half_height, 0.1f, 500.0f);
+
 	ubo.proj[1][1] *= -1;
-	ubo.cameraRight = glm::vec4(-glm::sin(cameraYaw), glm::cos(cameraYaw), 0.0f, 0.0f);
+	ubo.cameraRight = glm::vec4(-glm::sin(cam.yaw), glm::cos(cam.yaw), 0.0f, 0.0f);
 	ubo.cameraPos = glm::vec4(eye, 1.0f);
 	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
 }

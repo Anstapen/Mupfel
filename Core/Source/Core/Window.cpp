@@ -82,20 +82,38 @@ bool Window::Init(const WindowSpecification& spec)
 
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+	if (spec.isResizeable)
+	{
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+	}
+	
 	glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
 
 	GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
 
+	if (!primary_monitor)
+	{
+		glfwTerminate();
+		return false;
+	}
+
 	const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
 
+	if (!mode)
+	{
+		glfwTerminate();
+		return false;
+	}
+
 	this->window = glfwCreateWindow(mode->width, mode->height, window_name.c_str(), nullptr, nullptr);
-	glfwSetWindowUserPointer(window, this);
+	
 	if (!this->window)
 	{
 		return false;
 	}
 
+	glfwSetWindowUserPointer(window, this);
 	glfwGetWindowPos(window, &current_pos_x, &current_pos_y);
 	glfwSetWindowPos(window, 0, current_pos_y);
 	glfwGetWindowSize(window, &current_width, &current_height);

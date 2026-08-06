@@ -2,7 +2,7 @@
 
 void Mupfel::DefaultScene::OnInit() {}
 
-void Mupfel::DefaultScene::OnUpdate() {}
+void Mupfel::DefaultScene::OnUpdate(double timestep) {}
 
 void Mupfel::DefaultScene::OnRender() {}
 

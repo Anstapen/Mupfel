@@ -111,7 +111,7 @@ namespace Mupfel {
 		 */
 		template<typename T>
 			requires EventType<T>
-		void RegisterListener(std::function<void(const T&)> callback);
+		void RegisterListener(std::move_only_function<void(const T&)> callback);
 
 		/**
 		 * @brief Retrieve the ID for the given Event type.
@@ -181,7 +181,7 @@ namespace Mupfel {
 		/**
 		 * @brief The type of callback that can be registered for event.
 		 */
-		using EventCallback = std::function<void(const Event&)>;
+		using EventCallback = std::move_only_function<void(const Event&)>;
 
 		/**
 		 * @brief A map of callbacks for all given events.
@@ -216,19 +216,25 @@ namespace Mupfel {
 		requires EventType<T>
 	inline void EventSystem::AddImmediateEvent(T&& event)
 	{
-		AddEvent<T>(std::move(event));
+		
 		size_t evt_index = EventIndex<T>();
 
 		auto it = listeners.find(evt_index);
 
 		if (it != listeners.end())
 		{
-			/* Using an explicit for loop here, i case the user decides to call RegisterListener() inside a listener. */
-			for (uint32_t i = 0; i < it->second.size(); i++)
+			/*
+			 * Save a reference to the callbacks, because the unordered_map (listeners) may be rebuilt,
+			 * if one of the callbacks decides to register a listener for a brand-new event, invalidating
+			 * the map iterator "it".
+			 */
+			std::vector<EventCallback> &callbacks_to_run = it->second;
+			for (uint32_t i = 0; i < callbacks_to_run.size(); i++)
 			{
-				it->second[i](event);
+				callbacks_to_run[i](event);
 			}
 		}
+		AddEvent<T>(std::move(event));
 	}
 
 	template<typename T>
@@ -266,11 +272,11 @@ namespace Mupfel {
 
 	template<typename T>
 		requires EventType<T>
-	inline void EventSystem::RegisterListener(std::function<void(const T&)> callback)
+	inline void EventSystem::RegisterListener(std::move_only_function<void(const T&)> callback)
 	{
 		size_t index = EventIndex<T>();
 		listeners[index].push_back(
-			[cb = std::move(callback)](const Event& evt) {
+			[cb = std::move(callback)](const Event& evt) mutable {
 				cb(static_cast<const T&>(evt));
 			}
 		);

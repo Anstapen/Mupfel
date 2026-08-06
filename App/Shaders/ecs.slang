@@ -15,14 +15,14 @@ ConstantBuffer<UniformBuffer> ubo;
 
 struct TextureInstance {
     float3 pos;
-    float  tilt;
+    float  _pad0;
     float2 scale;
     float  rotation;
     uint   textureIndex;
-    uint   isBillboard;
     float  uvScale;
     uint   emitsLight;
     uint   frame;
+	float  _pad1;
 };
 [[vk::binding(0, 2)]]
 StructuredBuffer<TextureInstance> texture_instances;
@@ -47,32 +47,10 @@ VSOutput vertMain(VSInput input) {
     float3 worldPos;
     float2 uv = input.inTexCoord;
 
-    if (t.isBillboard != 0)
-    {
-        // Upright (cylindrical) billboard: width runs along the camera's screen-right axis,
-        // height runs straight up (world +Z), with the sprite's base planted at t.pos. The height is
-        // NOT flipped here (local +y -> world +z) so the CCW winding keeps the front face toward the
-        // camera and back-face culling doesn't hide it; the texture is flipped in uv instead to keep
-        // image-up = world-up.
-        float3 right = ubo.cameraRight.xyz;
-        float3 up    = float3(0.0, 0.0, 1.0);
-
-        float halfWidth = input.inPos.x * t.scale.x;         // centered on x, in [-0.5,0.5]*scale
-        float height    = (input.inPos.y + 0.5) * t.scale.y; // 0 at base .. scale.y at top
-
-        worldPos = t.pos + halfWidth * right + height * up;
-        output.worldPos = worldPos;
-        output.worldNormal = normalize(cross(right, up));
-        uv       = input.inTexCoord;
-    }
-    else
-    {
-        // Flat quad lying in the world x/y plane (the ground); tile the texture.
-        worldPos = t.pos + float3(input.inPos * t.scale, 0.0);
-        output.worldPos = worldPos;
-        output.worldNormal = float3(0.0, 0.0, 1.0);
-        uv       = input.inTexCoord * t.uvScale;
-    }
+    worldPos = t.pos + float3(input.inPos * t.scale, 0.0);
+    output.worldPos = worldPos;
+    output.worldNormal = float3(0.0, 0.0, 1.0);
+    uv       = input.inTexCoord * t.uvScale;
 
     output.pos          = mul(ubo.proj, mul(ubo.view, float4(worldPos, 1.0)));
     output.fragTexCoord = uv;

@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 #include <vector>
+#include <concepts>
 
 namespace Mupfel
 {

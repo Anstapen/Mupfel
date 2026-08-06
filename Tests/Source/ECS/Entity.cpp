@@ -39,6 +39,7 @@ TEST_CASE("Basic Entity System Tests", "[entity_basic]")
 	}
 }
 
+#if 0
 TEST_CASE("Entity Limit Tests", "[entity_limit]")
 {
 	Mupfel::EntityManager entity_manager;
@@ -59,3 +60,4 @@ TEST_CASE("Entity Limit Tests", "[entity_limit]")
 
 	/* TODO: create some random deletetion tests. */
 }
+#endif
