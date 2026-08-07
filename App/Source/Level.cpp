@@ -202,9 +202,9 @@ void Level::OnUpdate(double timestep) { player.UpdateMovement(timestep); }
 void Level::OnRender()
 {
 	/* Draw a Button */
-	if (UI::Button(70.0f, 50.0f, 136.0f, 53.0f, "Images/buttons/home.png") == 2)
+	if (UI::Button(70.0f, 50.0f, 136.0f, 53.0f, "Images/buttons/home.png") == 3)
 	{
-		logger->info("Button Press");
+		logger->info("Switching to the Main Menu...");
 		Events::Post<SwitchToMainMenuEvent>({});
 	}
 }

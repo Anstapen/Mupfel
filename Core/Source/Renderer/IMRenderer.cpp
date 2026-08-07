@@ -178,8 +178,13 @@ uint32_t Mupfel::IMRenderer::Button(float x, float y, float width, float height,
 
 	if (hovering)
 	{
-		/* The button is pressed. TODO: this search is linear currently! */
+		/* The button is released. TODO: this search is linear currently! */
 		if (Application::GetCurrentInputManager().CheckUserInput(UserInput::LEFT_MOUSE_CLICK))
+		{
+			image_h = it->second[2];
+			return_value = 3;
+		}
+		else if (Application::GetMouseButton(MouseButton::MOUSE_BUTTON_LEFT) == KeyAction::PRESSED)
 		{
 			image_h = it->second[2];
 			return_value = 2;

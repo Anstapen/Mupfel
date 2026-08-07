@@ -10,8 +10,8 @@ HelloWorldLayer::HelloWorldLayer() {}
 void HelloWorldLayer::OnInit()
 {
 	/* Create a Scene */
-	level = Scenes::Create<Level>("Dungeon");
 	mainMenu = Scenes::Create<MainMenu>("MainMenu");
+	level = Scenes::Create<Level>("Dungeon");
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)

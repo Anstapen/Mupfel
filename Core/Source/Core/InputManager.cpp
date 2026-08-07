@@ -23,7 +23,7 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 	MapKeyboardButton<UserInputEvent>(Key::KEY_F, KeyAction::PRESSED, {UserInput::WINDOW_FULLSCREEN, KeyAction::NONE});
 	MapKeyboardButton<UserInputEvent>(Key::KEY_F1, KeyAction::PRESSED, {UserInput::TOGGLE_DEBUG_MODE, KeyAction::NONE});
 	MapMouseButton<UserInputEvent>(
-		MouseButton::MOUSE_BUTTON_LEFT, KeyAction::PRESSED, {UserInput::LEFT_MOUSE_CLICK, KeyAction::PRESSED});
+		MouseButton::MOUSE_BUTTON_LEFT, KeyAction::RELEASED, {UserInput::LEFT_MOUSE_CLICK, KeyAction::RELEASED});
 }
 
 double Mupfel::InputManager::GetCurrentCursorX() const { return current_mouse_pos_x; }
