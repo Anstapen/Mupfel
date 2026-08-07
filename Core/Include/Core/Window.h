@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include "Input.h"
 
 /* forward declarations */
 struct GLFWwindow;
@@ -33,7 +34,6 @@ struct WindowSpecification
 };
 
 class Application;
-
 class Renderer;
 class DebugRenderer;
 
@@ -112,6 +112,10 @@ private:
 
 	int32_t GetWindowHeight() const;
 
+	KeyAction GetKey(Key k) const;
+
+	KeyAction GetMouseButton(MouseButton b) const;
+
 	/** Processes pending window/input events. Call once per frame from the main loop. */
 	void PollEvents() const;
 
@@ -137,6 +141,7 @@ private:
 
 	static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
 private:
 	/** @brief The current window configuration specification. */

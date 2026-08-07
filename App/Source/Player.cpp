@@ -1,7 +1,4 @@
 #include "Player.h"
-#include "Core/Application.h"
-#include "ECS/Components/Texture.h"
-#include "ECS/Components/Transform.h"
 #include <string_view>
 
 using namespace Mupfel;

@@ -1,49 +1,29 @@
 #include "HelloWorldLayer.h"
-#include "Core/Application.h"
-#include "Core/Event.h"
-#include "Core/Profiler.h"
-#include "ECS/View.h"
-
-#include "EditorLayer.h"
+#include "SceneSwitches.h"
 #include "Level.h"
+#include "MainMenu.h"
 
 using namespace Mupfel;
-
-class SceneChangedEvent : public Mupfel::Event
-{
-public:
-	SceneChangedEvent() {};
-};
 
 HelloWorldLayer::HelloWorldLayer() {}
 
 void HelloWorldLayer::OnInit()
 {
-
 	/* Create a Scene */
-	level = Application::CreateScene<Level>("Dungeon");
-
-	Mupfel::InputManager& input_manager = Mupfel::Application::GetCurrentInputManager();
-	input_manager.MapKeyboardButton<SceneChangedEvent>(Mupfel::Key::KEY_N, Mupfel::KeyAction::PRESSED, {});
-
+	level = Scenes::Create<Level>("Dungeon");
+	mainMenu = Scenes::Create<MainMenu>("MainMenu");
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)
-{
-	
-	Mupfel::EventSystem& evt_system = Mupfel::Application::GetCurrentEventSystem();
-	for (auto& event : evt_system.GetEvents<SceneChangedEvent>())
+{ 
+	/* Check Events */
+	if (Events::Pending<SwitchToMainMenuEvent>() > 0)
 	{
-		/* Switch the scene */
-		if (Application::GetCurrentSceneHandle() == 0)
-		{
-			Mupfel::Application::QueueSceneSwitch(level);
-		}
-		else
-		{
-			Mupfel::Application::QueueSceneSwitch(0);
-		}
-		
+		Scenes::Switch(mainMenu);
+	}
+	else if (Events::Pending<SwitchToLevelEvent>() > 0)
+	{
+		Scenes::Switch(level);
 	}
 }
 

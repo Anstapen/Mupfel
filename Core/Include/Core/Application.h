@@ -1,16 +1,12 @@
 #pragma once
 
 #include "ConfigManager.h"
-#include "Debug/DebugLayer.h"
 #include "ECS/Registry.h"
 #include "EventSystem.h"
 #include "InputManager.h"
 #include "Layer.h"
-#include "Logger/Logger.h"
-#include "Physics/PhysicsSimulation.h"
-#include "Renderer/AnimationSystem.h"
+#include "Logger.h"
 #include "Renderer/ImageManager.h"
-#include "Renderer/Renderer.h"
 #include "Scene.h"
 #include "ThreadPool.h"
 #include "Window.h"
@@ -24,8 +20,15 @@
 namespace Mupfel
 {
 
+/* Forward declarations of engine-internal classes. */
+class DebugLayer;
+class PhysicsSimulation;
+class AnimationSystem;
+class Renderer;
 class ECSRenderer;
 class DebugRenderer;
+class IMRenderer;
+class UI;
 
 /**
  * @brief Defines the specification parameters used to initialize the Application.
@@ -60,6 +63,8 @@ class Application
 	friend class DebugLayer;
 	friend class ECSRenderer;
 	friend class DebugRenderer;
+	friend class IMRenderer;
+	friend class UI;
 
 public:
 	/**
@@ -139,17 +144,12 @@ public:
 	static Registry& GetCurrentRegistry();
 
 	/**
-	 * @brief Provides access to the global Physics Simulation.
-	 */
-	static PhysicsSimulation& GetCurrentPhysicsSim();
-
-	/**
 	 * Load a simple image.
 	 *
 	 * \param path Path to image.
 	 * \return Image Handle or error code.
 	 */
-	static [[nodiscard]] Expected<ImageHandle> LoadBasicImage(const std::string path);
+	[[nodiscard]] static Expected<ImageHandle> LoadBasicImage(const std::string path);
 
 	/**
 	 * Load an image with animations.
@@ -158,7 +158,7 @@ public:
 	 * \param spec image specification.
 	 * \return Image Handle or error code.
 	 */
-	static [[nodiscard]] Expected<ImageHandle>
+	[[nodiscard]] static Expected<ImageHandle>
 	LoadAnimatedImage(const std::string path, const ImageSpecification& spec);
 
 	/**
@@ -168,7 +168,7 @@ public:
 	 * \param spec image specification.
 	 * \return Image Handles or error code.
 	 */
-	static [[nodiscard]] Expected<std::vector<ImageHandle>>
+	[[nodiscard]] static Expected<std::vector<ImageHandle>>
 	LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec);
 
 	template <typename T> static std::optional<T> GetConfigEntry(const std::string key);
@@ -200,7 +200,7 @@ public:
 
 	template <typename T>
 		requires SceneType<T>
-	static [[nodiscard]] SceneHandle
+	[[nodiscard]] static SceneHandle
 	CreateScene(const std::string& name, const std::string& path = {}, Camera cam = {});
 
 	static void QueueSceneSwitch(SceneHandle handle);
@@ -208,6 +208,10 @@ public:
 	static SceneHandle GetCurrentSceneHandle();
 
 	static Camera& GetCurrentSceneCamera();
+
+	static KeyAction GetKey(Key k);
+
+	static KeyAction GetMouseButton(MouseButton b);
 
 private:
 	/**
@@ -281,10 +285,10 @@ private:
 	InputManager input_manager;
 
 	/** RHI interface handle. */
-	std::optional<Ping::Device> gpu;
+	std::unique_ptr<Ping::Device> gpu;
 
 	/** Renders to the screen. */
-	Renderer renderer;
+	std::unique_ptr<Renderer> renderer;
 
 	/** Image Manager. */
 	ImageManager image_manager;
@@ -300,9 +304,9 @@ private:
 	Registry registry;
 
 	/** @brief The global physics simulation system. */
-	PhysicsSimulation physics;
+	std::unique_ptr<PhysicsSimulation> physics;
 
-	AnimationSystem animationSystem;
+	std::unique_ptr<AnimationSystem> animationSystem;
 
 	std::array<std::unique_ptr<Scene>, Scene::MAX_SCENES> scenes;
 
@@ -313,7 +317,7 @@ private:
 	SceneHandle next_free_handle = 0;
 
 	/** @brief The debug rendering layer used for profiling and visualization. */
-	DebugLayer debug_layer;
+	std::unique_ptr<DebugLayer> debug_layer;
 
 	/** @brief Timestamp of the current frame's start time. */
 	double start_frame_time = 0.0;

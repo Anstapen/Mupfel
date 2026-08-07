@@ -1,10 +1,6 @@
 #pragma once
-
-#include "Core/Layer.h"
-#include "Renderer/ImageManager.h"
+#include "Mupfel.h"
 #include <random>
-#include "ECS/Entity.h"
-#include "Core/Scene.h"
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -20,5 +16,6 @@ private:
 
 private:
 	Mupfel::SceneHandle level;
+	Mupfel::SceneHandle mainMenu;
 };
 

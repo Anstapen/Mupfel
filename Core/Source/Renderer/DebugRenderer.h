@@ -2,7 +2,7 @@
 #include "SubRenderer.h"
 #include "Ping/Gui.h"
 #include <optional>
-#include "Logger/Logger.h"
+#include "Logger.h"
 
 
 namespace Mupfel

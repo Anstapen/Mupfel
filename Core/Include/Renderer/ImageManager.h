@@ -25,6 +25,7 @@ namespace Mupfel
 {
 
 class ECSRenderer;
+class IMRenderer;
 
 typedef uint32_t ImageHandle;
 
@@ -47,6 +48,7 @@ struct ImageSpecification
 class ImageManager
 {
 	friend class ECSRenderer;
+	friend class IMRenderer;
 
 public:
 	/**

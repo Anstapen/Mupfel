@@ -1,8 +1,4 @@
-struct VSInput {
-    float2 inPos;
-    float2 inTexCoord;
-    uint instanceIndex : SV_InstanceID;
-};
+#include "quad.slang"
 
 struct UniformBuffer {
     float4x4 view;
@@ -39,18 +35,17 @@ struct VSOutput
 };
 
 [shader("vertex")]
-VSOutput vertMain(VSInput input) {
+VSOutput vertMain(QuadVSInput input) {
     VSOutput output;
 
     TextureInstance t = texture_instances[input.instanceIndex];
 
-    float3 worldPos;
-    float2 uv = input.inTexCoord;
+    float2 offset   = ExpandQuad(input.inPos, t.scale, t.rotation);
+    float3 worldPos = t.pos + float3(offset, 0.0);
 
-    worldPos = t.pos + float3(input.inPos * t.scale, 0.0);
     output.worldPos = worldPos;
     output.worldNormal = float3(0.0, 0.0, 1.0);
-    uv       = input.inTexCoord * t.uvScale;
+    float2 uv       = input.inTexCoord * t.uvScale;
 
     output.pos          = mul(ubo.proj, mul(ubo.view, float4(worldPos, 1.0)));
     output.fragTexCoord = uv;

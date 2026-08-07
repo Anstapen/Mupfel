@@ -1,11 +1,8 @@
 #pragma once
-#include "ECS/Entity.h"
-#include "ECS/Registry.h"
+#include "Mupfel.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
-#include "Renderer/ImageManager.h"
-#include "ECS/Components/Animation.h"
 
 class Player
 {

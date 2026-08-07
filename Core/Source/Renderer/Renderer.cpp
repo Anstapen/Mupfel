@@ -1,9 +1,10 @@
 #include "Renderer.h"
 #include "Ping/Types.h"
 
-#include "ECSRenderer.h"
-#include "DebugRenderer.h"
 #include "Core/Application.h"
+#include "DebugRenderer.h"
+#include "ECSRenderer.h"
+#include "IMRenderer.h"
 
 using namespace Mupfel;
 
@@ -40,6 +41,7 @@ bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	/* Create the SubRenderers */
 	subRenderers.emplace_back(std::move(std::make_unique<ECSRenderer>(frames_in_flight)));
 	subRenderers.emplace_back(std::move(std::make_unique<DebugRenderer>(frames_in_flight)));
+	uiRenderer = std::make_shared<IMRenderer>(frames_in_flight);
 
 	for (uint32_t i = 0; i < subRenderers.size(); i++)
 	{
@@ -47,6 +49,11 @@ bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		{
 			return false;
 		}
+	}
+
+	if (!uiRenderer->Init(device, swapchain.value().GetFormat()))
+	{
+		return false;
 	}
 
 	return true;
@@ -106,6 +113,8 @@ void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, d
 	{
 		subRenderers[i]->PreUser(device, current_command_buffer);
 	}
+
+	uiRenderer->PreUser(device, current_command_buffer);
 }
 
 void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, double delta_time)
@@ -122,6 +131,8 @@ void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, dou
 	{
 		subRenderers[i]->PostUser(device, current_command_buffer);
 	}
+
+	uiRenderer->PostUser(device, current_command_buffer);
 
 	current_command_buffer.EndRendering();
 

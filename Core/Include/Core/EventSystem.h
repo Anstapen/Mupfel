@@ -50,12 +50,6 @@ namespace Mupfel {
 		void Update();
 
 		/**
-		 * @brief Retrieve the number of events that were issued last frame.
-		 * @return events last frame.
-		 */
-		uint64_t GetLastEventCount() const;
-
-		/**
 		 * @brief Add an Event to its Eventbuffer. If there is no EventBuffer for that
 		 * Event type yet, it creates one.
 		 * @tparam T The type of Event that should be added.

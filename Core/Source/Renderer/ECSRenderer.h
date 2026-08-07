@@ -3,7 +3,7 @@
 #include "Ping/Pipeline.h"
 #include "Ping/Sampler.h"
 #include "SubRenderer.h"
-#include "Logger/Logger.h"
+#include "Logger.h"
 #include <optional>
 
 namespace Mupfel
@@ -12,7 +12,6 @@ class ECSRenderer : public SubRenderer
 {
 public:
 	ECSRenderer(uint32_t frames_in_flight);
-
 public:
 	bool Init(const Ping::Device& device, Ping::Format swapChainFormat) final;
 	void PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) final;

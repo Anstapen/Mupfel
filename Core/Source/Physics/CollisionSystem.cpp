@@ -4,15 +4,10 @@
 #include <array>
 #include <thread>
 #include "Core/Application.h"
-#include "CollisionProcessor.h"
-#include "ECS/Registry.h"
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Collider.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Movement.h"
-
-#include <iostream>
 
 using namespace Mupfel;
 
@@ -30,87 +25,17 @@ Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) :
 	evt_system(evt_sys)
 {
 }
-void Mupfel::CollisionSystem::SetCellSizePow(uint32_t cell_size_pow)
-{
-	collision_grid.SetCellSizePow(cell_size_pow);
-}
 
-void Mupfel::CollisionSystem::SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y)
-{
-	collision_grid.SetNumCells(num_cells_x, num_cells_y);
-}
 
 void CollisionSystem::Init()
 {
-	/* Init the Collision Grid */
-	collision_grid.Init();
-
-	SetCallbacks();
-
-	/* Register the Collision Resolvers */
-	CollisionProcessor::RegisterCollisionResolver(ShapeType::Circle, ShapeType::Circle, CollisionProcessor::CircleCircle);
-	CollisionProcessor::RegisterCollisionResolver(ShapeType::Circle, ShapeType::AABB, CollisionProcessor::CircleAABB);
-	CollisionProcessor::RegisterCollisionResolver(ShapeType::AABB, ShapeType::AABB, CollisionProcessor::AABBAABB);
 }
 
 void CollisionSystem::Update()
 {
-	ClearBuffers();
-	UpdateCellCount();
-	FillCellEntityArray();
-	NarrowPhase();
-	CheckCollisions();
 }
 
 
-uint32_t Mupfel::CollisionSystem::WorldtoCell(Coordinate<uint32_t> c)
-{
-	uint32_t cell_x = c.x >> collision_grid.GetCellSizePow();
-	uint32_t cell_y = c.y >> collision_grid.GetCellSizePow();
-
-	cell_x = std::min(cell_x, collision_grid.GetNumCellsX() - 1);
-	cell_y = std::min(cell_y, collision_grid.GetNumCellsY() - 1);
-
-	return cell_y * collision_grid.GetNumCellsX() + cell_x;
-}
-
-void Mupfel::CollisionSystem::UpdateCellCount()
-{
-}
-
-void Mupfel::CollisionSystem::FillCellEntityArray()
-{
-}
-
-void Mupfel::CollisionSystem::NarrowPhase()
-{
-}
-
-void Mupfel::CollisionSystem::CheckCollisions()
-{
-#if 0
-	uint32_t num_colliding = num_colliding_entities->operator[](0);
-	if (num_colliding > 0)
-	{
-		/* Iterate through the colliding entities */
-		std::cout << "Num Collisions: " << num_colliding << std::endl;
-		for (uint32_t i = 0; i < num_colliding; i++)
-		{
-
-			Entity a = colliding_entities->operator[](i).entity_a;
-			Entity b = colliding_entities->operator[](i).entity_b;
-
-			/* The CollisionProcessor handles Detection and Resolution of Entities */
-			CollisionProcessor::DetectAndResolve(a, b);
-		}
-		
-	}
-#endif
-}
-
-void Mupfel::CollisionSystem::ClearBuffers()
-{
-}
 
 void Mupfel::CollisionSystem::SetCallbacks()
 {

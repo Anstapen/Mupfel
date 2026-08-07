@@ -1,6 +1,7 @@
 #include "ECSRenderer.h"
 #include "Core/Application.h"
 #include "ImageManager.h"
+#include "Quad.h"
 
 #include "ECS/Components/Animation.h"
 #include "ECS/Components/Light.h"
@@ -18,34 +19,6 @@ struct UniformBufferObject
 	glm::vec4 cameraRight;
 	glm::vec4 cameraPos;
 };
-
-struct Vertex
-{
-	/** 2D position, bound to vertex shader location 0. */
-	glm::vec2 pos;
-	/** RGB color, bound to vertex shader location 1. */
-	glm::vec2 texCoord;
-
-	/** The `Ping::VertexBinding` matching `Transform`'s memory layout, for `PipelineSpecification::vertexLayout`. */
-	static Ping::VertexBinding GetVertexLayout()
-	{
-		return {
-			.binding = 0,
-			.stride = sizeof(Vertex),
-			.inputRate = Ping::VertexInputRate::Vertex,
-			.attributes = {
-				{0, Ping::VertexFormat::Float32x2, offsetof(Vertex, pos)},
-				{1, Ping::VertexFormat::Float32x2, offsetof(Vertex, texCoord)}}};
-	}
-};
-
-static const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f}, {0.0f, 1.0f}},
-	{{0.5f, -0.5f}, {1.0f, 1.0f}},
-	{{0.5f, 0.5f}, {1.0f, 0.0f}},
-	{{-0.5f, 0.5f}, {0.0f, 0.0f}}};
-
-static const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
 struct TextureInstance
 {
@@ -93,7 +66,7 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 	logger = Logger::Create("ECS Renderer");
 	Ping::PipelineSpecification pipeline_spec{
 		"Shaders/ecs.spv",
-		Vertex::GetVertexLayout(),
+		Quad::GetVertexLayout(),
 		{{.set = uboSetIndex,
 		  .binding = 0,
 		  .type = Ping::DescriptorType::UniformBuffer,
@@ -115,11 +88,20 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 		  .binding = 0,
 		  .type = Ping::DescriptorType::UniformBuffer,
 		  .stageFlags = Ping::ShaderStage::Fragment}},
-		Ping::CullMode::Back,
+		Ping::CullMode::None,
 		Ping::BlendFactor::Zero,
 		true,
 		swapChainFormat};
-	pipeline = device.CreatePipeline(pipeline_spec);
+
+	try
+	{
+		pipeline = device.CreatePipeline(pipeline_spec);
+	}
+	catch (std::runtime_error err)
+	{
+		logger->error("Unable to create Pipeline: {}", err.what());
+		return false;
+	}
 
 	if (!pipeline)
 	{
@@ -132,13 +114,13 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 	{
 		/* Create vertex buffers. These hold the 4 vertices used to draw the quad. */
 		auto& buffer = vertex_buffers.emplace_back(device.CreateBuffer(
-			sizeof(Vertex) * vertices.size(), Ping::BufferUsage::VertexBuffer,
+			sizeof(Quad) * quadVertices.size(), Ping::BufferUsage::VertexBuffer,
 			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
 				Ping::MemoryProperty::DeviceLocal));
-		auto* mapped_ptr = static_cast<Vertex*>(buffer.GetMappedPtr());
+		auto* mapped_ptr = static_cast<Quad*>(buffer.GetMappedPtr());
 
 		/* Copy vertices */
-		std::memcpy(mapped_ptr, vertices.data(), buffer.Size());
+		std::memcpy(mapped_ptr, quadVertices.data(), buffer.Size());
 
 		/* Create uniform buffers for the MVP matrices */
 		uniformBuffers.emplace_back(device.CreateBuffer(
@@ -165,7 +147,7 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 	transformCapacity = default_entity_capacity;
 
 	index_buffer = std::move(device.CreateBuffer(
-		sizeof(uint16_t) * indices.size(), Ping::BufferUsage::IndexBuffer | Ping::BufferUsage::TransferDst,
+		sizeof(uint16_t) * quadIndices.size(), Ping::BufferUsage::IndexBuffer | Ping::BufferUsage::TransferDst,
 		Ping::MemoryProperty::DeviceLocal));
 
 	if (!index_buffer)
@@ -175,7 +157,7 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 	}
 
 	/* Copy indices */
-	index_buffer.value().CopyHostData(device, indices.data(), sizeof(uint16_t) * indices.size());
+	index_buffer.value().CopyHostData(device, quadIndices.data(), sizeof(uint16_t) * quadIndices.size());
 
 	/* Create descriptor sets */
 	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uboSetIndex, uniformBuffers);
@@ -263,8 +245,7 @@ void Mupfel::ECSRenderer::PostUser(const Ping::Device& device, Ping::CommandBuff
 
 	current_command_buffer.BindIndexBuffer(index_buffer.value());
 
-	// current_command_buffer.Draw(3);
-	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()), drawable_entities);
+	current_command_buffer.DrawIndexed(static_cast<uint32_t>(quadIndices.size()), drawable_entities);
 
 	IncrementFrameIndex();
 }

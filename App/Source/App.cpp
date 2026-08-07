@@ -1,6 +1,5 @@
-#include "Core/Application.h"
+#include "Mupfel.h"
 #include "HelloWorldLayer.h"
-#include "EditorLayer.h"
 
 int main()
 {
@@ -8,14 +7,11 @@ int main()
 	Mupfel::ApplicationSpecification app_spec;
 	app_spec.name.insert(0, "My first Application");
 
-	Mupfel::Application& app = Mupfel::Application::Get();
-
-	if (app.Init(app_spec))
+	if (Mupfel::App::Init(app_spec))
 	{
-		app.PushLayer<HelloWorldLayer>();
-		app.PushLayer<EditorLayer>();
+		Mupfel::App::PushLayer<HelloWorldLayer>();
 
-		app.Run();
+		Mupfel::App::Run();
 	}
 
 	

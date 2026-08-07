@@ -1,11 +1,10 @@
 #pragma once
-#include "Core/Scene.h"
-#include "Core/Event.h"
+#include "Mupfel.h"
+#include "Player.h"
 #include <unordered_map>
 #include <string>
-#include "Renderer/ImageManager.h"
-#include "Player.h"
-#include "Core/Application.h"
+
+
 
 class Level : public Mupfel::Scene
 {

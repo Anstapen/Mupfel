@@ -6,15 +6,20 @@
 #include <vector>
 
 #include "Core/Window.h"
-#include "Logger/Logger.h"
+#include "IMRenderer.h"
+#include "Logger.h"
 #include "Ping/Device.h"
 #include "SubRenderer.h"
 
 namespace Mupfel
 {
 
+class UI;
+
 class Renderer
 {
+	friend class UI;
+
 public:
 	bool Init(const Ping::Device& device, const Window& window);
 
@@ -36,6 +41,8 @@ private:
 	std::optional<Ping::CommandBuffers>		  commandBuffers;
 	std::optional<Ping::Image>				  depthBuffer;
 	std::vector<std::unique_ptr<SubRenderer>> subRenderers;
+	/* We hold a shared explicitly typed reference for this renderer, as the user needs to call it directly. */
+	std::shared_ptr<IMRenderer>				  uiRenderer;
 };
 
 } // namespace Mupfel

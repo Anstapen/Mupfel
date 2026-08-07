@@ -24,10 +24,12 @@ project "Benchmarks"
     includedirs
     {
         "Source",
+        -- Unlike App, the benchmarks are white-box: they exercise engine internals
+        -- (Core/ResourceManager.h) and so get both of Core's header roots, not just the published one.
+        "%{wks.location}/Core/Include",
         "%{wks.location}/Core/Source",
         DepPath("nanobench"),
         DepPath("nlohmann"),
-        DepPath("glm", "glm"),
         DepPath("ping", "Source"),
         vulkan_sdk_path .. "/Include",
         DepPath("glfw", "include"),

@@ -27,6 +27,26 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 	Application::GetCurrentInputManager().KeyPressed(static_cast<Key>(key), keyaction);
 }
 
+void Mupfel::Window::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+	KeyAction keyaction;
+	switch (action)
+	{
+	case GLFW_PRESS:
+		keyaction = KeyAction::PRESSED;
+		break;
+	case GLFW_RELEASE:
+		keyaction = KeyAction::RELEASED;
+		break;
+	case GLFW_REPEAT:
+		keyaction = KeyAction::REPEATED;
+		break;
+	default:
+		keyaction = KeyAction::PRESSED;
+		break;
+	}
+	Application::GetCurrentInputManager().MouseButtonPressed(static_cast<MouseButton>(button), keyaction);
+}
+
 void Window::cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	Application::GetCurrentInputManager().UpdateCursor(xpos, ypos);
@@ -120,6 +140,7 @@ bool Window::Init(const WindowSpecification& spec)
 
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
 
 	return true;
 }
@@ -143,4 +164,48 @@ void Mupfel::Window::ToggleFS()
 		glfwSetWindowMonitor(window, primary_monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
 	}
 	is_currently_fullscreen = !is_currently_fullscreen;
+}
+
+KeyAction Mupfel::Window::GetKey(Key k) const
+{
+	assert(window);
+	int action = glfwGetKey(window, static_cast<int>(k));
+	KeyAction a = KeyAction::NONE;
+
+	switch (action)
+	{
+	case GLFW_PRESS:
+		a = KeyAction::PRESSED;
+		break;
+	case GLFW_RELEASE:
+		a = KeyAction::RELEASED;
+		break;
+	default:
+		a = KeyAction::NONE;
+		break;
+	}
+
+	return a;
+}
+
+KeyAction Mupfel::Window::GetMouseButton(MouseButton b) const
+{
+	assert(window);
+	int		  action = glfwGetMouseButton(window, static_cast<int>(b));
+	KeyAction a = KeyAction::NONE;
+
+	switch (action)
+	{
+	case GLFW_PRESS:
+		a = KeyAction::PRESSED;
+		break;
+	case GLFW_RELEASE:
+		a = KeyAction::RELEASED;
+		break;
+	default:
+		a = KeyAction::NONE;
+		break;
+	}
+
+	return a;
 }

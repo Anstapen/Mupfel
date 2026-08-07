@@ -22,42 +22,31 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 
 	MapKeyboardButton<UserInputEvent>(Key::KEY_F, KeyAction::PRESSED, {UserInput::WINDOW_FULLSCREEN, KeyAction::NONE});
 	MapKeyboardButton<UserInputEvent>(Key::KEY_F1, KeyAction::PRESSED, {UserInput::TOGGLE_DEBUG_MODE, KeyAction::NONE});
+	MapMouseButton<UserInputEvent>(
+		MouseButton::MOUSE_BUTTON_LEFT, KeyAction::PRESSED, {UserInput::LEFT_MOUSE_CLICK, KeyAction::PRESSED});
 }
 
 double Mupfel::InputManager::GetCurrentCursorX() const { return current_mouse_pos_x; }
 
 double Mupfel::InputManager::GetCurrentCursorY() const { return current_mouse_pos_y; }
 
+bool Mupfel::InputManager::CheckUserInput(UserInput ui) const
+{
+	for (const auto& evt : event_system.GetEvents<Mupfel::UserInputEvent>())
+	{
+		if (evt.input == ui)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void Mupfel::InputManager::UpdateCursor(double new_pos_x, double new_pos_y)
 {
 	current_mouse_pos_x = new_pos_x;
 	current_mouse_pos_y = new_pos_y;
 	event_system.AddEvent<UserInputEvent>({UserInput::CURSOR_POS_CHANGED, KeyAction::NONE});
-}
-
-void Mupfel::InputManager::UpdateMouseButtons()
-{
-	UpdateMouseButton(MOUSE_BUTTON_LEFT);
-	UpdateMouseButton(MOUSE_BUTTON_RIGHT);
-	UpdateMouseButton(MOUSE_BUTTON_MIDDLE);
-	UpdateMouseButton(MOUSE_BUTTON_SIDE);
-	UpdateMouseButton(MOUSE_BUTTON_EXTRA);
-	UpdateMouseButton(MOUSE_BUTTON_FORWARD);
-	UpdateMouseButton(MOUSE_BUTTON_BACK);
-}
-
-void Mupfel::InputManager::UpdateMouseButton(MouseButton b)
-{
-#if 0
-	/* After that the Mouse presses */
-	if (IsMouseButtonPressed(b)) //|| IsMouseButtonDown(b))
-	{
-		if (mouse_map.at(b).input != UserInput::NONE)
-		{
-			event_system.AddEvent<UserInputEvent>({ mouse_map.at(b).input });
-		}
-	}
-#endif
 }
 
 UserInputEvent::UserInputEvent() : input(UserInput::NONE), action(KeyAction::PRESSED) {}
@@ -86,9 +75,24 @@ void Mupfel::InputManager::KeyPressed(Key key, KeyAction action)
 	}
 }
 
-bool Mupfel::HasFlag(KeyAction& action, KeyAction flag)
+void Mupfel::InputManager::MouseButtonPressed(MouseButton b, KeyAction action)
 {
-	return (static_cast<uint32_t>(action) & static_cast<uint32_t>(flag)) != 0;
-}
+	if (current_mode != Mode::MOUSE_KEYBOARD)
+	{
+		return;
+	}
 
-KeyAction Mupfel::operator|(KeyAction l, KeyAction r) { return static_cast<KeyAction>(static_cast<uint32_t>(l) | static_cast<uint32_t>(r)); }
+	auto mb_index = static_cast<uint32_t>(b);
+
+	/* Check if the key is known. */
+	if (mb_index >= mouse_map.size())
+	{
+		return;
+	}
+
+	/* Check if the key is mapped to a function. */
+	if (HasFlag(mouse_map[mb_index].actionMask, action))
+	{
+		mouse_map[mb_index].emitter(event_system);
+	}
+}

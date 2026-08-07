@@ -82,9 +82,7 @@ void Mupfel::EntityFileManager::LoadCollider(Entity e, nlohmann::json source)
 
 	if (source["type"] == "Circle" && source.contains("radius"))
 	{
-		Mupfel::Collider col;
-		col.SetCircle(source["radius"]);
-		Application::GetCurrentRegistry().AddComponent<Mupfel::Collider>(e, col);
+		
 	}
 	
 }

@@ -9,9 +9,7 @@
 --
 --   spdlog   (no internal deps)
 --   imgui    -> glfw headers only (imgui_impl_glfw backend)
---   Logger   -> spdlog headers            (Logger is split out of Ping's own source tree so it can be
---                                           linked independently by both Ping and Core)
---   Ping     -> Logger (linked), spdlog/glfw/imgui/stb headers, Vulkan SDK headers
+--   Ping     -> spdlog/glfw/imgui/stb headers, Vulkan SDK headers
 --   box2d    (no internal deps)           (collision detection/resolution, linked by Core)
 --   catch2   (no internal deps)           (unit test framework, linked by the Tests project)
 
@@ -43,25 +41,11 @@ project "imgui"
         DepPath("glfw", "include"),
     }
 
-project "Logger"
-    kind "StaticLib"
-    ApplyDefaultProjectSettings()
-
-    files { DepPath("ping", "Source/Logger/**.h"), DepPath("ping", "Source/Logger/**.cpp") }
-
-    includedirs
-    {
-        DepPath("ping", "Source"),
-        DepPath("spdlog", "include"),
-    }
-
 project "Ping"
     kind "StaticLib"
     ApplyDefaultProjectSettings()
 
     files { DepPath("ping", "Source/**.h"), DepPath("ping", "Source/**.cpp") }
-    -- Logger is its own project (above) so it can be linked independently of the rest of Ping.
-    removefiles { DepPath("ping", "Source/Logger/**.h"), DepPath("ping", "Source/Logger/**.cpp") }
 
     includedirs
     {
@@ -73,8 +57,6 @@ project "Ping"
         DepPath("imgui"),
         DepPath("imgui", "backends"),
     }
-
-    links { "Logger" }
 
 -- Box2D 3.x (unlike the C++ 2.x line) is a pure C library requiring C17 for _Static_assert and
 -- anonymous unions, so this is the one project that overrides the C++ language/dialect that

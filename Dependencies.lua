@@ -32,10 +32,6 @@ Deps = {
         url         = "https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp",
         single_file = "json.hpp",
     },
-    glm = {
-        relpath = "Vendor/Sources/glm-master",
-        url     = "https://github.com/g-truc/glm/archive/refs/heads/master.zip",
-    },
     ping = {
         relpath = "Vendor/Sources/vulkan_starter-main/Ping",
         url     = "https://github.com/Anstapen/vulkan_starter/archive/refs/heads/main.zip",
@@ -135,7 +131,6 @@ function build_externals()
     fetch_dependency("spdlog")
     fetch_dependency("stb")
     fetch_dependency("imgui")
-    fetch_dependency("glm")
     fetch_dependency("nanobench")
     fetch_dependency("catch2")
     fetch_dependency("box2d")

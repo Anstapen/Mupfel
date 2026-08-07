@@ -26,8 +26,6 @@ namespace Mupfel {
 		void SetTimeMultiplier(double multi);
 		void ToggleSingleStep();
 		void Step();
-		void SetCellSizePow(uint32_t cell_size_pow);
-		void SetNumCells(uint32_t num_cells_x, uint32_t num_cells_y);
 
 	private:
 		double time_multi;

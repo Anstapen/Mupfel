@@ -1,5 +1,5 @@
 #pragma once
-#include "Logger/Logger.h"
+#include "Logger.h"
 #include "Renderer/Camera.h"
 #include <bitset>
 #include <concepts>
