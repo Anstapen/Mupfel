@@ -63,8 +63,6 @@ private:
 
 	/** Descriptor sets */
 	std::optional<Ping::DescriptorSets> transformDescriptorSets;
-	std::optional<Ping::DescriptorSets> lightDescriptorSets;
-	std::optional<Ping::DescriptorSets> lightParamDescriptorSets;
 	std::vector<Ping::Sampler>			samplers;
 	std::optional<Ping::DescriptorSets> samplerDescriptorSets;
 	uint32_t							currentImageCount = 0;

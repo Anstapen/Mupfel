@@ -24,6 +24,7 @@ void PhysicsSimulation::Init()
 void PhysicsSimulation::DeInit()
 {
 	MovementSystem::DeInit();
+	collision_system->DeInit();
 }
 
 void PhysicsSimulation::Update(double elapsedTime)
@@ -32,15 +33,18 @@ void PhysicsSimulation::Update(double elapsedTime)
 	{
 		return;
 	}
+
+	simAccumulator = std::min(simAccumulator + elapsedTime * time_multi, maxAccumulator);
+
+	while (simAccumulator >= simDelta)
 	{
-		ProfilingSample prof("Movement Update");
-		MovementSystem::Update(elapsedTime * time_multi);
+		ProfilingSample prof("Box2D Step");
+		collision_system->Step(simDelta, subSteps);
+		simAccumulator -= simDelta;
 	}
-	{
-		ProfilingSample prof("Collision Update");
-		collision_system->Update();
-	}
-	
+
+	collision_system->SyncTransforms();
+	collision_system->DispatchEvents();
 	
 }
 
@@ -56,7 +60,7 @@ void Mupfel::PhysicsSimulation::ToggleSingleStep()
 
 void Mupfel::PhysicsSimulation::Step()
 {
-	/* When single stepping we use a fixed value of 100ms */
+	/* When single stepping we use a fixed value of 1ms */
 	MovementSystem::Update(0.001f);
-	collision_system->Update();
+	collision_system->Step(0.001f, subSteps);
 }

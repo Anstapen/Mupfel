@@ -7,7 +7,8 @@ namespace Mupfel {
 	 *
 	 * The MovementSystem is a subsystem within the Physics pipeline.
 	 * It is responsible for updating entity positions based on their
-	 * Velocity and Transform components using GPU compute shaders.
+	 * Velocity and Transform components. It is currently implemented as
+	 * a single-thread cpu loop.
 	 */
 	class MovementSystem {
 	public:
@@ -43,11 +44,6 @@ namespace Mupfel {
 		 * @param elapsedTime Delta time used to compute movement updates.
 		 */
 		static void Move(double elapsedTime);
-
-		/**
-		 * @brief Registers event listeners for component addition/removal events.
-		 */
-		static void SetEventCallbacks();
 	};
 
 }

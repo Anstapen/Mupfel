@@ -300,8 +300,7 @@ void Mupfel::IMRenderer::PushObject(
 	}
 
 	/* The quad spans [-0.5, 0.5] around its centre, so convert the top-left pixel rect
-	 * into an NDC centre plus an NDC extent. Framebuffer Y and GLFW cursor Y both point
-	 * down, so no flip is needed. */
+	 * into an NDC centre plus an NDC extent. */
 	TextureInstance t{};
 	t.pos_x = ((x + width * 0.5f) / screen_w) * 2.0f - 1.0f;
 	t.pos_y = ((y + height * 0.5f) / screen_h) * 2.0f - 1.0f;

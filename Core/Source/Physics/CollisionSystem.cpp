@@ -1,9 +1,9 @@
 #include "CollisionSystem.h"
-#include <algorithm>
-#include <cassert>
-#include <array>
-#include <thread>
 #include "Core/Application.h"
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <thread>
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Collider.h"
@@ -11,86 +11,41 @@
 
 using namespace Mupfel;
 
-/**
- * @brief Component signature mask describing which components the system requires (Transform + Velocity).
- */
-static const Entity::Signature wanted_comp_sig = Registry::ComponentSignature<Mupfel::Transform, Mupfel::Collider>();
-
-
-static const uint32_t max_colliding_entities = 20000;
-
-
-Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) :
-	registry(reg),
-	evt_system(evt_sys)
-{
-}
-
+Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) : registry(reg), evt_system(evt_sys), worldId({0,0}) {}
 
 void CollisionSystem::Init()
 {
+	/* Create World */
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = static_cast<b2Vec2>(0.0f, -10.0f);
+	worldId = b2CreateWorld(&worldDef);
+
+
+	b2BodyDef groundBodyDef = b2DefaultBodyDef();
+	groundBodyDef.position = static_cast<b2Vec2>(0.0f, -10.0f);
+	b2BodyId groundID = b2CreateBody(worldId, &groundBodyDef);
+
+	b2Polygon groundBox = b2MakeBox(50.0f, 10.0f);
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2CreatePolygonShape(groundID, &shapeDef, &groundBox);
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.position = static_cast<b2Vec2>(0.0f, 4.0f);
+	b2BodyId bodyId = b2CreateBody(worldId, &bodyDef);
+	b2Polygon dynamicBox = b2MakeBox(1.0f, 1.0f);
+
+	shapeDef = b2DefaultShapeDef();
+	shapeDef.density = 1.0f;
+	shapeDef.material.friction = 0.3f;
+	b2CreatePolygonShape(bodyId, &shapeDef, &dynamicBox);
 }
 
-void CollisionSystem::Update()
-{
-}
+void CollisionSystem::Step(double delta, uint32_t sub_steps) {}
 
+void Mupfel::CollisionSystem::SyncTransforms() {}
 
+void Mupfel::CollisionSystem::DispatchEvents() {}
 
-void Mupfel::CollisionSystem::SetCallbacks()
-{
-	Application::GetCurrentEventSystem().RegisterListener<ComponentAddedEvent>(
-		[this](const ComponentAddedEvent& event)
-		{
-			Entity::Signature test;
-			test.set(event.comp_id);
-			/* Check if even care about the entity */
-			if ((test & wanted_comp_sig) == 0)
-			{
-				return;
-			}
-
-			if ((event.sig & wanted_comp_sig) != wanted_comp_sig)
-			{
-				return;
-			}
-
-			// add to active entities
-		}
-	);
-
-	Application::GetCurrentEventSystem().RegisterListener<ComponentRemovedEvent>(
-		[this](const ComponentRemovedEvent& event)
-		{
-			Entity::Signature test;
-			test.set(event.comp_id);
-			/* Check if even care about the entity */
-			if ((test & wanted_comp_sig) == 0)
-			{
-				return;
-			}
-
-			Entity::Signature transform_sig;
-			transform_sig.set(ComponentIndex::Index<Mupfel::Transform>());
-
-			Entity::Signature spatial_info_sig;
-			spatial_info_sig.set(ComponentIndex::Index<Mupfel::Collider>());
-
-			uint32_t has_transform_component = (event.sig & transform_sig) != 0 ? 1 : 0;
-			uint32_t has_spatial_component = (event.sig & spatial_info_sig) != 0 ? 1 : 0;
-
-			uint32_t comp_info = has_transform_component + has_spatial_component;
-
-			/*
-				The remove event is always issued before the removal of the component,
-				so we check if the entity currently has both of the components.
-			*/
-			if (comp_info != 2)
-			{
-				return;
-			}
-
-			// remove the entity
-		}
-	);
-}
+void Mupfel::CollisionSystem::DeInit() { b2DestroyWorld(worldId); }

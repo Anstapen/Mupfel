@@ -2,4 +2,5 @@ C:/VulkanSDK/1.4.341.1/Bin/slangc.exe ecs.slang -target spirv -profile spirv_1_4
 C:/VulkanSDK/1.4.341.1/Bin/slangc.exe imgui.slang -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o imgui.spv
 C:/VulkanSDK/1.4.341.1/Bin/slangc.exe line.slang -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o line.spv
 C:/VulkanSDK/1.4.341.1/Bin/slangc.exe im.slang -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o im.spv
+C:/VulkanSDK/1.4.341.1/Bin/slangc.exe geo.slang -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry fragMain -o geo.spv
 pause

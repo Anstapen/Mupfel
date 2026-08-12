@@ -6,10 +6,11 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Registry.h"
 #include "ECS/View.h"
+#include "Renderer/Renderer.h"
+#include "glm/glm.hpp"
 #include <algorithm>
 #include <format>
 #include <string>
-#include "glm/glm.hpp"
 
 #include "imgui.h"
 
@@ -49,6 +50,14 @@ void Mupfel::DebugLayer::OnRender()
 	{
 		DrawCameraControls();
 	}
+	static bool drawEntityColliders = false;
+	ImGui::Checkbox("Draw Entity colliders", &drawEntityColliders);
+	
+	if (drawEntityColliders)
+	{
+		DrawEntityColliders();
+	}
+
 	ImGui::End();
 }
 
@@ -79,8 +88,8 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 
 void Mupfel::DebugLayer::DrawCameraControls()
 {
-	Camera &current_cam = Application::GetCurrentSceneCamera();
-	
+	Camera& current_cam = Application::GetCurrentSceneCamera();
+
 	float current_yaw = glm::degrees(current_cam.yaw);
 	float current_pitch = glm::degrees(current_cam.pitch);
 	ImGui::SliderFloat("Yaw", &current_yaw, -180.0f, 180.0f);
@@ -89,3 +98,5 @@ void Mupfel::DebugLayer::DrawCameraControls()
 	current_cam.yaw = glm::radians(current_yaw);
 	current_cam.pitch = glm::radians(current_pitch);
 }
+
+void Mupfel::DebugLayer::DrawEntityColliders() {}

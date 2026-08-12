@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <cstdint>
 #include "CollisionSystem.h"
 #include "Core/EventSystem.h"
 
@@ -30,6 +31,13 @@ namespace Mupfel {
 	private:
 		double time_multi;
 		bool single_step;
+		/** The simulation timestep (fixed at 100Hz). */
+		static constexpr double simDelta = 1.0f / 100.0f;
+		static constexpr uint32_t subSteps = 4;
+		static constexpr double	  maxAccumulator = 0.25f;
+
+		/** Accumulator for the simulation delta. */
+		double							 simAccumulator = 0.0f;
 		Registry& reg;
 		EventSystem& evt_system;
 		std::unique_ptr<CollisionSystem> collision_system;

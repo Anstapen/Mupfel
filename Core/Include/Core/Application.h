@@ -28,6 +28,7 @@ class Renderer;
 class ECSRenderer;
 class DebugRenderer;
 class IMRenderer;
+class GeometryRenderer;
 class UI;
 
 /**
@@ -64,6 +65,7 @@ class Application
 	friend class ECSRenderer;
 	friend class DebugRenderer;
 	friend class IMRenderer;
+	friend class GeometryRenderer;
 	friend class UI;
 
 public:
@@ -320,10 +322,10 @@ private:
 	std::unique_ptr<DebugLayer> debug_layer;
 
 	/** @brief Timestamp of the current frame's start time. */
-	double start_frame_time = 0.0;
+	double start_frame_time = 0.0f;
 
 	/** @brief Duration of the most recently completed frame (in seconds). */
-	double last_frame_time = 0.0;
+	double last_frame_time = 0.0f;
 
 	/** @brief A frame counter (mostly for debugging purposes) */
 	uint64_t frame_count = 0;

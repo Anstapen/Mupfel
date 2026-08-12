@@ -252,8 +252,9 @@ void Application::Run()
 		ProfilingSample prof("Application::Run()");
 
 		double currentTime = Application::GetTime();
-		double timestep = std::clamp<double>(currentTime - lastTime, 0.001f, 0.1f);
+		double timestep = std::clamp<double>(currentTime - lastTime, 0.00001f, 0.1f);
 		lastTime = currentTime;
+
 
 		{
 			ProfilingSample prof("Application::Run(): Check ");
@@ -292,8 +293,9 @@ void Application::Run()
 
 		{
 			ProfilingSample prof("Physics Update");
-			/* Update the Collision System */
+
 			physics->Update(timestep);
+			
 		}
 
 		{

@@ -12,6 +12,7 @@ namespace Mupfel {
 	private:
 		void DrawPerformanceMetrics();
 		void DrawCameraControls();
+		void DrawEntityColliders();
 	private:
 		static const uint32_t anchor_x = 10;
 		static const uint32_t anchor_y = 70;
