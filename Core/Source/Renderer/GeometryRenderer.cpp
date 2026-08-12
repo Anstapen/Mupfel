@@ -7,12 +7,18 @@ using namespace Mupfel;
 
 struct GeometryInstance
 {
+	/** NDC centre of the quad. */
 	glm::vec2 pos1;
-	glm::vec2 pos2;
+	/** Full extent along the quad's local +x, in NDC. Any rotation is baked in. */
+	glm::vec2 axis_u;
 	glm::vec4 color;
+	/** Full extent along the quad's local +y, in NDC. */
+	glm::vec2 axis_v;
+	/** Inner outline boundary in local units; {0, 0} means filled. */
+	glm::vec2 inner_edge;
 	uint32_t  shape;
 	float	  _pad0;
-	glm::vec2 inner_edge;
+	glm::vec2 _pad1;
 };
 
 static const uint32_t default_geometry_count = 1000;
@@ -123,20 +129,32 @@ void Mupfel::GeometryRenderer::PostUser(const Ping::Device& device, Ping::Comman
 	IncrementFrameIndex();
 }
 
-void Mupfel::GeometryRenderer::Rectangle(
-	glm::vec2 pos,
-	float	  width,
-	float	  height,
-	glm::vec4 color,
-	uint32_t  thickness)
+void Mupfel::GeometryRenderer::Rectangle(glm::vec2 pos, float width, float height, glm::vec4 color, uint32_t thickness)
 {
-	PushObject({pos.x, pos.y}, {width, height}, color, Shape::RECT, 1.0f, thickness);
+	PushObject({pos.x + width * 0.5f, pos.y + height * 0.5f}, {width, 0.0f}, {0.0f, height}, color, Shape::RECT, 0.0f);
 }
 
 void Mupfel::GeometryRenderer::Circle(glm::vec2 pos, float radius, glm::vec4 color, uint32_t thickness)
 {
-	PushObject(
-		{pos.x - radius, pos.y - radius}, {radius * 2.0f, radius * 2.0f}, color, Shape::CIRCLE, radius, thickness);
+	PushObject({pos.x, pos.y}, {radius * 2.0f, 0.0f}, {0.0f, radius * 2.0f}, color, Shape::CIRCLE, 0.0f);
+}
+
+void Mupfel::GeometryRenderer::Line(glm::vec2 start, glm::vec2 end, glm::vec4 color)
+{
+	const glm::vec2 delta = end - start;
+	const float		length = glm::length(delta);
+
+	/* A degenerate line has no direction to orient the quad by, and normalising it
+	 * would write NaNs into the instance buffer. */
+	if (length < 1e-6f)
+	{
+		return;
+	}
+
+	const glm::vec2 dir = delta / length;
+	const glm::vec2 normal{-dir.y, dir.x};
+
+	PushObject((start + end) * 0.5f, dir * length, normal * glm::vec2(2.0f), color, Shape::LINE, 0.0f);
 }
 
 void Mupfel::GeometryRenderer::EnsureCapacity(uint32_t required_capacity)
@@ -174,11 +192,11 @@ void Mupfel::GeometryRenderer::EnsureCapacity(uint32_t required_capacity)
 }
 
 void Mupfel::GeometryRenderer::PushObject(
-	glm::vec2 pos1,
-	glm::vec2 pos2,
+	glm::vec2 center,
+	glm::vec2 axis_u,
+	glm::vec2 axis_v,
 	glm::vec4 color,
 	Shape	  shape,
-	float	  radius,
 	float	  thickness)
 {
 	EnsureCapacity(drawable_items + 1);
@@ -191,23 +209,32 @@ void Mupfel::GeometryRenderer::PushObject(
 		return;
 	}
 
-	/* The quad spans [-0.5, 0.5] around its centre, so convert the top-left pixel rect
-	 * into an NDC centre plus an NDC extent. */
+	/* Callers work in pixels and bake any rotation into the axis vectors, so the
+	 * pixel -> NDC conversion happens per component here, *after* rotating. Converting
+	 * first and rotating in NDC would shear the shape by the window's aspect ratio. */
 	GeometryInstance g{};
-	g.pos1.x = ((pos1.x + pos2.x * 0.5f) / screen_w) * 2.0f - 1.0f;
-	g.pos1.y = ((pos1.y + pos2.y * 0.5f) / screen_h) * 2.0f - 1.0f;
-	g.pos2.x = (pos2.x / screen_w) * 2.0f;
-	g.pos2.y = (pos2.y / screen_h) * 2.0f;
+	g.pos1.x = (center.x / screen_w) * 2.0f - 1.0f;
+	g.pos1.y = (center.y / screen_h) * 2.0f - 1.0f;
+	g.axis_u.x = (axis_u.x / screen_w) * 2.0f;
+	g.axis_u.y = (axis_u.y / screen_h) * 2.0f;
+	g.axis_v.x = (axis_v.x / screen_w) * 2.0f;
+	g.axis_v.y = (axis_v.y / screen_h) * 2.0f;
 	g.color = color;
 	g.shape = static_cast<uint32_t>(shape);
 
-	glm::vec2 inner{0.0f};
+	/* Outline thickness is in pixels; the shader's local frame spans [-1, 1], so one
+	 * local unit is half the quad's pixel extent along that axis. */
+	g.inner_edge = glm::vec2(0.0f);
 	if (thickness > 0.0f)
 	{
-		inner.x = glm::max(1.0f - thickness / (pos2.x * 0.5f), 0.0f);
-		inner.y = glm::max(1.0f - thickness / (pos2.y * 0.5f), 0.0f);
+		const float half_u = glm::length(axis_u) * 0.5f;
+		const float half_v = glm::length(axis_v) * 0.5f;
+		if (half_u > 0.0f && half_v > 0.0f)
+		{
+			g.inner_edge.x = glm::max(1.0f - thickness / half_u, 0.0f);
+			g.inner_edge.y = glm::max(1.0f - thickness / half_v, 0.0f);
+		}
 	}
-	g.inner_edge = inner;
 
 	static_cast<GeometryInstance*>(geometryInstanceBuffers[frameIndex].GetMappedPtr())[drawable_items] = g;
 	++drawable_items;

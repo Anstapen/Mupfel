@@ -58,6 +58,8 @@ void Mupfel::DebugLayer::OnRender()
 		DrawEntityColliders();
 	}
 
+	Application::Get().renderer->geoRenderer->Line({500, 500}, {600, 550}, {1.0f, 1.0f, 1.0f, 1.0f});
+
 	ImGui::End();
 }
 

@@ -1,12 +1,19 @@
 #include "quad.slang"
 
+static const uint SHAPE_NONE   = 0;
+static const uint SHAPE_RECT   = 1;
+static const uint SHAPE_LINE   = 2;
+static const uint SHAPE_CIRCLE = 3;
+
 struct GeometryInstance {
     float2 pos1;
-	float2 pos2;
-	float4 color;
-	uint   shape;
-	float  _pad0;
-	float2 inner_edge;
+    float2 axis_u;
+    float4 color;
+    float2 axis_v;
+    float2 inner_edge;
+    uint   shape;
+    float  _pad0;
+    float2 _pad1;
 };
 [[vk::binding(0, 0)]]
 StructuredBuffer<GeometryInstance> geo_instances;
@@ -24,19 +31,14 @@ struct VSOutput
 VSOutput vertMain(QuadVSInput input) {
     VSOutput output;
     GeometryInstance t = geo_instances[input.instanceIndex];
-    float2 pos = input.inPos;
-    float2 coord = input.inTexCoord;
 
-    float2 offset = ExpandQuad(input.inPos, float2(t.pos2.x, t.pos2.y), 0.0);
+    float2 offset = input.inPos.x * t.axis_u + input.inPos.y * t.axis_v;
 
-    output.pos          = float4(t.pos1 + offset, 0.0, 1.0);
-    
-    // Save the original quad positions, but now scaled by a factor of 2
-    // This trivialises the radius check for circles, as everything with a length > 1 can be discarded.
-    output.shape_pos = input.inPos * 2.0;
-    output.color = t.color;
-    output.shape = t.shape;
+    output.pos        = float4(t.pos1 + offset, 0.0, 1.0);
+    output.shape_pos  = input.inPos * 2.0;
+    output.color      = t.color;
     output.inner_edge = t.inner_edge;
+    output.shape      = t.shape;
     return output;
 }
 

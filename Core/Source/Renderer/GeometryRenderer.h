@@ -16,6 +16,7 @@ public:
 
 	void Rectangle(glm::vec2 pos, float width, float height, glm::vec4 color, uint32_t thickness = 0);
 	void Circle(glm::vec2 pos, float radius, glm::vec4 color, uint32_t thickness = 0);
+	void Line(glm::vec2 start, glm::vec2 end, glm::vec4 color);
 
 private:
 	enum class Shape : uint32_t
@@ -28,7 +29,7 @@ private:
 
 private:
 	void EnsureCapacity(uint32_t required_capacity);
-	void PushObject(glm::vec2 pos1, glm::vec2 pos2, glm::vec4 color, Shape shape, float radius, float thickness);
+	void PushObject(glm::vec2 center, glm::vec2 axis_u, glm::vec2 axis_v, glm::vec4 color, Shape shape, float thickness);
 
 private:
 	static constexpr uint32_t	  geometrySetIndex = 0;
