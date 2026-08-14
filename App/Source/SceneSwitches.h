@@ -12,3 +12,9 @@ class SwitchToLevelEvent : public Mupfel::Event
 public:
 	SwitchToLevelEvent() {};
 };
+
+class SwitchToGravityTestEvent : public Mupfel::Event
+{
+public:
+	SwitchToGravityTestEvent() {};
+};

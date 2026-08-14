@@ -1,4 +1,5 @@
 #include "Level.h"
+#include "Imager.h"
 #include "SceneSwitches.h"
 #include <vector>
 
@@ -7,22 +8,15 @@ using namespace Mupfel;
 void Level::OnInit()
 {
 	camera.pitch = 1.569051f;
-	Images::Load("Images/dungeon.png").transform([this](ImageHandle handle) { this->image_map["Map"] = handle; });
 
-	Images::LoadAnimated("Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4})
-			.transform([this](ImageHandle handle) { this->image_map["Vampire"] = handle; });
+	Imager::Load("Map", "Images/dungeon.png");
+	Imager::LoadAnimated(
+		"Vampire", "Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4});
 
-	Images::LoadAnimated("Images/chest.png", {.rows = 3, .columns = 5})
-				 .transform([this](ImageHandle handle) { this->image_map["Chest"] = handle; });
-
-	Images::LoadAnimated("Images/garg_lava.png", {.rows = 1, .columns = 3})
-				 .transform([this](ImageHandle handle) { this->image_map["GargLava"] = handle; });
-
-	Images::LoadAnimated("Images/garg_water.png", {.rows = 1, .columns = 3})
-				 .transform([this](ImageHandle handle) { this->image_map["GargWater"] = handle; });
-
-	Images::LoadAnimated("Images/spikes.png", {.rows = 1, .columns = 4})
-				 .transform([this](ImageHandle handle) { this->image_map["Spikes"] = handle; });
+	Imager::LoadAnimated("Chest", "Images/chest.png", {.rows = 3, .columns = 5});
+	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3});
+	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3});
+	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 4});
 
 	// Ground: one large flat quad in the x/y plane, grass tiled ~1 texture per world unit.
 	{
@@ -32,14 +26,7 @@ void Level::OnInit()
 		g.scale_y = 13.0f;
 
 		Entities::AddComponent<Transform>(e, g);
-
-		if (image_map.contains("Map"))
-		{
-			Texture tex;
-			tex.uvScale = 1.0f;
-			tex.index = image_map["Map"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Texture>(e, {Imager::Get("Map"), 1.0f});
 	}
 
 	/* A simple Light */
@@ -67,12 +54,7 @@ void Level::OnInit()
 
 		Entities::AddComponent<Transform>(e, g);
 
-		if (image_map.contains("Chest"))
-		{
-			Texture tex;
-			tex.index = image_map["Chest"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 5, 2.0f});
 	}
@@ -84,13 +66,7 @@ void Level::OnInit()
 		g.pos_z = 0.08f;
 
 		Entities::AddComponent<Transform>(e, g);
-
-		if (image_map.contains("Chest"))
-		{
-			Texture tex;
-			tex.index = image_map["Chest"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {5, 5, 2.0f});
 	}
@@ -103,12 +79,7 @@ void Level::OnInit()
 
 		Entities::AddComponent<Transform>(e, g);
 
-		if (image_map.contains("Chest"))
-		{
-			Texture tex;
-			tex.index = image_map["Chest"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {10, 5, 2.0f});
 	}
@@ -123,13 +94,7 @@ void Level::OnInit()
 		g.pos_z = 0.08f;
 
 		Entities::AddComponent<Transform>(e, g);
-
-		if (image_map.contains("GargLava"))
-		{
-			Texture tex;
-			tex.index = image_map["GargLava"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Texture>(e, {Imager::Get("GargLava"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 3, 2.0f});
 	}
@@ -143,13 +108,7 @@ void Level::OnInit()
 		g.pos_z = 0.08f;
 
 		Entities::AddComponent<Transform>(e, g);
-
-		if (image_map.contains("GargWater"))
-		{
-			Texture tex;
-			tex.index = image_map["GargWater"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Texture>(e, {Imager::Get("GargWater"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 3, 2.0f});
 	}
@@ -183,12 +142,8 @@ void Level::OnInit()
 
 		Entities::AddComponent<Transform>(e, g);
 
-		if (image_map.contains("Spikes"))
-		{
-			Texture tex;
-			tex.index = image_map["Spikes"];
-			Entities::AddComponent<Texture>(e, tex);
-		}
+		Entities::AddComponent<Collider>(e, {});
+		Entities::AddComponent<Texture>(e, {Imager::Get("Spikes"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 4, 1.0f, elapsed});
 		elapsed += 0.1f;
@@ -202,17 +157,9 @@ void Level::OnUpdate(double timestep) { player.UpdateMovement(timestep); }
 void Level::OnRender()
 {
 	/* Draw a Button */
-	if (UI::Button(70.0f, 50.0f, 136.0f, 53.0f, "Images/buttons/home.png") == 3)
+	if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png") == 3)
 	{
 		logger->info("Switching to the Main Menu...");
 		Events::Post<SwitchToMainMenuEvent>({});
 	}
 }
-
-void Level::OnSwitchIn() {}
-
-void Level::OnSwitchOut() {}
-
-void Level::Serialize(const std::string& path) {}
-
-void Level::Deserialize(const std::string& path) {}

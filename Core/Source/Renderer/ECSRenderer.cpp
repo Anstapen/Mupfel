@@ -8,7 +8,6 @@
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -16,7 +15,6 @@ struct UniformBufferObject
 {
 	glm::mat4 view;
 	glm::mat4 proj;
-	glm::vec4 cameraRight;
 	glm::vec4 cameraPos;
 };
 
@@ -406,7 +404,6 @@ void Mupfel::ECSRenderer::UpdateMVP(Ping::Buffer& uniform_buffer)
 	ubo.proj = glm::ortho(-half_width, half_width, -half_height, half_height, 0.1f, 500.0f);
 
 	ubo.proj[1][1] *= -1;
-	ubo.cameraRight = glm::vec4(-glm::sin(cam.yaw), glm::cos(cam.yaw), 0.0f, 0.0f);
 	ubo.cameraPos = glm::vec4(eye, 1.0f);
 	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
 }

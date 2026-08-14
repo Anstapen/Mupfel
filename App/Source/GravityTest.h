@@ -1,10 +1,10 @@
 #pragma once
-#include "Core/Scene.h"
+#include "Mupfel.h"
 
-class MainMenu : public Mupfel::Scene
+class GravityTest : public Mupfel::Scene
 {
 public:
-	MainMenu(Mupfel::SceneHandle in_handle, const std::string& name, Mupfel::Camera cam = {})
+	GravityTest(Mupfel::SceneHandle in_handle, const std::string& name, Mupfel::Camera cam = {})
 		: Mupfel::Scene(in_handle, name, cam)
 	{
 	}

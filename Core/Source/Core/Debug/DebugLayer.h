@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/Layer.h"
 #include <cstdint>
+#include "glm/glm.hpp"
 
 namespace Mupfel {
 	class DebugLayer : public Layer
@@ -13,16 +14,10 @@ namespace Mupfel {
 		void DrawPerformanceMetrics();
 		void DrawCameraControls();
 		void DrawEntityColliders();
+		void UpdateMVP();
 	private:
-		static const uint32_t anchor_x = 10;
-		static const uint32_t anchor_y = 70;
-		bool show_perf = false;
-		bool show_collider = false;
-		bool show_velocity = false;
-		bool show_grid = false;
-		bool single_stepping = false;
-		bool show_entity_index = false;
-		float cell_size_pow = 8;
+		glm::mat4 view;
+		glm::mat4 proj;
 	};
 }
 

@@ -23,7 +23,6 @@ template <typename FirstComponent, typename... Components> class View;
 class CollisionSystem;
 class Application;
 class MovementSystem;
-class RayCastSystem;
 
 /**
  * A Registry holds a complete ECS context. It provides methods to create / destroy
@@ -36,7 +35,6 @@ class Registry
 	friend class CollisionSystem;
 	friend class MovementSystem;
 	friend class Renderer;
-	friend class RayCastSystem;
 
 public:
 	/** Helper type for a unique ptr for component arrays. */
@@ -136,6 +134,10 @@ private:
 
 	/** Grows `component_buffer` if needed so `T`'s slot (`ComponentIndex::Index<T>()`) is valid. */
 	template <typename T> void resizeComponentBuffer();
+
+	static void* ToUserData(Entity e) {return reinterpret_cast<void*>(static_cast<uintptr_t>(e.Index())); }
+
+	static constexpr Entity EntityFromIndex(uint32_t index) { return Entity{index}; }
 
 private:
 	/** Where entity/component lifecycle events are fired. */

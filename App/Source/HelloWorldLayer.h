@@ -15,7 +15,8 @@ private:
 	void ProcessEvents();
 
 private:
-	Mupfel::SceneHandle level;
-	Mupfel::SceneHandle mainMenu;
+	Mupfel::SceneHandle level = Mupfel::Scene::INVALID_HANDLE;
+	Mupfel::SceneHandle mainMenu = Mupfel::Scene::INVALID_HANDLE;
+	Mupfel::SceneHandle gravityTest = Mupfel::Scene::INVALID_HANDLE;
 };
 

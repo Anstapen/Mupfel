@@ -1,16 +1,12 @@
 #include "PhysicsSimulation.h"
 #include "Core/Profiler.h"
-#include "MovementSystem.h"
 #include "ECS/Registry.h"
-
+#include "MovementSystem.h"
 
 using namespace Mupfel;
 
-PhysicsSimulation::PhysicsSimulation(Registry& in_reg,EventSystem& in_evt_system) :
-	reg(in_reg),
-	evt_system(in_evt_system),
-	time_multi(1.0f),
-	single_step(false)
+PhysicsSimulation::PhysicsSimulation(Registry& in_reg, EventSystem& in_evt_system)
+	: reg(in_reg), evt_system(in_evt_system), time_multi(1.0f), single_step(false)
 {
 	collision_system = std::make_unique<CollisionSystem>(reg, evt_system);
 }
@@ -45,18 +41,13 @@ void PhysicsSimulation::Update(double elapsedTime)
 
 	collision_system->SyncTransforms();
 	collision_system->DispatchEvents();
-	
 }
 
-void Mupfel::PhysicsSimulation::SetTimeMultiplier(double multi)
-{
-	time_multi = multi;
-}
+void Mupfel::PhysicsSimulation::SceneSwitched(SceneHandle new_scene) { collision_system->SceneSwitched(new_scene); }
 
-void Mupfel::PhysicsSimulation::ToggleSingleStep()
-{
-	single_step = !single_step;
-}
+void Mupfel::PhysicsSimulation::SetTimeMultiplier(double multi) { time_multi = multi; }
+
+void Mupfel::PhysicsSimulation::ToggleSingleStep() { single_step = !single_step; }
 
 void Mupfel::PhysicsSimulation::Step()
 {

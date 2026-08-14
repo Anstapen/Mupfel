@@ -1,10 +1,8 @@
 #pragma once
 #include "Mupfel.h"
 #include "Player.h"
-#include <unordered_map>
 #include <string>
-
-
+#include <unordered_map>
 
 class Level : public Mupfel::Scene
 {
@@ -17,14 +15,7 @@ public:
 	void OnInit() final;
 	void OnUpdate(double timestep) final;
 	void OnRender() final;
-	void OnSwitchIn() final;
-	void OnSwitchOut() final;
 
 private:
-	void Serialize(const std::string& path) final;
-	void Deserialize(const std::string& path) final;
-
-private:
-	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
-	Player												 player;
+	Player player;
 };

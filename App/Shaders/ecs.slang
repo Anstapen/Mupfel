@@ -3,7 +3,6 @@
 struct UniformBuffer {
     float4x4 view;
     float4x4 proj;
-    float4   cameraRight;
     float4   cameraPos;
 };
 [[vk::binding(0, 0)]]
@@ -87,7 +86,7 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
         discard;
     }
    
-    if(vertIn.emitsLight == 0)
+    if((vertIn.emitsLight == 0) && (light_params.numLights > 0))
     {
         var ambient = float3(0.0f);
         var diffuse = float3(0.0f);

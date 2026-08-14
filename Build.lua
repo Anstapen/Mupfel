@@ -41,6 +41,14 @@ function ApplyDefaultProjectSettings()
     targetdir ("%{wks.location}/Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("%{wks.location}/Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
 
+    -- glm bakes the clip-space depth convention into ortho()/perspective() at compile time via
+    -- GLM_CONFIG_CLIP_CONTROL. Those are inline functions, so every TU must agree: if one TU sees
+    -- this define and another doesn't, the two differing bodies are an ODR violation and the linker
+    -- silently keeps whichever it saw first. Vulkan clips to 0 <= z <= w, so it must be [0,1] --
+    -- getting OpenGL's [-1,1] makes the whole scene fail the depth test and render black.
+    -- Set here rather than per-file so a stray `#include <glm/glm.hpp>` can't opt a TU out.
+    defines { "GLM_FORCE_DEPTH_ZERO_TO_ONE" }
+
     filter "action:vs*"
         defines { "_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS" }
         characterset "Unicode"

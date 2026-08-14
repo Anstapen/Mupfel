@@ -312,7 +312,7 @@ private:
 
 	std::array<std::unique_ptr<Scene>, Scene::MAX_SCENES> scenes;
 
-	SceneHandle current_scene = 0;
+	SceneHandle current_scene = Scene::INVALID_HANDLE;
 
 	SceneHandle queued_scene = Scene::INVALID_HANDLE;
 

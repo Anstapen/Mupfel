@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "CollisionSystem.h"
 #include "Core/EventSystem.h"
+#include "Core/Scene.h"
 
 namespace Mupfel {
 
@@ -24,6 +25,7 @@ namespace Mupfel {
 		void Init();
 		void DeInit();
 		void Update(double elapsedTime);
+		void SceneSwitched(SceneHandle new_scene);
 		void SetTimeMultiplier(double multi);
 		void ToggleSingleStep();
 		void Step();

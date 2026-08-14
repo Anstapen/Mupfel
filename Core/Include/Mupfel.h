@@ -38,6 +38,8 @@
 #include "ECS/Components/Movement.h"
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
+#include "ECS/Components/Collider.h"
+#include "ECS/Components/RigidBody.h"
 
 /* Rendering and UI */
 #include "Core/UI.h"

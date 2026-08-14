@@ -221,13 +221,18 @@ void Mupfel::Application::SwitchScene(SceneHandle new_scene)
 		return;
 	}
 
-	app.scenes[app.current_scene]->OnSwitchOut();
+	if (app.current_scene != Scene::INVALID_HANDLE)
+	{
+		app.scenes[app.current_scene]->OnSwitchOut();
+	}
+	
 	app.scenes[new_scene]->OnSwitchIn();
 
 	app.current_scene = new_scene;
 
-	/* The ECS needs to know the new scene. */
+	/* The ECS and PhysicsSystem need to know the new scene. */
 	app.registry.SetActiveScene(new_scene);
+	app.physics->SceneSwitched(new_scene);
 }
 
 uint64_t Mupfel::Application::GetFrameCount() { return Get().frame_count; }

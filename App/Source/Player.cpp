@@ -36,21 +36,28 @@ void Player::Init()
 
 	auto& registry = Application::GetCurrentRegistry();
 
-	e = registry.CreateEntity();
+	e = Entities::Create();
 	Transform p;
 	p.pos_z = 0.1f;
 	p.scale_x = 5.0f;
 	p.scale_y = 5.0f;
-	registry.AddComponent<Transform>(e, p);
+	Entities::AddComponent<Transform>(e, p);
 	if (image_map.contains("Vampire"))
 	{
 		Texture tex;
 		tex.index = image_map["Vampire"];
-		registry.AddComponent<Texture>(e, tex);
+		Entities::AddComponent<Texture>(e, tex);
 	}
 
 	current_anim = "idle_front";
-	registry.AddComponent<Animation>(e, animations.at(current_anim));
+	Entities::AddComponent<Animation>(e, animations.at(current_anim));
+
+	Collider c;
+	c.half_height = 0.25;
+	c.half_width = 0.5;
+	c.offset_y = -0.75;
+
+	Entities::AddComponent<Collider>(e, c);
 
 	Mupfel::InputManager& input_manager = Mupfel::Application::GetCurrentInputManager();
 	input_manager.MapKeyboardButton<PlayerMovedEvent>(
