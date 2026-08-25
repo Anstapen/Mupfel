@@ -221,7 +221,7 @@ void Mupfel::Application::SwitchScene(SceneHandle new_scene)
 		return;
 	}
 
-	if (app.current_scene != Scene::INVALID_HANDLE)
+	if (app.current_scene < Scene::INVALID_HANDLE)
 	{
 		app.scenes[app.current_scene]->OnSwitchOut();
 	}

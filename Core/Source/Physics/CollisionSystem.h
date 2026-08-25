@@ -1,6 +1,8 @@
 #pragma once
 #include "Core/EventSystem.h"
 #include "Core/Scene.h"
+#include "ECS/Components/Movement.h"
+#include "ECS/Components/Transform.h"
 #include "ECS/Registry.h"
 #include "box2d/box2d.h"
 #include <cstdint>
@@ -26,14 +28,18 @@ public:
 	void DispatchEvents();
 	void DeInit();
 
+	void SetTransform(Entity e, Transform&& t);
+	void SetMovement(Entity e, Movement&& m);
+
 private:
-	bool	 HasBody(Entity e) const;
-	void	 HandlePendingEvents();
-	void	 CreateBody(Entity e);
-	b2BodyId TakeBody(Entity e);
-	void	 SetBody(Entity e, b2BodyId body);
-	Entity	 EntityOf(b2ShapeId id);
-	b2WorldId WorldForScene(SceneHandle scene);
+	bool		HasBody(Entity e) const;
+	void		HandlePendingEvents();
+	void		CreateBody(Entity e);
+	b2BodyId	TakeBody(Entity e);
+	void		SetBody(Entity e, b2BodyId body);
+	Entity		EntityOf(b2ShapeId id);
+	Entity		EntityOf(b2BodyId id);
+	b2WorldId   WorldForScene(SceneHandle scene);
 
 private:
 	Registry&								   registry;

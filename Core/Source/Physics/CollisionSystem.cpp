@@ -7,6 +7,7 @@
 
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Collider.h"
+#include "ECS/Components/Movement.h"
 #include "ECS/Components/RigidBody.h"
 #include "ECS/Components/Transform.h"
 
@@ -51,16 +52,14 @@ void CollisionSystem::Step(double delta, uint32_t sub_steps)
 	b2World_Step(current_world, delta, sub_steps);
 }
 
-void Mupfel::CollisionSystem::SceneSwitched(SceneHandle new_scene)
-{
-	current_world = WorldForScene(new_scene);
-}
+void Mupfel::CollisionSystem::SceneSwitched(SceneHandle new_scene) { current_world = WorldForScene(new_scene); }
 
 void CollisionSystem::SyncTransforms()
 {
 	assert(!B2_IS_NULL(current_world));
 	b2BodyEvents events = b2World_GetBodyEvents(current_world);
 	auto&		 transforms = registry.GetComponentArray<Transform>();
+	auto&		 movements = registry.GetComponentArray<Movement>();
 
 	for (int i = 0; i < events.moveCount; ++i)
 	{
@@ -68,13 +67,22 @@ void CollisionSystem::SyncTransforms()
 
 		Entity e = Registry::EntityFromIndex(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ev.userData)));
 
-		if (!transforms.Has(e))
-			continue;
+		if (transforms.Has(e))
+		{
+			Transform& t = transforms.Get(e);
+			t.pos_x = ev.transform.p.x;
+			t.pos_y = ev.transform.p.y;
+			t.rotation = b2Rot_GetAngle(ev.transform.q);
+		}
 
-		Transform& t = transforms.Get(e);
-		t.pos_x = ev.transform.p.x;
-		t.pos_y = ev.transform.p.y;
-		t.rotation = b2Rot_GetAngle(ev.transform.q);
+		if (movements.Has(e))
+		{
+			Movement& t = movements.Get(e);
+			b2Vec2	  velocity = b2Body_GetLinearVelocity(ev.bodyId);
+			t.angular_velocity = b2Body_GetAngularVelocity(ev.bodyId);
+			t.velocity_x = velocity.x;
+			t.velocity_y = velocity.y;
+		}
 	}
 }
 
@@ -97,6 +105,29 @@ void Mupfel::CollisionSystem::DeInit()
 	{
 		b2DestroyWorld(id.second);
 	}
+}
+
+void Mupfel::CollisionSystem::SetTransform(Entity e, Transform&& t)
+{
+	/* For now, we silently just do no nothing if the entity does not have a body or a transform component. */
+	if (HasBody(e))
+	{
+		b2Body_SetTransform(bodies[e.Index()], {t.pos_x, t.pos_y}, b2MakeRot(t.rotation * (B2_PI / 180.0f)));
+	}
+
+	Application::GetCurrentRegistry().AddComponent<Transform>(e, t);
+}
+
+void Mupfel::CollisionSystem::SetMovement(Entity e, Movement&& m)
+{ 
+	/* Same strategy as for SetTransform. */
+	if (HasBody(e))
+	{
+		b2Body_SetLinearVelocity(bodies[e.Index()], {m.velocity_x, m.velocity_y});
+		b2Body_SetAngularVelocity(bodies[e.Index()], m.angular_velocity);
+	}
+
+	Application::GetCurrentRegistry().AddComponent<Movement>(e, m);
 }
 
 bool Mupfel::CollisionSystem::HasBody(Entity e) const
@@ -163,7 +194,7 @@ void CollisionSystem::CreateBody(Entity e)
 		def.type = b2_staticBody;
 		break;
 	}
-	def.position = {t.pos_x, t.pos_y}; // never create at origin then move
+	def.position = {t.pos_x, t.pos_y};
 	def.rotation = b2MakeRot(t.rotation);
 	def.gravityScale = rb.gravity_scale;
 	def.linearDamping = rb.linear_damping;
@@ -173,6 +204,13 @@ void CollisionSystem::CreateBody(Entity e)
 	def.enableSleep = rb.allow_sleep;
 	def.userData = Registry::ToUserData(e);
 
+	if (registry.HasComponent<Movement>(e))
+	{
+		Movement m = registry.GetComponent<Movement>(e);
+		def.angularVelocity = m.angular_velocity;
+		def.linearVelocity.x = m.velocity_x;
+		def.linearVelocity.y = m.velocity_y;
+	}
 
 	b2WorldId world_to_use = WorldForScene(scene);
 	b2BodyId  body = b2CreateBody(world_to_use, &def);
@@ -183,10 +221,10 @@ void CollisionSystem::CreateBody(Entity e)
 	sd.material.restitution = c.restitution;
 	sd.isSensor = c.is_sensor;
 	sd.enableContactEvents = c.report_contacts;
-	sd.enableSensorEvents = true; // see §4 gotcha
+	sd.enableSensorEvents = true;
 	sd.filter.categoryBits = c.category;
 	sd.filter.maskBits = c.mask;
-	sd.userData = Registry::ToUserData(e); // so contact events resolve to entities
+	sd.userData = Registry::ToUserData(e);
 
 	switch (c.shape)
 	{
@@ -239,6 +277,11 @@ void Mupfel::CollisionSystem::SetBody(Entity e, b2BodyId body)
 Entity Mupfel::CollisionSystem::EntityOf(b2ShapeId id)
 {
 	return Registry::EntityFromIndex(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(b2Shape_GetUserData(id))));
+}
+
+Entity Mupfel::CollisionSystem::EntityOf(b2BodyId id)
+{
+	return Registry::EntityFromIndex(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(b2Body_GetUserData(id))));
 }
 
 b2WorldId Mupfel::CollisionSystem::WorldForScene(SceneHandle scene)
