@@ -4,7 +4,6 @@
 #include "ECS/Registry.h"
 #include "Core/Application.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Movement.h"
 #include "ECS/Components/Collider.h"
 
 using namespace Mupfel;
@@ -23,7 +22,6 @@ FileManager::Handle Mupfel::EntityFileManager::Load(std::filesystem::path file)
 	}
 
 	RegisterComponentLoader("Transform", EntityFileManager::LoadTransform);
-	RegisterComponentLoader("Movement", EntityFileManager::LoadMovement);
 	RegisterComponentLoader("Collider", EntityFileManager::LoadCollider);
 
 	for (auto ent : data)
@@ -63,18 +61,8 @@ void Mupfel::EntityFileManager::LoadTransform(Entity e, nlohmann::json source)
 	t.pos_x = source["pos_x"];
 	t.pos_y = source["pos_y"];
 	t.pos_z = source["pos_z"];
-	t.scale_x = source["scale_x"];
-	t.scale_y = source["scale_y"];
 	t.rotation = source["rotation"];
 	Application::GetCurrentRegistry().AddComponent<Transform>(e, t);
-}
-
-void Mupfel::EntityFileManager::LoadMovement(Entity e, nlohmann::json source)
-{
-	Movement m;
-	m.velocity_x = source["velocity_x"];
-	m.velocity_y = source["velocity_y"];
-	Application::GetCurrentRegistry().AddComponent<Movement>(e, m);
 }
 
 void Mupfel::EntityFileManager::LoadCollider(Entity e, nlohmann::json source)

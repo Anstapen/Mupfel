@@ -14,10 +14,10 @@ struct TextureInstance {
     float2 scale;
     float  rotation;
     uint   textureIndex;
-    float  uvScale;
+    float  _pad1;
     uint   emitsLight;
     uint   frame;
-	float  _pad1;
+	float  _pad2;
 };
 [[vk::binding(0, 2)]]
 StructuredBuffer<TextureInstance> texture_instances;
@@ -44,10 +44,9 @@ VSOutput vertMain(QuadVSInput input) {
 
     output.worldPos = worldPos;
     output.worldNormal = float3(0.0, 0.0, 1.0);
-    float2 uv       = input.inTexCoord * t.uvScale;
 
     output.pos          = mul(ubo.proj, mul(ubo.view, float4(worldPos, 1.0)));
-    output.fragTexCoord = uv;
+    output.fragTexCoord = input.inTexCoord;
     output.textureIndex = t.textureIndex;
     output.emitsLight = t.emitsLight;
     output.frameIndex = t.frame;

@@ -20,17 +20,11 @@
 
 using namespace Mupfel;
 
-namespace MupfelBench {
-
-namespace {
-
-// One movement-integration step; identical in the serial and parallel variants.
-inline void Integrate(Transform& t, const Movement& m, float dt)
+namespace MupfelBench
 {
-	t.pos_x += m.velocity_x * dt;
-	t.pos_y += m.velocity_y * dt;
-	t.rotation += m.angular_velocity * dt;
-}
+
+namespace
+{
 
 } // namespace
 
@@ -43,33 +37,35 @@ void RunParallelForEachBenchmarks(std::ostream* csv)
 
 	ankerl::nanobench::Bench bench;
 	ApplyDefaults(bench)
-		.title("MovementSystem integration: ParallelForEach vs single-threaded View (" + std::to_string(pool.GetThreadCount()) + " threads)")
+		.title(
+			"MovementSystem integration: ParallelForEach vs single-threaded View (" +
+			std::to_string(pool.GetThreadCount()) + " threads)")
 		.unit("entity");
 
-	for (uint32_t count : { 10000u, 50000u, 200000u })
+	for (uint32_t count : {10000u, 50000u, 200000u})
 	{
 		World world;
 		Populate(world, count, 1); // every entity has both Transform and Movement
 		const uint32_t matched = count;
 
 		// Single-threaded baseline: a plain View doing the integration inline.
-		bench.batch(matched).run("view<Transform, Movement>  serial   " + std::to_string(count),
+		bench.batch(matched).run(
+			"view<Transform, Movement>  serial   " + std::to_string(count),
 			[&]
 			{
-				for (auto [e, t, m] : world.registry.view<Transform, Movement>())
-					Integrate(t, m, dt);
+				for (auto [e, t, m] : world.registry.view<Transform, Body>())
+				{
+				}
 			});
 
 		// Parallel: same work split across the thread pool. The functor returns false (no entity is
 		// reported as "changed"), and we reuse one changed-list to avoid per-run allocation.
-		bench.batch(matched).run("ParallelForEach<Transform, Movement>  " + std::to_string(count),
+		bench.batch(matched).run(
+			"ParallelForEach<Transform, Movement>  " + std::to_string(count),
 			[&]
 			{
-				world.registry.ParallelForEach<Transform, Movement>(
-					[dt](Entity, Transform& t, Movement& m) -> void
-					{
-						Integrate(t, m, dt);
-					});
+				world.registry.ParallelForEach<Transform, Body>(
+					[dt](Entity, Transform& t, Body& m) -> void {});
 			});
 	}
 

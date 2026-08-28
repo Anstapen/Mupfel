@@ -10,7 +10,7 @@ void GravityTest::OnInit()
 	Transform t;
 	t.pos_x = -5;
 	Entities::AddComponent<Transform>(ground, t);
-	Entities::AddComponent<RigidBody>(ground, {});
+	Entities::AddComponent<Body>(ground, {});
 	Collider c;
 	c.half_width = 10;
 	c.half_height = 1;
@@ -22,7 +22,7 @@ void GravityTest::OnInit()
 	c.half_width = 0.5;
 	c.half_height = 4;
 	Entities::AddComponent<Collider>(side_right, c);
-	Entities::AddComponent<RigidBody>(side_right, {});
+	Entities::AddComponent<Body>(side_right, {});
 	Entity side_left = Entities::Create();
 	t.pos_x = -14.5;
 	t.pos_y = 5;
@@ -30,7 +30,7 @@ void GravityTest::OnInit()
 	c.half_width = 0.5;
 	c.half_height = 4;
 	Entities::AddComponent<Collider>(side_left, c);
-	Entities::AddComponent<RigidBody>(side_left, {});
+	Entities::AddComponent<Body>(side_left, {});
 
 	/* Add some balls */
 	Imager::Load("Ball", "Images/ball_blue.png");
@@ -45,9 +45,9 @@ void GravityTest::OnInit()
 		t.pos_y = 5;
 		t.pos_z = 0.08f;
 		Entities::AddComponent<Transform>(e, t);
-		RigidBody b;
+		Body b;
 		b.type = BodyType::Dynamic;
-		Entities::AddComponent<RigidBody>(e, b);
+		Entities::AddComponent<Body>(e, b);
 
 		Collider c;
 		c.half_width = 0.5;

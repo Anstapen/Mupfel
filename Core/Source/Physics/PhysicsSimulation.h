@@ -30,6 +30,9 @@ namespace Mupfel {
 		void ToggleSingleStep();
 		void Step();
 
+		void SetTransform(Entity e, Transform t);
+		void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
+
 	private:
 		double time_multi;
 		bool single_step;

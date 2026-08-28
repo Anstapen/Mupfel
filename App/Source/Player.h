@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/Logger.h"
 #include "Mupfel.h"
 #include <cstdint>
 #include <string>
@@ -14,13 +15,15 @@ public:
 	void UpdateMovement(double timestep);
 
 private:
-	Mupfel::Entity												   e;
-	std::unordered_map<std::string, Mupfel::ImageHandle>		   image_map;
-	std::unordered_map<std::string, Mupfel::Animation>					   animations;
+	Mupfel::Logger::SafeLoggerPtr						 logger;
+	Mupfel::Entity										 e;
+	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
+	std::unordered_map<std::string, Mupfel::Animation>	 animations;
 	/** Key into `animations` of the sequence currently playing; empty until the first selection. */
-	std::string													   current_anim;
-	bool														   moving_right = false;
-	bool														   moving_left = false;
-	bool														   moving_up = false;
-	bool														   moving_down = false;
+	std::string current_anim;
+	bool		moving_right = false;
+	bool		moving_left = false;
+	bool		moving_up = false;
+	bool		moving_down = false;
+	bool		movement_changed = false;
 };

@@ -35,11 +35,10 @@
 #include "ECS/Components/Animation.h"
 #include "ECS/Components/Collider.h"
 #include "ECS/Components/Light.h"
-#include "ECS/Components/Movement.h"
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Collider.h"
-#include "ECS/Components/RigidBody.h"
+#include "ECS/Components/Body.h"
 
 /* Rendering and UI */
 #include "Core/UI.h"

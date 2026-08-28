@@ -28,10 +28,10 @@ struct TextureInstance
 	float	 scale_y = 1.0f;
 	float	 rotation = 0.0f;
 	uint32_t index = 1;
-	float	 uvScale = 1.0f;
+	float	 _pad1;
 	uint32_t emitsLight = 0;
 	uint32_t frame = 0;
-	float	 _pad1;
+	float	 _pad2;
 };
 
 struct LightInstance
@@ -323,19 +323,15 @@ void Mupfel::ECSRenderer::SyncRenderableObjects(const Ping::Device& device, uint
 	for (auto [e, texture, transform] : registry.view<Mupfel::Texture, Mupfel::Transform>())
 	{
 		buffer[buffer_index].index = texture.index;
-		buffer[buffer_index].uvScale = texture.uvScale;
+		buffer[buffer_index].scale_x = texture.scale_x;
+		buffer[buffer_index].scale_y = texture.scale_y;
 		buffer[buffer_index].pos_x = transform.pos_x;
 		buffer[buffer_index].pos_y = transform.pos_y;
 		buffer[buffer_index].pos_z = transform.pos_z;
 		buffer[buffer_index].rotation = transform.rotation;
-		buffer[buffer_index].scale_x = transform.scale_x;
-		buffer[buffer_index].scale_y = transform.scale_y;
 
 		/* TODO: check if GetSignature might be more performant! */
-		if (registry.HasComponent<Mupfel::Light>(e))
-		{
-			buffer[buffer_index].emitsLight = 1;
-		}
+		buffer[buffer_index].emitsLight = registry.HasComponent<Mupfel::Light>(e) ? 1 : 0;
 
 		if (registry.HasComponent<Mupfel::Animation>(e))
 		{
@@ -350,6 +346,7 @@ void Mupfel::ECSRenderer::SyncRenderableObjects(const Ping::Device& device, uint
 	}
 
 	drawable_entities = buffer_index;
+
 }
 
 void Mupfel::ECSRenderer::SyncLights(const Ping::Device& device, uint32_t frame_index)

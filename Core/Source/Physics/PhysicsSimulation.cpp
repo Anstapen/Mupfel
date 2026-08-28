@@ -1,7 +1,6 @@
 #include "PhysicsSimulation.h"
 #include "Core/Profiler.h"
 #include "ECS/Registry.h"
-#include "MovementSystem.h"
 
 using namespace Mupfel;
 
@@ -14,12 +13,10 @@ PhysicsSimulation::PhysicsSimulation(Registry& in_reg, EventSystem& in_evt_syste
 void PhysicsSimulation::Init()
 {
 	collision_system->Init();
-	MovementSystem::Init();
 }
 
 void PhysicsSimulation::DeInit()
 {
-	MovementSystem::DeInit();
 	collision_system->DeInit();
 }
 
@@ -52,6 +49,15 @@ void Mupfel::PhysicsSimulation::ToggleSingleStep() { single_step = !single_step;
 void Mupfel::PhysicsSimulation::Step()
 {
 	/* When single stepping we use a fixed value of 1ms */
-	MovementSystem::Update(0.001f);
 	collision_system->Step(0.001f, subSteps);
+}
+
+void Mupfel::PhysicsSimulation::SetTransform(Entity e, Transform t)
+{
+	collision_system->SetTransform(e, t);
+}
+
+void Mupfel::PhysicsSimulation::SetMovement(Entity e, float vel_x, float vel_y, float vel_ang)
+{
+	collision_system->SetMovement(e, vel_x, vel_y, vel_ang);
 }

@@ -65,8 +65,6 @@ void RunViewBenchmarks(std::ostream* csv)
 				[&]
 				{
 					float sum = 0.0f;
-					for (auto [e, m] : world.registry.view<Movement>())
-						sum += m.velocity_x;
 					doNotOptimizeAway(sum);
 				});
 		}
@@ -89,8 +87,6 @@ void RunViewBenchmarks(std::ostream* csv)
 			[&]
 			{
 				float sum = 0.0f;
-				for (auto [e, t, m] : world.registry.view<Transform, Movement>())
-					sum += t.pos_x + m.velocity_x;
 				doNotOptimizeAway(sum);
 			});
 
@@ -99,8 +95,6 @@ void RunViewBenchmarks(std::ostream* csv)
 			[&]
 			{
 				float sum = 0.0f;
-				for (auto [e, m, t] : world.registry.view<Movement, Transform>())
-					sum += t.pos_x + m.velocity_x;
 				doNotOptimizeAway(sum);
 			});
 

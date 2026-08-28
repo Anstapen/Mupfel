@@ -6,9 +6,8 @@
 #include <thread>
 
 /* Needed Component types for collision detection/resolution */
+#include "ECS/Components/Body.h"
 #include "ECS/Components/Collider.h"
-#include "ECS/Components/Movement.h"
-#include "ECS/Components/RigidBody.h"
 #include "ECS/Components/Transform.h"
 
 #include "Core/PhysicsEvents.h"
@@ -19,18 +18,27 @@ Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) : 
 
 void CollisionSystem::Init()
 {
+	logger = Logger::Create("Collision System");
 	evt_system.RegisterListener<ComponentAddedEvent>(
 		[this](const ComponentAddedEvent& ev)
 		{
-			static const Entity::Signature required = Registry::ComponentSignature<Transform, RigidBody, Collider>();
+			static const Entity::Signature required_for_body = Registry::ComponentSignature<Transform, Body>();
+			static const Entity::Signature required_for_collider =
+				Registry::ComponentSignature<Transform, Body, Collider>();
 
-			if ((ev.sig & required) != required)
-				return;
-			if (HasBody(ev.e))
-				return;
+			if (((ev.sig & required_for_body) == required_for_body) && !HasBody(ev.e))
+			{
+				/* The entity has all required components for body creation. */
+				std::scoped_lock lock(pending_mutex);
+				pending_body_create.push(ev.e);
+			}
 
-			std::scoped_lock lock(pending_mutex);
-			pending_create.push(ev.e);
+			if ((ev.sig & required_for_collider) == required_for_collider)
+			{
+				/* The entity has all required components for collider creation. */
+				std::scoped_lock lock(pending_mutex);
+				pending_collider_create.push(ev.e);
+			}
 		});
 
 	evt_system.RegisterListener<EntityDestroyedEvent>(
@@ -59,7 +67,6 @@ void CollisionSystem::SyncTransforms()
 	assert(!B2_IS_NULL(current_world));
 	b2BodyEvents events = b2World_GetBodyEvents(current_world);
 	auto&		 transforms = registry.GetComponentArray<Transform>();
-	auto&		 movements = registry.GetComponentArray<Movement>();
 
 	for (int i = 0; i < events.moveCount; ++i)
 	{
@@ -74,15 +81,6 @@ void CollisionSystem::SyncTransforms()
 			t.pos_y = ev.transform.p.y;
 			t.rotation = b2Rot_GetAngle(ev.transform.q);
 		}
-
-		if (movements.Has(e))
-		{
-			Movement& t = movements.Get(e);
-			b2Vec2	  velocity = b2Body_GetLinearVelocity(ev.bodyId);
-			t.angular_velocity = b2Body_GetAngularVelocity(ev.bodyId);
-			t.velocity_x = velocity.x;
-			t.velocity_y = velocity.y;
-		}
 	}
 }
 
@@ -95,8 +93,42 @@ void CollisionSystem::DispatchEvents()
 		const b2ContactBeginTouchEvent& ev = contacts.beginEvents[i];
 		evt_system.AddEvent<CollisionBeganEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
 	}
-	// end events: shapes MAY already be destroyed -- guard with b2Shape_IsValid (types.h:1070)
-	// sensor events: b2World_GetSensorEvents, same shape.
+
+	for (int i = 0; i < contacts.endCount; ++i)
+	{
+		const b2ContactEndTouchEvent& ev = contacts.endEvents[i];
+
+		if (!b2Shape_IsValid(ev.shapeIdA) || !b2Shape_IsValid(ev.shapeIdB))
+		{
+			continue;
+		}
+		evt_system.AddEvent<CollisionEndedEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
+	}
+
+	for (int i = 0; i < contacts.hitCount; ++i)
+	{
+		const b2ContactHitEvent& ev = contacts.hitEvents[i];
+		evt_system.AddEvent<CollisionBeganEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
+	}
+
+	b2SensorEvents sensors = b2World_GetSensorEvents(current_world);
+	for (int i = 0; i < sensors.beginCount; ++i)
+	{
+		const b2SensorBeginTouchEvent& ev = sensors.beginEvents[i];
+		evt_system.AddEvent<SensorEnteredEvent>({EntityOf(ev.sensorShapeId), EntityOf(ev.visitorShapeId)});
+	}
+
+	for (int i = 0; i < sensors.endCount; ++i)
+	{
+		const b2SensorEndTouchEvent& ev = sensors.endEvents[i];
+
+		if (!b2Shape_IsValid(ev.sensorShapeId) || !b2Shape_IsValid(ev.visitorShapeId))
+		{
+			continue;
+		}
+		evt_system.AddEvent<SensorExitedEvent>({EntityOf(ev.sensorShapeId), EntityOf(ev.visitorShapeId)});
+	}
+
 }
 
 void Mupfel::CollisionSystem::DeInit()
@@ -107,27 +139,27 @@ void Mupfel::CollisionSystem::DeInit()
 	}
 }
 
-void Mupfel::CollisionSystem::SetTransform(Entity e, Transform&& t)
+void Mupfel::CollisionSystem::SetTransform(Entity e, Transform t)
 {
 	/* For now, we silently just do no nothing if the entity does not have a body or a transform component. */
 	if (HasBody(e))
 	{
 		b2Body_SetTransform(bodies[e.Index()], {t.pos_x, t.pos_y}, b2MakeRot(t.rotation * (B2_PI / 180.0f)));
+		b2Body_SetAwake(bodies[e.Index()], true);
 	}
 
 	Application::GetCurrentRegistry().AddComponent<Transform>(e, t);
 }
 
-void Mupfel::CollisionSystem::SetMovement(Entity e, Movement&& m)
-{ 
+void Mupfel::CollisionSystem::SetMovement(Entity e, float vel_x, float vel_y, float vel_ang)
+{
 	/* Same strategy as for SetTransform. */
 	if (HasBody(e))
 	{
-		b2Body_SetLinearVelocity(bodies[e.Index()], {m.velocity_x, m.velocity_y});
-		b2Body_SetAngularVelocity(bodies[e.Index()], m.angular_velocity);
+		b2Body_SetLinearVelocity(bodies[e.Index()], {vel_x, vel_y});
+		b2Body_SetAngularVelocity(bodies[e.Index()], vel_ang);
+		b2Body_SetAwake(bodies[e.Index()], true);
 	}
-
-	Application::GetCurrentRegistry().AddComponent<Movement>(e, m);
 }
 
 bool Mupfel::CollisionSystem::HasBody(Entity e) const
@@ -150,13 +182,23 @@ void Mupfel::CollisionSystem::HandlePendingEvents()
 		b2DestroyBody(id);
 	}
 
-	while (!pending_create.empty())
+	while (!pending_body_create.empty())
 	{
 		{
 			std::scoped_lock lock(pending_mutex);
 
-			CreateBody(pending_create.front());
-			pending_create.pop();
+			CreateBody(pending_body_create.front());
+			pending_body_create.pop();
+		}
+	}
+
+	while (!pending_collider_create.empty())
+	{
+		{
+			std::scoped_lock lock(pending_mutex);
+
+			CreateCollider(pending_collider_create.front());
+			pending_collider_create.pop();
 		}
 	}
 }
@@ -170,19 +212,24 @@ void CollisionSystem::CreateBody(Entity e)
 
 	assert(!B2_IS_NULL(current_world));
 
-	/* If the entity was destroyed in the meantime, do not create the body! */
 	const SceneHandle scene = Scene::HandleFromMask(registry.GetSceneMask(e));
 	if (scene >= Scene::MAX_SCENES)
 	{
 		return;
 	}
 
+	/* The entity needs a transform and body component. */
+	if (!registry.HasComponent<Transform>(e) || !registry.HasComponent<Body>(e))
+	{
+		return;
+	}
+
 	const Transform& t = registry.GetComponent<Transform>(e);
-	const RigidBody& rb = registry.GetComponent<RigidBody>(e);
-	const Collider&	 c = registry.GetComponent<Collider>(e);
+	const Body&		 b = registry.GetComponent<Body>(e);
+	
 
 	b2BodyDef def = b2DefaultBodyDef();
-	switch (rb.type)
+	switch (b.type)
 	{
 	case BodyType::Dynamic:
 		def.type = b2_dynamicBody;
@@ -196,24 +243,52 @@ void CollisionSystem::CreateBody(Entity e)
 	}
 	def.position = {t.pos_x, t.pos_y};
 	def.rotation = b2MakeRot(t.rotation);
-	def.gravityScale = rb.gravity_scale;
-	def.linearDamping = rb.linear_damping;
-	def.angularDamping = rb.angular_damping;
-	def.fixedRotation = rb.fixed_rotation;
-	def.isBullet = rb.is_bullet;
-	def.enableSleep = rb.allow_sleep;
+	def.gravityScale = b.gravity_scale;
+	def.linearDamping = b.linear_damping;
+	def.angularDamping = b.angular_damping;
+	def.fixedRotation = b.fixed_rotation;
+	def.isBullet = b.is_bullet;
+	def.enableSleep = b.allow_sleep;
+	def.angularVelocity = b.angular_velocity;
+	def.linearVelocity.x = b.velocity_x;
+	def.linearVelocity.y = b.velocity_y;
 	def.userData = Registry::ToUserData(e);
-
-	if (registry.HasComponent<Movement>(e))
-	{
-		Movement m = registry.GetComponent<Movement>(e);
-		def.angularVelocity = m.angular_velocity;
-		def.linearVelocity.x = m.velocity_x;
-		def.linearVelocity.y = m.velocity_y;
-	}
 
 	b2WorldId world_to_use = WorldForScene(scene);
 	b2BodyId  body = b2CreateBody(world_to_use, &def);
+
+	SetBody(e, body);
+}
+
+void Mupfel::CollisionSystem::CreateCollider(Entity e)
+{
+	/* If the entity currently does not have a body, there is nothing to do. */
+	if (!HasBody(e))
+	{
+		return;
+	}
+
+	assert(bodies.size() > e.Index());
+	assert(!B2_IS_NULL(current_world));
+
+	/* We need to be in a valid scene at the moment. */
+	const SceneHandle scene = Scene::HandleFromMask(registry.GetSceneMask(e));
+	if (scene >= Scene::MAX_SCENES)
+	{
+		return;
+	}
+
+	/* The entity need all three components to create a valid collider. */
+	if (!registry.HasComponent<Transform>(e) || !registry.HasComponent<Body>(e) ||
+		!registry.HasComponent<Collider>(e))
+	{
+		return;
+	}
+
+	const Transform& t = registry.GetComponent<Transform>(e);
+	const Collider&	 c = registry.GetComponent<Collider>(e);
+
+	b2BodyId body = bodies[e.Index()];
 
 	b2ShapeDef sd = b2DefaultShapeDef();
 	sd.density = c.density;
@@ -221,6 +296,7 @@ void CollisionSystem::CreateBody(Entity e)
 	sd.material.restitution = c.restitution;
 	sd.isSensor = c.is_sensor;
 	sd.enableContactEvents = c.report_contacts;
+	sd.enableHitEvents = true;
 	sd.enableSensorEvents = true;
 	sd.filter.categoryBits = c.category;
 	sd.filter.maskBits = c.mask;
@@ -243,8 +319,6 @@ void CollisionSystem::CreateBody(Entity e)
 	case ColliderShape::Capsule: /* b2Capsule + b2CreateCapsuleShape */
 		break;
 	}
-
-	SetBody(e, body);
 }
 
 b2BodyId Mupfel::CollisionSystem::TakeBody(Entity e)

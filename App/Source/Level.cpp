@@ -21,12 +21,8 @@ void Level::OnInit()
 	// Ground: one large flat quad in the x/y plane, grass tiled ~1 texture per world unit.
 	{
 		Entity	  e = Entities::Create();
-		Transform g;
-		g.scale_x = 31.0f;
-		g.scale_y = 13.0f;
-
-		Entities::AddComponent<Transform>(e, g);
-		Entities::AddComponent<Texture>(e, {Imager::Get("Map"), 1.0f});
+		Entities::AddComponent<Transform>(e, {});
+		Entities::AddComponent<Texture>(e, {Imager::Get("Map"), 31.0f, 13.0f});
 	}
 
 	/* A simple Light */
@@ -88,13 +84,12 @@ void Level::OnInit()
 	{
 		Entity	  e = Entities::Create();
 		Transform g;
-		g.scale_y = 3.0f;
 		g.pos_x = -6.0f;
 		g.pos_y = 5.0f;
 		g.pos_z = 0.08f;
 
 		Entities::AddComponent<Transform>(e, g);
-		Entities::AddComponent<Texture>(e, {Imager::Get("GargLava"), 1.0f});
+		Entities::AddComponent<Texture>(e, {Imager::Get("GargLava"), 1.0f, 3.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 3, 2.0f});
 	}
@@ -102,13 +97,12 @@ void Level::OnInit()
 	{
 		Entity	  e = Entities::Create();
 		Transform g;
-		g.scale_y = 3.0f;
 		g.pos_x = -5.0f;
 		g.pos_y = 5.0f;
 		g.pos_z = 0.08f;
 
 		Entities::AddComponent<Transform>(e, g);
-		Entities::AddComponent<Texture>(e, {Imager::Get("GargWater"), 1.0f});
+		Entities::AddComponent<Texture>(e, {Imager::Get("GargWater"), 1.0f, 3.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 3, 2.0f});
 	}
@@ -142,7 +136,13 @@ void Level::OnInit()
 
 		Entities::AddComponent<Transform>(e, g);
 
-		Entities::AddComponent<Collider>(e, {});
+		Collider c;
+		c.is_sensor = true;
+		Entities::AddComponent<Collider>(e, c);
+		Body b;
+		b.fixed_rotation = true;
+		b.type = BodyType::Static;
+		Entities::AddComponent<Body>(e, b);
 		Entities::AddComponent<Texture>(e, {Imager::Get("Spikes"), 1.0f});
 
 		Entities::AddComponent<Animation>(e, {0, 4, 1.0f, elapsed});

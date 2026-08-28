@@ -179,6 +179,13 @@ InputManager& Mupfel::Application::GetCurrentInputManager() { return Get().input
 
 Registry& Mupfel::Application::GetCurrentRegistry() { return Get().registry; }
 
+void Mupfel::Application::SetTransform(Entity e, Transform t) { return Get().physics->SetTransform(e, t); }
+
+void Mupfel::Application::SetMovement(Entity e, float vel_x, float vel_y, float vel_ang)
+{
+	return Get().physics->SetMovement(e, vel_x, vel_y, vel_ang);
+}
+
 Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
 {
 	return Get().image_manager.Load(*Get().gpu, path);

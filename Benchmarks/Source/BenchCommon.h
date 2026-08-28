@@ -11,7 +11,7 @@
 #include "Core/ThreadPool.h"
 #include "ECS/Registry.h"
 #include "ECS/Components/Transform.h"
-#include "ECS/Components/Movement.h"
+#include "ECS/Components/Body.h"
 
 #include <nanobench.h>
 
@@ -73,10 +73,10 @@ inline void Populate(World& world, uint32_t count, uint32_t movement_stride = 1)
 
 		if (movement_stride != 0 && (i % movement_stride) == 0)
 		{
-			Mupfel::Movement m;
+			Mupfel::Body m;
 			m.velocity_x = 1.0f;
 			m.velocity_y = 2.0f;
-			world.registry.AddComponent<Mupfel::Movement>(e, m);
+			world.registry.AddComponent<Mupfel::Body>(e, m);
 		}
 
 		world.entities.push_back(e);

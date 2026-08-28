@@ -3,9 +3,6 @@
 
 namespace Mupfel
 {
-/**
- * The types of body an entity can have.
- */
 enum class BodyType : uint8_t
 {
 	Static,
@@ -13,9 +10,12 @@ enum class BodyType : uint8_t
 	Dynamic
 };
 
-struct RigidBody
+struct Body
 {
 	BodyType type = BodyType::Static;
+	float	 velocity_x = 0.0f;
+	float	 velocity_y = 0.0f;
+	float	 angular_velocity = 0.0f;
 	float	 gravity_scale = 1.0f;
 	float	 linear_damping = 0.0f;
 	float	 angular_damping = 0.0f;

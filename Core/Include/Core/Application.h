@@ -2,6 +2,7 @@
 
 #include "ConfigManager.h"
 #include "ECS/Registry.h"
+#include "ECS/Components/Transform.h"
 #include "EventSystem.h"
 #include "InputManager.h"
 #include "Layer.h"
@@ -144,6 +145,9 @@ public:
 	 * @brief Provides access to the global ECS Registry.
 	 */
 	static Registry& GetCurrentRegistry();
+
+	static void SetTransform(Entity e, Transform t);
+	static void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
 
 	/**
 	 * Load a simple image.

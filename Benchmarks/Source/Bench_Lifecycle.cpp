@@ -72,17 +72,15 @@ void RunLifecycleBenchmarks(std::ostream* csv)
 	// Isolates the sparse-set insert + O(1) swap-remove cost from entity creation/destruction.
 	{
 		World world;
-		Populate(world, count, 0); // all entities have Transform only; none have Movement yet
-		Movement m;                // Movement isn't an aggregate (private padding member), so assign fields
-		m.velocity_x = 1.0f;
+		Populate(world, count, 0);
 
 		bench.batch(count).run("AddComponent<Movement> + RemoveComponent<Movement>",
 			[&]
 			{
 				for (Entity e : world.entities)
-					world.registry.AddComponent<Movement>(e, m);
+					world.registry.AddComponent<Body>(e, {});
 				for (Entity e : world.entities)
-					world.registry.RemoveComponent<Movement>(e);
+					world.registry.RemoveComponent<Body>(e);
 				world.events.Update();
 			});
 	}

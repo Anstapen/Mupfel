@@ -25,6 +25,7 @@ Player::Player(Mupfel::Registry& registry) : e(registry.CreateEntity()) {}
 
 void Player::Init()
 {
+	logger = Logger::Create("Player");
 	auto result = Application::LoadAnimatedImage(
 					  "Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4})
 					  .transform([this](ImageHandle handle) { this->image_map["Vampire"] = handle; });
@@ -39,12 +40,13 @@ void Player::Init()
 	e = Entities::Create();
 	Transform p;
 	p.pos_z = 0.1f;
-	p.scale_x = 5.0f;
-	p.scale_y = 5.0f;
+	
 	Entities::AddComponent<Transform>(e, p);
 	if (image_map.contains("Vampire"))
 	{
 		Texture tex;
+		tex.scale_x = 5.0f;
+		tex.scale_y = 5.0f;
 		tex.index = image_map["Vampire"];
 		Entities::AddComponent<Texture>(e, tex);
 	}
@@ -53,11 +55,20 @@ void Player::Init()
 	Entities::AddComponent<Animation>(e, animations.at(current_anim));
 
 	Collider c;
+	c.shape = ColliderShape::Box;
 	c.half_height = 0.25;
 	c.half_width = 0.5;
 	c.offset_y = -0.75;
+	c.report_contacts = true;
 
 	Entities::AddComponent<Collider>(e, c);
+
+
+	Body b;
+	b.type = BodyType::Dynamic;
+	b.fixed_rotation = true;
+
+	Entities::AddComponent<Body>(e, b);
 
 	Mupfel::InputManager& input_manager = Mupfel::Application::GetCurrentInputManager();
 	input_manager.MapKeyboardButton<PlayerMovedEvent>(
@@ -70,6 +81,8 @@ void Player::Init()
 		Key::KEY_D, KeyAction::PRESSED | KeyAction::RELEASED, {PlayerMovement::RIGHT});
 }
 
+
+
 void Player::UpdateMovement(double timestep)
 {
 	Mupfel::EventSystem& evt_system = Application::GetCurrentEventSystem();
@@ -78,15 +91,19 @@ void Player::UpdateMovement(double timestep)
 		The InputManager emits the same event for PRESSED and RELEASED (Binding::emitter drops the
 		KeyAction), so a key's press/release cycle is tracked by toggling the flag on every event.
 	*/
+	if (evt_system.GetPendingEvents<PlayerMovedEvent>())
+	{
+		movement_changed = true;
+	}
 	for (auto& event : evt_system.GetEvents<PlayerMovedEvent>())
 	{
 		switch (event.movement)
 		{
 		case PlayerMovement::FORWARD:
-			moving_down = !moving_down;
+			moving_up = !moving_up;
 			break;
 		case PlayerMovement::BACKWARDS:
-			moving_up = !moving_up;
+			moving_down = !moving_down;
 			break;
 		case PlayerMovement::LEFT:
 			moving_left = !moving_left;
@@ -111,11 +128,11 @@ void Player::UpdateMovement(double timestep)
 	std::string_view wanted;
 	if (moving_up)
 	{
-		wanted = "idle_front";
+		wanted = "idle_back";
 	}
 	else if (moving_down)
 	{
-		wanted = "idle_back";
+		wanted = "idle_front";
 	}
 	else if (moving_left)
 	{
@@ -134,20 +151,35 @@ void Player::UpdateMovement(double timestep)
 
 	Mupfel::Transform& t = registry.GetComponent<Transform>(e);
 
-	if (moving_right)
+	if (movement_changed)
 	{
-		t.pos_x += 2.0f * timestep;
-	}
-	if (moving_left)
-	{
-		t.pos_x -= 2.0f * timestep;
-	}
-	if (moving_up)
-	{
-		t.pos_y -= 2.0f * timestep;
-	}
-	if (moving_down)
-	{
-		t.pos_y += 2.0f * timestep;
+		/* Recalculate the player movement */
+		float vel_x = 0.0f, vel_y = 0.0f;
+
+		constexpr float vel = 3.0f;
+
+		if (moving_right)
+		{
+			vel_x = vel;
+		}
+
+		if (moving_left)
+		{
+			vel_x = -vel;
+		}
+
+		if (moving_up)
+		{
+			vel_y = vel;
+		}
+
+		if (moving_down)
+		{
+			vel_y = -vel;
+		}
+
+		Application::SetMovement(e, vel_x, vel_y, 0.0f);
+
+		movement_changed = false;
 	}
 }

@@ -45,12 +45,12 @@ void RunComponentAccessBenchmarks(std::ostream* csv)
 		});
 
 	// HasComponent<Movement> in random order (present on half the entities).
-	bench.batch(count).run("HasComponent<Movement>  random",
+	bench.batch(count).run("HasComponent<Body>  random",
 		[&]
 		{
 			uint32_t hits = 0;
 			for (Entity e : shuffled)
-				hits += world.registry.HasComponent<Movement>(e) ? 1u : 0u;
+				hits += world.registry.HasComponent<Body>(e) ? 1u : 0u;
 			doNotOptimizeAway(hits);
 		});
 
