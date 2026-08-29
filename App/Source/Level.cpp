@@ -7,7 +7,6 @@ using namespace Mupfel;
 
 void Level::OnInit()
 {
-	camera.pitch = 1.569051f;
 
 	Imager::Load("Map", "Images/dungeon.png");
 	Imager::LoadAnimated(

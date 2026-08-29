@@ -6,6 +6,7 @@
 #include "ECS/Registry.h"
 #include "ECS/View.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/CameraMath.h"
 #include <algorithm>
 #include <format>
 #include <glm/gtc/matrix_transform.hpp>
@@ -41,10 +42,7 @@ void Mupfel::DebugLayer::OnRender()
 	ImGui::SetWindowSize({width, height});
 
 	// ImGui::ShowDemoWindow();
-	if (ImGui::CollapsingHeader("Performance Metrics"))
-	{
-		DrawPerformanceMetrics();
-	}
+	
 	if (ImGui::CollapsingHeader("Camera Controls"))
 	{
 		DrawCameraControls();
@@ -54,7 +52,13 @@ void Mupfel::DebugLayer::OnRender()
 
 	if (drawEntityColliders)
 	{
+		ProfilingSample prof("Debug: Drawing Colliders");
 		DrawEntityColliders();
+	}
+
+	if (ImGui::CollapsingHeader("Performance Metrics"))
+	{
+		DrawPerformanceMetrics();
 	}
 
 	ImGui::End();
@@ -137,29 +141,16 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 				{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, red, 2);
 			break;
 		}
-		
-		
 	}
 }
 
 void Mupfel::DebugLayer::UpdateMVP()
 {
-	int32_t width = Application::GetCurrentRenderWidth();
-	int32_t height = Application::GetCurrentRenderHeight();
-	Camera	cam = Application::GetCurrentSceneCamera();
+	int32_t		  width = Application::GetCurrentRenderWidth();
+	int32_t		  height = Application::GetCurrentRenderHeight();
+	const Camera& cam = Application::GetCurrentSceneCamera();
 
-	glm::vec3 cameraTarget = glm::vec3(cam.target_x, cam.target_y, cam.target_z);
+	view = CameraMath::View(cam);
 
-	glm::vec3 eye = cameraTarget + cam.distance * glm::vec3(
-													  glm::cos(cam.pitch) * glm::cos(cam.yaw),
-													  glm::cos(cam.pitch) * glm::sin(cam.yaw), glm::sin(cam.pitch));
-
-	view = lookAt(eye, cameraTarget, glm::vec3(0.0f, 0.0f, 1.0f));
-	const float aspect = static_cast<float>(width) / static_cast<float>(height);
-	const float half_height = cam.distance * glm::tan(glm::radians(45.0f) * 0.5f);
-	const float half_width = half_height * aspect;
-
-	proj = glm::ortho(-half_width, half_width, -half_height, half_height, 0.1f, 500.0f);
-
-	proj[1][1] *= -1;
+	proj = CameraMath::Projection(cam, width, height);
 }

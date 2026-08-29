@@ -94,6 +94,9 @@ project "box2d"
     filter "system:not windows"
         buildoptions { "-ffp-contract=off" }
 
+    filter "configurations:Debug"
+        optimize "Speed"
+
     filter {}
 
 -- Catch2 v3, built from the two "amalgamated" files upstream ships per release (see Deps.catch2 in

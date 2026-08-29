@@ -237,7 +237,7 @@ void Mupfel::Application::SwitchScene(SceneHandle new_scene)
 	{
 		app.scenes[app.current_scene]->OnSwitchOut();
 	}
-	
+
 	app.scenes[new_scene]->OnSwitchIn();
 
 	app.current_scene = new_scene;
@@ -272,7 +272,6 @@ void Application::Run()
 		double timestep = std::clamp<double>(currentTime - lastTime, 0.00001f, 0.1f);
 		lastTime = currentTime;
 
-
 		{
 			ProfilingSample prof("Application::Run(): Check ");
 			/* Check for Application related changes */
@@ -296,7 +295,10 @@ void Application::Run()
 			queued_scene = Scene::INVALID_HANDLE;
 		}
 
-		scenes[current_scene]->OnUpdate(timestep);
+		{
+			ProfilingSample prof("Current Scene - OnUpdate ");
+			scenes[current_scene]->OnUpdate(timestep);
+		}
 
 		{
 			ProfilingSample prof("Layers - OnUpdate ");
@@ -312,7 +314,6 @@ void Application::Run()
 			ProfilingSample prof("Physics Update");
 
 			physics->Update(timestep);
-			
 		}
 
 		{
@@ -326,7 +327,11 @@ void Application::Run()
 			renderer->Begin(*gpu, Window::GetInstance(), timestep);
 		}
 
-		scenes[current_scene]->OnRender();
+		{
+			ProfilingSample prof("Current Scene - OnRender");
+			scenes[current_scene]->OnRender();
+		}
+		
 
 		{
 			ProfilingSample prof("Layer Rendering");
@@ -337,14 +342,13 @@ void Application::Run()
 		}
 
 		{
-			ProfilingSample prof1("DebugLayer");
-
+			ProfilingSample prof("DebugLayer");
 			if (debugModeEnabled)
 			{
-				/* Make sure the debug Layer is Rendered last */
+
+				/* Make sure the debug Layer is rendered last */
 				debug_layer->OnRender();
 			}
-			Profiler::Clear();
 		}
 
 		{
@@ -357,6 +361,8 @@ void Application::Run()
 			/* Update the EventSystem */
 			evt_system.Update();
 		}
+
+		Profiler::Clear();
 
 		Application::EndFrameTime();
 	}

@@ -1,5 +1,6 @@
 #include "CollisionSystem.h"
 #include "Core/Application.h"
+#include "Core/Profiler.h"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -22,18 +23,28 @@ void CollisionSystem::Init()
 	evt_system.RegisterListener<ComponentAddedEvent>(
 		[this](const ComponentAddedEvent& ev)
 		{
+			/* The entity needs a transform and body component. */
 			static const Entity::Signature required_for_body = Registry::ComponentSignature<Transform, Body>();
-			static const Entity::Signature required_for_collider =
-				Registry::ComponentSignature<Transform, Body, Collider>();
 
-			if (((ev.sig & required_for_body) == required_for_body) && !HasBody(ev.e))
+			/*
+			 * The component added also needs to be one of those. Basically, we only care about the case where the given
+			 * component "completes" the signature.
+			 */
+			const bool for_body =
+				ev.comp_id == ComponentIndex::Index<Transform>() || ev.comp_id == ComponentIndex::Index<Body>();
+
+			if (for_body && ((ev.sig & required_for_body) == required_for_body) && !HasBody(ev.e))
 			{
 				/* The entity has all required components for body creation. */
 				std::scoped_lock lock(pending_mutex);
 				pending_body_create.push(ev.e);
 			}
 
-			if ((ev.sig & required_for_collider) == required_for_collider)
+			static const Entity::Signature required_for_collider =
+				Registry::ComponentSignature<Transform, Body, Collider>();
+			const bool for_collider = for_body || ev.comp_id == ComponentIndex::Index<Collider>();
+
+			if (for_collider && (ev.sig & required_for_collider) == required_for_collider)
 			{
 				/* The entity has all required components for collider creation. */
 				std::scoped_lock lock(pending_mutex);
@@ -56,8 +67,12 @@ void CollisionSystem::Init()
 void CollisionSystem::Step(double delta, uint32_t sub_steps)
 {
 	assert(!B2_IS_NULL(current_world));
-	HandlePendingEvents();
-	b2World_Step(current_world, delta, sub_steps);
+	{
+		HandlePendingEvents();
+	}
+	{
+		b2World_Step(current_world, delta, sub_steps);
+	}
 }
 
 void Mupfel::CollisionSystem::SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y)
@@ -296,6 +311,12 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 		return;
 	}
 
+	/* Currently, we only allow one shape per body. */
+	if (b2Body_GetShapeCount(bodies[e.Index()]) > 0)
+	{
+		return;
+	}
+
 	assert(bodies.size() > e.Index());
 	assert(!B2_IS_NULL(current_world));
 
@@ -323,8 +344,8 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 	sd.material.restitution = c.restitution;
 	sd.isSensor = c.is_sensor;
 	sd.enableContactEvents = c.report_contacts;
-	sd.enableHitEvents = true;
-	sd.enableSensorEvents = true;
+	sd.enableHitEvents = false;
+	sd.enableSensorEvents = false;
 	sd.filter.categoryBits = c.category;
 	sd.filter.maskBits = c.mask;
 	sd.userData = Registry::ToUserData(e);

@@ -37,10 +37,11 @@ namespace Mupfel {
 	private:
 		double time_multi;
 		bool single_step;
-		/** The simulation timestep (fixed at 100Hz). */
-		static constexpr double simDelta = 1.0f / 100.0f;
+		/** The simulation timestep (fixed at 60Hz). */
+		static constexpr double simDelta = 1.0 / 60.0;
 		static constexpr uint32_t subSteps = 4;
-		static constexpr double	  maxAccumulator = 0.25f;
+		static constexpr uint32_t maxStepsPerFrame = 2;
+		static constexpr double	  maxAccumulator = maxStepsPerFrame * simDelta;
 
 		/** Accumulator for the simulation delta. */
 		double							 simAccumulator = 0.0f;

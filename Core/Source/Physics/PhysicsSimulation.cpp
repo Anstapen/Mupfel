@@ -31,7 +31,6 @@ void PhysicsSimulation::Update(double elapsedTime)
 
 	while (simAccumulator >= simDelta)
 	{
-		ProfilingSample prof("Box2D Step");
 		collision_system->Step(simDelta, subSteps);
 		simAccumulator -= simDelta;
 	}

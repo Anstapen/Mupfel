@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "ImageManager.h"
 #include "Quad.h"
+#include "CameraMath.h"
 
 #include "ECS/Components/Animation.h"
 #include "ECS/Components/Light.h"
@@ -380,28 +381,15 @@ void Mupfel::ECSRenderer::SyncLights(const Ping::Device& device, uint32_t frame_
 
 void Mupfel::ECSRenderer::UpdateMVP(Ping::Buffer& uniform_buffer)
 {
-	int32_t width = Application::GetCurrentRenderWidth();
-	int32_t height = Application::GetCurrentRenderHeight();
-	Camera	cam = Application::GetCurrentSceneCamera();
-
-	glm::vec3 cameraTarget = glm::vec3(cam.target_x, cam.target_y, cam.target_z);
-
-
-	glm::vec3 eye =
-		cameraTarget + cam.distance * glm::vec3(
-											glm::cos(cam.pitch) * glm::cos(cam.yaw),
-														glm::cos(cam.pitch) * glm::sin(cam.yaw), glm::sin(cam.pitch));
+	const float	  width = static_cast<float>(Application::GetCurrentRenderWidth());
+	const float	  height = static_cast<float>(Application::GetCurrentRenderHeight());
+	const Camera& cam = Application::GetCurrentSceneCamera();
 
 	UniformBufferObject ubo{};
-	ubo.view = lookAt(eye, cameraTarget, glm::vec3(0.0f, 0.0f, 1.0f));
-	const float aspect = static_cast<float>(width) / static_cast<float>(height);
-	const float half_height = cam.distance * glm::tan(glm::radians(45.0f) * 0.5f);
-	const float half_width = half_height * aspect;
+	ubo.view = CameraMath::View(cam);
+	ubo.proj = CameraMath::Projection(cam, width, height);
+	ubo.cameraPos = glm::vec4(CameraMath::Eye(cam), 1.0f);
 
-	ubo.proj = glm::ortho(-half_width, half_width, -half_height, half_height, 0.1f, 500.0f);
-
-	ubo.proj[1][1] *= -1;
-	ubo.cameraPos = glm::vec4(eye, 1.0f);
 	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
 }
 
