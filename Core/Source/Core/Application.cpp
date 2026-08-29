@@ -115,7 +115,7 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	}
 
 	/* Add Scene 0 */
-	SceneHandle first_handle = CreateScene<DefaultScene>("DefaultScene");
+	SceneHandle first_handle = CreateScene<DefaultScene>({"DefaultScene"});
 
 	/* We should be the first ones to create a Scene! */
 	assert(first_handle == 0);
@@ -186,6 +186,11 @@ void Mupfel::Application::SetMovement(Entity e, float vel_x, float vel_y, float 
 	return Get().physics->SetMovement(e, vel_x, vel_y, vel_ang);
 }
 
+void Mupfel::Application::GetContacts(Entity e, std::vector<ContactData>& buffer)
+{
+	Get().physics->GetContacts(e, buffer);
+}
+
 Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
 {
 	return Get().image_manager.Load(*Get().gpu, path);
@@ -239,7 +244,7 @@ void Mupfel::Application::SwitchScene(SceneHandle new_scene)
 
 	/* The ECS and PhysicsSystem need to know the new scene. */
 	app.registry.SetActiveScene(new_scene);
-	app.physics->SceneSwitched(new_scene);
+	app.physics->SceneSwitched(new_scene, app.scenes[new_scene]->gravity_x, app.scenes[new_scene]->gravity_y);
 }
 
 uint64_t Mupfel::Application::GetFrameCount() { return Get().frame_count; }

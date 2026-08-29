@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ConfigManager.h"
-#include "ECS/Registry.h"
 #include "ECS/Components/Transform.h"
+#include "ECS/Registry.h"
 #include "EventSystem.h"
 #include "InputManager.h"
 #include "Layer.h"
@@ -11,6 +11,7 @@
 #include "Scene.h"
 #include "ThreadPool.h"
 #include "Window.h"
+#include "PhysicsEvents.h"
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -148,6 +149,7 @@ public:
 
 	static void SetTransform(Entity e, Transform t);
 	static void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
+	static void GetContacts(Entity e, std::vector<ContactData>& buffer);
 
 	/**
 	 * Load a simple image.
@@ -206,8 +208,7 @@ public:
 
 	template <typename T>
 		requires SceneType<T>
-	[[nodiscard]] static SceneHandle
-	CreateScene(const std::string& name, const std::string& path = {}, Camera cam = {});
+	[[nodiscard]] static SceneHandle CreateScene(const SceneDefinition& def);
 
 	static void QueueSceneSwitch(SceneHandle handle);
 
@@ -347,7 +348,7 @@ template <typename T> inline void Application::SetConfigEntry(const std::string 
 
 template <typename T>
 	requires SceneType<T>
-inline SceneHandle Application::CreateScene(const std::string& name, const std::string& path, Camera cam)
+inline SceneHandle Application::CreateScene(const SceneDefinition &def)
 {
 	auto& app = Get();
 	/* Check if there is space for another scene. */
@@ -357,14 +358,14 @@ inline SceneHandle Application::CreateScene(const std::string& name, const std::
 	}
 	uint32_t handle = app.next_free_handle;
 
-	app.scenes[handle] = std::move(std::make_unique<T>(handle, name, cam));
+	app.scenes[handle] = std::move(std::make_unique<T>(handle, def));
 
 	app.next_free_handle++;
 
 	/* Switch scenes now. */
 	SwitchScene(handle);
 
-	app.scenes[handle]->Deserialize(path);
+	app.scenes[handle]->Deserialize("path");
 	app.scenes[handle]->OnInit();
 
 	return handle;

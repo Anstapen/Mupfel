@@ -1,8 +1,8 @@
 #pragma once
 #include "Logger.h"
 #include "Renderer/Camera.h"
-#include <bitset>
 #include <bit>
+#include <bitset>
 #include <concepts>
 #include <cstdint>
 #include <string>
@@ -10,6 +10,14 @@
 namespace Mupfel
 {
 typedef uint32_t SceneHandle;
+
+struct SceneDefinition
+{
+	std::string_view name;
+	Camera			 cam;
+	float			 gravity_x = 0.0f;
+	float			 gravity_y = 0.0f;
+};
 
 /* Forward declaration to register it as a friend. */
 class Application;
@@ -43,14 +51,18 @@ protected:
 	virtual void Serialize(const std::string& path) {};
 	virtual void Deserialize(const std::string& path) {};
 
-	Scene(SceneHandle in_handle, const std::string& name, Camera cam = {}) : handle(in_handle), camera(cam)
+	Scene(SceneHandle in_handle, const SceneDefinition& def)
+		: handle(in_handle), camera(def.cam), gravity_x(def.gravity_x), gravity_y(def.gravity_y)
 	{
+		std::string name(def.name);
 		logger = Logger::Create(name);
 	}
 
 protected:
 	Logger::SafeLoggerPtr logger;
 	Camera				  camera;
+	float				  gravity_x;
+	float				  gravity_y;
 
 private:
 	const SceneHandle handle;

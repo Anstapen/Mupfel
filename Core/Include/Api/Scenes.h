@@ -25,9 +25,9 @@ namespace Mupfel::Scenes
  */
 template <typename T>
 	requires SceneType<T>
-[[nodiscard]] inline SceneHandle Create(const std::string& name, const std::string& path = {}, Camera camera = {})
+[[nodiscard]] inline SceneHandle Create(const SceneDefinition &def)
 {
-	return Application::CreateScene<T>(name, path, camera);
+	return Application::CreateScene<T>(def);
 }
 
 /**

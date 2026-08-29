@@ -11,9 +11,15 @@ HelloWorldLayer::HelloWorldLayer() {}
 void HelloWorldLayer::OnInit()
 {
 	/* Create a Scene */
-	mainMenu = Scenes::Create<MainMenu>("MainMenu");
-	level = Scenes::Create<Level>("Dungeon");
-	gravityTest = Scenes::Create<GravityTest>("GravityTest");
+	SceneDefinition def;
+	def.name = "MainMenu";
+	mainMenu = Scenes::Create<MainMenu>(def);
+	def.name = "Dungeon";
+	level = Scenes::Create<Level>(def);
+	def.name = "GravityTest";
+	def.gravity_x = 0.0f;
+	def.gravity_y = -10.0f;
+	gravityTest = Scenes::Create<GravityTest>(def);
 
 	/* We are starting with the gravityTest. */
 	Scenes::Switch(gravityTest);

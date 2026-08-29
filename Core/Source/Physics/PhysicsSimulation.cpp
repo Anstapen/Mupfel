@@ -40,7 +40,10 @@ void PhysicsSimulation::Update(double elapsedTime)
 	collision_system->DispatchEvents();
 }
 
-void Mupfel::PhysicsSimulation::SceneSwitched(SceneHandle new_scene) { collision_system->SceneSwitched(new_scene); }
+void Mupfel::PhysicsSimulation::SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y)
+{
+	collision_system->SceneSwitched(new_scene, grav_x, grav_y);
+}
 
 void Mupfel::PhysicsSimulation::SetTimeMultiplier(double multi) { time_multi = multi; }
 
@@ -60,4 +63,9 @@ void Mupfel::PhysicsSimulation::SetTransform(Entity e, Transform t)
 void Mupfel::PhysicsSimulation::SetMovement(Entity e, float vel_x, float vel_y, float vel_ang)
 {
 	collision_system->SetMovement(e, vel_x, vel_y, vel_ang);
+}
+
+void Mupfel::PhysicsSimulation::GetContacts(Entity e, std::vector<ContactData>& buffer)
+{
+	collision_system->GetContacts(e, buffer);
 }

@@ -4,6 +4,7 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Registry.h"
 #include "Logger.h"
+#include "PhysicsEvents.h"
 #include "box2d/box2d.h"
 #include <cstdint>
 #include <mutex>
@@ -22,13 +23,14 @@ public:
 	CollisionSystem(Registry& reg, EventSystem& evt_sys);
 	void Init();
 	void Step(double delta, uint32_t sub_steps);
-	void SceneSwitched(SceneHandle new_scene);
+	void SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y);
 	void SyncTransforms();
 	void DispatchEvents();
 	void DeInit();
 
 	void SetTransform(Entity e, Transform t);
 	void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
+	void GetContacts(Entity e, std::vector<ContactData>& buffer);
 
 private:
 	bool	  HasBody(Entity e) const;

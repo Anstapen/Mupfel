@@ -2,7 +2,7 @@
 
 namespace Mupfel {
 
-	struct alignas(16) Transform
+	struct Transform
 	{
 		float pos_x = 0.0f;
 		float pos_y = 0.0f;

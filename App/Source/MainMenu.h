@@ -4,8 +4,8 @@
 class MainMenu : public Mupfel::Scene
 {
 public:
-	MainMenu(Mupfel::SceneHandle in_handle, const std::string& name, Mupfel::Camera cam = {})
-		: Mupfel::Scene(in_handle, name, cam)
+	MainMenu(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition &def)
+		: Mupfel::Scene(in_handle, def)
 	{
 	}
 

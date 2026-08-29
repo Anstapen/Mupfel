@@ -60,7 +60,11 @@ void CollisionSystem::Step(double delta, uint32_t sub_steps)
 	b2World_Step(current_world, delta, sub_steps);
 }
 
-void Mupfel::CollisionSystem::SceneSwitched(SceneHandle new_scene) { current_world = WorldForScene(new_scene); }
+void Mupfel::CollisionSystem::SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y)
+{
+	current_world = WorldForScene(new_scene);
+	b2World_SetGravity(current_world, {grav_x, grav_y});
+}
 
 void CollisionSystem::SyncTransforms()
 {
@@ -128,7 +132,6 @@ void CollisionSystem::DispatchEvents()
 		}
 		evt_system.AddEvent<SensorExitedEvent>({EntityOf(ev.sensorShapeId), EntityOf(ev.visitorShapeId)});
 	}
-
 }
 
 void Mupfel::CollisionSystem::DeInit()
@@ -159,6 +162,32 @@ void Mupfel::CollisionSystem::SetMovement(Entity e, float vel_x, float vel_y, fl
 		b2Body_SetLinearVelocity(bodies[e.Index()], {vel_x, vel_y});
 		b2Body_SetAngularVelocity(bodies[e.Index()], vel_ang);
 		b2Body_SetAwake(bodies[e.Index()], true);
+	}
+}
+
+void Mupfel::CollisionSystem::GetContacts(Entity e, std::vector<ContactData>& buffer)
+{
+	if (!HasBody(e))
+	{
+		return;
+	}
+
+	b2BodyId body = bodies[e.Index()];
+
+	int capacity = b2Body_GetContactCapacity(body);
+
+	/* For now, do it the lazy way by copying the data 2 times... */
+	/* TODO: check perf optimization! */
+
+	static b2ContactData contactData[16];
+
+	int contact_count = b2Body_GetContactData(body, contactData, 16);
+
+	for (int i = 0; i < contact_count; i++)
+	{
+		buffer.push_back(
+			{EntityOf(contactData[i].shapeIdA), EntityOf(contactData[i].shapeIdB), contactData[i].manifold.normal.x,
+			 contactData[i].manifold.normal.y});
 	}
 }
 
@@ -226,7 +255,6 @@ void CollisionSystem::CreateBody(Entity e)
 
 	const Transform& t = registry.GetComponent<Transform>(e);
 	const Body&		 b = registry.GetComponent<Body>(e);
-	
 
 	b2BodyDef def = b2DefaultBodyDef();
 	switch (b.type)
@@ -279,8 +307,7 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 	}
 
 	/* The entity need all three components to create a valid collider. */
-	if (!registry.HasComponent<Transform>(e) || !registry.HasComponent<Body>(e) ||
-		!registry.HasComponent<Collider>(e))
+	if (!registry.HasComponent<Transform>(e) || !registry.HasComponent<Body>(e) || !registry.HasComponent<Collider>(e))
 	{
 		return;
 	}

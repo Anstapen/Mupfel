@@ -25,13 +25,14 @@ namespace Mupfel {
 		void Init();
 		void DeInit();
 		void Update(double elapsedTime);
-		void SceneSwitched(SceneHandle new_scene);
+		void SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y);
 		void SetTimeMultiplier(double multi);
 		void ToggleSingleStep();
 		void Step();
 
 		void SetTransform(Entity e, Transform t);
 		void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
+		void GetContacts(Entity e, std::vector<ContactData>& buffer);
 
 	private:
 		double time_multi;

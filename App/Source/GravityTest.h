@@ -4,8 +4,8 @@
 class GravityTest : public Mupfel::Scene
 {
 public:
-	GravityTest(Mupfel::SceneHandle in_handle, const std::string& name, Mupfel::Camera cam = {})
-		: Mupfel::Scene(in_handle, name, cam)
+	GravityTest(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition& def)
+		: Mupfel::Scene(in_handle, def)
 	{
 	}
 

@@ -60,7 +60,23 @@ void GravityTest::OnInit()
 	}
 }
 
-void GravityTest::OnUpdate(double timestep) {}
+void GravityTest::OnUpdate(double timestep)
+{
+	for (auto& event : Events::Get<UserInputEvent>())
+	{
+		if (event.input == UserInput::LEFT_MOUSE_CLICK && HasFlag(event.action, KeyAction::RELEASED))
+		{
+			/* Spawn new ball at cursor position */
+			float	  cursor_x = Input::CursorX();
+			float	  cursor_y = Input::CursorY();
+			Entity	  e = Entities::Create();
+			Entities::AddComponent<Transform>(e, {.pos_x = cursor_x, .pos_y = cursor_y});
+			Entities::AddComponent<Body>(e, {.type = BodyType::Dynamic});
+			Entities::AddComponent<Collider>(e, { .shape = ColliderShape::Circle, .half_width = 0.1f});
+			Entities::AddComponent<Texture>(e, {Imager::Get("Ball"), 0.2f});
+		}
+	}
+}
 
 void GravityTest::OnRender()
 {

@@ -202,12 +202,7 @@ enum class KeyAction : uint32_t
 	REPEATED = 1 << 2
 };
 
-inline bool HasFlag(KeyAction& action, KeyAction flag)
-{
-	return (static_cast<uint32_t>(action) & static_cast<uint32_t>(flag)) != 0;
-}
-
-inline bool HasFlag(KeyAction&& action, KeyAction flag)
+inline bool HasFlag(KeyAction action, KeyAction flag)
 {
 	return (static_cast<uint32_t>(action) & static_cast<uint32_t>(flag)) != 0;
 }

@@ -6,7 +6,7 @@ namespace Mupfel
 class DefaultScene : public Scene
 {
 public:
-	DefaultScene(SceneHandle in_handle, const std::string& name, Camera cam) : Scene(in_handle, name, cam) {}
+	DefaultScene(SceneHandle in_handle, const SceneDefinition &def) : Scene(in_handle, def) {}
 
 	void OnInit() final;
 	void OnUpdate(double timestep) final;
