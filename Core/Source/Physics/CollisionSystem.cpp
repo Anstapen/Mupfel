@@ -9,6 +9,7 @@
 /* Needed Component types for collision detection/resolution */
 #include "ECS/Components/Body.h"
 #include "ECS/Components/Collider.h"
+#include "ECS/Components/Sensor.h"
 #include "ECS/Components/Transform.h"
 
 #include "Core/PhysicsEvents.h"
@@ -49,6 +50,17 @@ void CollisionSystem::Init()
 				/* The entity has all required components for collider creation. */
 				std::scoped_lock lock(pending_mutex);
 				pending_collider_create.push(ev.e);
+			}
+
+			static const Entity::Signature required_for_sensor =
+				Registry::ComponentSignature<Transform, Body, Sensor>();
+			const bool for_sensor = for_body || ev.comp_id == ComponentIndex::Index<Sensor>();
+
+			if (for_sensor && (ev.sig & required_for_sensor) == required_for_sensor)
+			{
+				/* The entity has all required components for sensor creation. */
+				std::scoped_lock lock(pending_mutex);
+				pending_sensor_create.push(ev.e);
 			}
 		});
 
@@ -245,6 +257,16 @@ void Mupfel::CollisionSystem::HandlePendingEvents()
 			pending_collider_create.pop();
 		}
 	}
+
+	while (!pending_sensor_create.empty())
+	{
+		{
+			std::scoped_lock lock(pending_mutex);
+
+			CreateSensor(pending_sensor_create.front());
+			pending_sensor_create.pop();
+		}
+	}
 }
 
 void CollisionSystem::CreateBody(Entity e)
@@ -311,12 +333,6 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 		return;
 	}
 
-	/* Currently, we only allow one shape per body. */
-	if (b2Body_GetShapeCount(bodies[e.Index()]) > 0)
-	{
-		return;
-	}
-
 	assert(bodies.size() > e.Index());
 	assert(!B2_IS_NULL(current_world));
 
@@ -327,7 +343,7 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 		return;
 	}
 
-	/* The entity need all three components to create a valid collider. */
+	/* The entity needs all three components to create a valid collider. */
 	if (!registry.HasComponent<Transform>(e) || !registry.HasComponent<Body>(e) || !registry.HasComponent<Collider>(e))
 	{
 		return;
@@ -342,7 +358,7 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 	sd.density = c.density;
 	sd.material.friction = c.friction;
 	sd.material.restitution = c.restitution;
-	sd.isSensor = c.is_sensor;
+	sd.isSensor = false;
 	sd.enableContactEvents = c.report_contacts;
 	sd.enableHitEvents = c.report_hit_events;
 	sd.enableSensorEvents = c.report_sensor_events;
@@ -365,6 +381,63 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 		break;
 	}
 	case ColliderShape::Capsule: /* b2Capsule + b2CreateCapsuleShape */
+		break;
+	}
+}
+
+void Mupfel::CollisionSystem::CreateSensor(Entity e)
+{ 
+	/* If the entity currently does not have a body, there is nothing to do. */
+	if (!HasBody(e))
+	{
+		return;
+	}
+
+	assert(bodies.size() > e.Index());
+	assert(!B2_IS_NULL(current_world));
+
+	/* We need to be in a valid scene at the moment. */
+	const SceneHandle scene = Scene::HandleFromMask(registry.GetSceneMask(e));
+	if (scene >= Scene::MAX_SCENES)
+	{
+		return;
+	}
+
+	/* The entity needs all three components to create a valid sensor. */
+	if (!registry.HasComponent<Transform>(e) || !registry.HasComponent<Body>(e) || !registry.HasComponent<Sensor>(e))
+	{
+		return;
+	}
+
+	const Transform& t = registry.GetComponent<Transform>(e);
+	const Sensor&	 s = registry.GetComponent<Sensor>(e);
+
+	b2BodyId body = bodies[e.Index()];
+
+	b2ShapeDef sd = b2DefaultShapeDef();
+	sd.isSensor = true;
+	sd.enableContactEvents = false;
+	sd.enableHitEvents = false;
+	sd.enableSensorEvents = s.report_events;
+	sd.filter.categoryBits = s.category;
+	sd.filter.maskBits = s.mask;
+	sd.userData = Registry::ToUserData(e);
+
+	switch (s.shape)
+	{
+	case SensorShape::Box:
+	{
+		b2Polygon box = b2MakeOffsetBox(s.half_width, s.half_height, {s.offset_x, s.offset_y}, b2Rot_identity);
+		b2CreatePolygonShape(body, &sd, &box);
+		break;
+	}
+	case SensorShape::Circle:
+	{
+		b2Circle circle = {{s.offset_x, s.offset_y}, s.half_width};
+		b2CreateCircleShape(body, &sd, &circle);
+		break;
+	}
+	case SensorShape::Capsule: /* b2Capsule + b2CreateCapsuleShape */
 		break;
 	}
 }

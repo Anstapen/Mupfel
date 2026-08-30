@@ -205,7 +205,6 @@ void Player::CheckPlayerCollisions(void) {
 	{
 		if (event.visitor == e)
 		{
-			logger->info("Player is visiting a sensor!");
 
 			/* If the sensor has an animation, reset it (if that animation has finished). */
 			if (Entities::HasComponent<Animation>(event.sensor) && Entities::GetComponent<Animation>(event.sensor).IsFinished())

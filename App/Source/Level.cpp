@@ -81,14 +81,13 @@ void Level::OnInit()
 
 		Entities::AddComponent<Body>(e, {});
 
-		Collider c;
-		c.shape = ColliderShape::Circle;
-		c.half_width = 0.7;
-		c.is_sensor = true;
-		c.report_sensor_events = true;
-		c.category = ColliderType::Furniture;
-		c.mask = ColliderType::Player;
-		Entities::AddComponent<Collider>(e, c);
+		Sensor s;
+		s.shape = SensorShape::Circle;
+		s.half_width = 0.7;
+		s.report_events = true;
+		s.category = ColliderType::Furniture;
+		s.mask = ColliderType::Player;
+		Entities::AddComponent<Sensor>(e, s);
 	}
 
 	/* Two gargs */
@@ -145,12 +144,11 @@ void Level::OnInit()
 
 		Entities::AddComponent<Transform>(e, g);
 
-		Collider c;
-		c.is_sensor = true;
-		c.report_sensor_events = true;
-		c.category = ColliderType::GroundObject;
-		c.mask = ColliderType::Player;
-		Entities::AddComponent<Collider>(e, c);
+		Sensor s;
+		s.report_events = true;
+		s.category = ColliderType::GroundObject;
+		s.mask = ColliderType::Player;
+		Entities::AddComponent<Sensor>(e, s);
 		Body b;
 		b.fixed_rotation = true;
 		b.type = BodyType::Static;

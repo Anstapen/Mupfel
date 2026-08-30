@@ -3,6 +3,8 @@
 #include "Core/Profiler.h"
 #include "ECS/Components/Collider.h"
 #include "ECS/Components/Transform.h"
+#include "ECS/Components/Body.h"
+#include "ECS/Components/Sensor.h"
 #include "ECS/Registry.h"
 #include "ECS/View.h"
 #include "Renderer/Renderer.h"
@@ -118,17 +120,15 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 		return glm::vec2((ndc.x * 0.5f + 0.5f) * screen_w, (ndc.y * 0.5f + 0.5f) * screen_h);
 	};
 
-	for (auto [e, t, c] : Application::GetCurrentRegistry().view<Transform, Collider>())
+	for (auto [e, t, c, b] : Application::GetCurrentRegistry().view<Transform, Collider, Body>())
 	{
 		const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
 
 		const glm::vec2 p = to_pixels(centre);
 
-		/* The half extents also need to be converted to screen pixels. */
 		const float half_w = glm::length(to_pixels(centre + glm::vec3(c.half_width, 0.0f, 0.0f)) - p);
 		const float half_h = glm::length(to_pixels(centre + glm::vec3(0.0f, c.half_height, 0.0f)) - p);
 
-		/* Depending on the collider shape, draw a primitive in red. */
 		glm::vec4 red = {1.0f, 0.0f, 0.0f, 1.0f};
 		switch (c.shape)
 		{
@@ -139,6 +139,31 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 			/* Rectangle positions by its lower-left corner, not its centre. */
 			Application::Get().renderer->geoRenderer->Rectangle(
 				{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, red, 2);
+			break;
+		}
+	}
+
+	for (auto [e, t, c, b] : Application::GetCurrentRegistry().view<Transform, Sensor, Body>())
+	{
+		const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
+
+		const glm::vec2 p = to_pixels(centre);
+
+		/* The half extents also need to be converted to screen pixels. */
+		const float half_w = glm::length(to_pixels(centre + glm::vec3(c.half_width, 0.0f, 0.0f)) - p);
+		const float half_h = glm::length(to_pixels(centre + glm::vec3(0.0f, c.half_height, 0.0f)) - p);
+
+		/* Depending on the collider shape, draw a primitive in red. */
+		glm::vec4 light_blue = {0.212f, 0.906f, 1.0f, 1.0f};
+		switch (c.shape)
+		{
+		case SensorShape::Circle:
+			Application::Get().renderer->geoRenderer->Circle({p.x, p.y}, half_w, light_blue, 2);
+			break;
+		default:
+			/* Rectangle positions by its lower-left corner, not its centre. */
+			Application::Get().renderer->geoRenderer->Rectangle(
+				{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, light_blue, 2);
 			break;
 		}
 	}

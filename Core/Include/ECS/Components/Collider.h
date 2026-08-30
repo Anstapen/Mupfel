@@ -24,7 +24,6 @@ struct Collider
 	float friction = 0.6f;
 	float restitution = 0.0f;
 
-	bool is_sensor = false;
 	bool report_contacts = false;
 	bool report_hit_events = false;
 	bool report_sensor_events = false;

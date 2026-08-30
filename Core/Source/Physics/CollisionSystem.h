@@ -37,6 +37,7 @@ private:
 	void	  HandlePendingEvents();
 	void	  CreateBody(Entity e);
 	void	  CreateCollider(Entity e);
+	void	  CreateSensor(Entity e);
 	b2BodyId  TakeBody(Entity e);
 	void	  SetBody(Entity e, b2BodyId body);
 	Entity	  EntityOf(b2ShapeId id);
@@ -50,6 +51,7 @@ private:
 	b2WorldId								   current_world = b2_nullWorldId;
 	std::queue<Entity>						   pending_body_create;
 	std::queue<Entity>						   pending_collider_create;
+	std::queue<Entity>						   pending_sensor_create;
 	std::queue<b2BodyId>					   pending_destroy;
 	std::mutex								   pending_mutex;
 	std::unordered_map<SceneHandle, b2WorldId> worlds;
