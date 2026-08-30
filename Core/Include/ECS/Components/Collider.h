@@ -26,6 +26,8 @@ struct Collider
 
 	bool is_sensor = false;
 	bool report_contacts = false;
+	bool report_hit_events = false;
+	bool report_sensor_events = false;
 
 	uint64_t category = 1;
 	uint64_t mask = ~uint64_t{0};

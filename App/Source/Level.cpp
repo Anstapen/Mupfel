@@ -2,6 +2,7 @@
 #include "Imager.h"
 #include "SceneSwitches.h"
 #include <vector>
+#include "Types.h"
 
 using namespace Mupfel;
 
@@ -15,11 +16,11 @@ void Level::OnInit()
 	Imager::LoadAnimated("Chest", "Images/chest.png", {.rows = 3, .columns = 5});
 	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3});
 	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3});
-	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 4});
+	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7});
 
 	// Ground: one large flat quad in the x/y plane, grass tiled ~1 texture per world unit.
 	{
-		Entity	  e = Entities::Create();
+		Entity e = Entities::Create();
 		Entities::AddComponent<Transform>(e, {});
 		Entities::AddComponent<Texture>(e, {Imager::Get("Map"), 31.0f, 13.0f});
 	}
@@ -51,7 +52,7 @@ void Level::OnInit()
 
 		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
 
-		Entities::AddComponent<Animation>(e, {0, 5, 2.0f});
+		Entities::AddComponent<Animation>(e, {0, 5, 4.0f, 0.0f, false, false});
 	}
 
 	{
@@ -63,7 +64,7 @@ void Level::OnInit()
 		Entities::AddComponent<Transform>(e, g);
 		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
 
-		Entities::AddComponent<Animation>(e, {5, 5, 2.0f});
+		Entities::AddComponent<Animation>(e, {5, 5, 4.0f, 0.0f, false, false});
 	}
 
 	{
@@ -76,7 +77,18 @@ void Level::OnInit()
 
 		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
 
-		Entities::AddComponent<Animation>(e, {10, 5, 2.0f});
+		Entities::AddComponent<Animation>(e, {10, 5, 4.0f, 0.0f, false, false});
+
+		Entities::AddComponent<Body>(e, {});
+
+		Collider c;
+		c.shape = ColliderShape::Circle;
+		c.half_width = 0.7;
+		c.is_sensor = true;
+		c.report_sensor_events = true;
+		c.category = ColliderType::Furniture;
+		c.mask = ColliderType::Player;
+		Entities::AddComponent<Collider>(e, c);
 	}
 
 	/* Two gargs */
@@ -90,7 +102,7 @@ void Level::OnInit()
 		Entities::AddComponent<Transform>(e, g);
 		Entities::AddComponent<Texture>(e, {Imager::Get("GargLava"), 1.0f, 3.0f});
 
-		Entities::AddComponent<Animation>(e, {0, 3, 2.0f});
+		Entities::AddComponent<Animation>(e, {0, 3, 2.0f, 0.0f, true, true});
 	}
 
 	{
@@ -103,7 +115,7 @@ void Level::OnInit()
 		Entities::AddComponent<Transform>(e, g);
 		Entities::AddComponent<Texture>(e, {Imager::Get("GargWater"), 1.0f, 3.0f});
 
-		Entities::AddComponent<Animation>(e, {0, 3, 2.0f});
+		Entities::AddComponent<Animation>(e, {0, 3, 2.0f, 0.0f, true, true});
 	}
 
 	/* A bunch of spikes */
@@ -123,8 +135,6 @@ void Level::OnInit()
 	spike_positions.push_back({-7.0f, 1.0f});
 	spike_positions.push_back({-7.0f, 2.0f});
 
-	float elapsed = 0.0f;
-
 	for (auto& [x, y] : spike_positions)
 	{
 		Entity	  e = Entities::Create();
@@ -137,15 +147,16 @@ void Level::OnInit()
 
 		Collider c;
 		c.is_sensor = true;
+		c.report_sensor_events = true;
+		c.category = ColliderType::GroundObject;
+		c.mask = ColliderType::Player;
 		Entities::AddComponent<Collider>(e, c);
 		Body b;
 		b.fixed_rotation = true;
 		b.type = BodyType::Static;
 		Entities::AddComponent<Body>(e, b);
 		Entities::AddComponent<Texture>(e, {Imager::Get("Spikes"), 1.0f});
-
-		Entities::AddComponent<Animation>(e, {0, 4, 1.0f, elapsed});
-		elapsed += 0.1f;
+		Entities::AddComponent<Animation>(e, {0, 7, 10.0f, 0.0f, false, false});
 	}
 
 	player.Init();
@@ -160,5 +171,6 @@ void Level::OnRender()
 	{
 		logger->info("Switching to the Main Menu...");
 		Events::Post<SwitchToMainMenuEvent>({});
+		
 	}
 }

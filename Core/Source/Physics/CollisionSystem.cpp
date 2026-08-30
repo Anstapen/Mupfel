@@ -127,7 +127,7 @@ void CollisionSystem::DispatchEvents()
 	for (int i = 0; i < contacts.hitCount; ++i)
 	{
 		const b2ContactHitEvent& ev = contacts.hitEvents[i];
-		evt_system.AddEvent<CollisionBeganEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
+		evt_system.AddEvent<CollisionHitEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
 	}
 
 	b2SensorEvents sensors = b2World_GetSensorEvents(current_world);
@@ -344,8 +344,8 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 	sd.material.restitution = c.restitution;
 	sd.isSensor = c.is_sensor;
 	sd.enableContactEvents = c.report_contacts;
-	sd.enableHitEvents = false;
-	sd.enableSensorEvents = false;
+	sd.enableHitEvents = c.report_hit_events;
+	sd.enableSensorEvents = c.report_sensor_events;
 	sd.filter.categoryBits = c.category;
 	sd.filter.maskBits = c.mask;
 	sd.userData = Registry::ToUserData(e);

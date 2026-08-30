@@ -1,5 +1,6 @@
 #include "Player.h"
 #include <string_view>
+#include "Types.h"
 
 using namespace Mupfel;
 
@@ -30,10 +31,10 @@ void Player::Init()
 					  "Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4})
 					  .transform([this](ImageHandle handle) { this->image_map["Vampire"] = handle; });
 
-	animations["idle_front"] = {0, 4, 1.0f};
-	animations["idle_back"] = {4, 4, 1.0f};
-	animations["idle_left"] = {8, 4, 1.0f};
-	animations["idle_right"] = {12, 4, 1.0f};
+	animations["idle_front"] = {0, 4, 1.0f, 0.0f, true, true};
+	animations["idle_back"] = {4, 4, 1.0f, 0.0f, true, true};
+	animations["idle_left"] = {8, 4, 1.0f, 0.0f, true, true};
+	animations["idle_right"] = {12, 4, 1.0f, 0.0f, true, true};
 
 	auto& registry = Application::GetCurrentRegistry();
 
@@ -60,6 +61,9 @@ void Player::Init()
 	c.half_width = 0.5;
 	c.offset_y = -0.75;
 	c.report_contacts = true;
+	c.report_hit_events = true;
+	c.report_sensor_events = true;
+	c.category = ColliderType::Player;
 
 	Entities::AddComponent<Collider>(e, c);
 
@@ -87,6 +91,8 @@ void Player::UpdateMovement(double timestep)
 {
 	Mupfel::EventSystem& evt_system = Application::GetCurrentEventSystem();
 	auto&				 registry = Application::GetCurrentRegistry();
+
+	CheckPlayerCollisions();
 	/*
 		The InputManager emits the same event for PRESSED and RELEASED (Binding::emitter drops the
 		KeyAction), so a key's press/release cycle is tracked by toggling the flag on every event.
@@ -181,5 +187,31 @@ void Player::UpdateMovement(double timestep)
 		Application::SetMovement(e, vel_x, vel_y, 0.0f);
 
 		movement_changed = false;
+	}
+}
+
+void Player::CheckPlayerCollisions(void) { 
+	/* Lets check hit events first. */
+	for (auto& event : Events::Get<CollisionHitEvent>())
+	{
+		if (event.a == e || event.b == e)
+		{
+			logger->info("Player collided with something!");
+		}
+	}
+
+	/* After that sensor begin */
+	for (auto& event : Events::Get<SensorEnteredEvent>())
+	{
+		if (event.visitor == e)
+		{
+			logger->info("Player is visiting a sensor!");
+
+			/* If the sensor has an animation, reset it (if that animation has finished). */
+			if (Entities::HasComponent<Animation>(event.sensor) && Entities::GetComponent<Animation>(event.sensor).IsFinished())
+			{
+				Entities::GetComponent<Animation>(event.sensor).Reset();
+			}
+		}
 	}
 }

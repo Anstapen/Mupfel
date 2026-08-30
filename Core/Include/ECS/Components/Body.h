@@ -19,7 +19,7 @@ struct Body
 	float	 gravity_scale = 1.0f;
 	float	 linear_damping = 0.0f;
 	float	 angular_damping = 0.0f;
-	bool	 fixed_rotation = false;
+	bool	 fixed_rotation = true;
 	bool	 is_bullet = false;
 	bool	 allow_sleep = true;
 };

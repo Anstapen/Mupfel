@@ -29,6 +29,14 @@ public:
 	Entity a, b;
 };
 
+class CollisionHitEvent : public Event
+{
+public:
+	CollisionHitEvent(Entity in_a, Entity in_b) : a(in_a), b(in_b) {}
+
+	Entity a, b;
+};
+
 class SensorEnteredEvent : public Event
 {
 public:

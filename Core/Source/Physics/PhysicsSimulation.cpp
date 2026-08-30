@@ -33,10 +33,11 @@ void PhysicsSimulation::Update(double elapsedTime)
 	{
 		collision_system->Step(simDelta, subSteps);
 		simAccumulator -= simDelta;
+		collision_system->SyncTransforms();
+		collision_system->DispatchEvents();
 	}
 
-	collision_system->SyncTransforms();
-	collision_system->DispatchEvents();
+	
 }
 
 void Mupfel::PhysicsSimulation::SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y)

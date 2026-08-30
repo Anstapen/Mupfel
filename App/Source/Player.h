@@ -15,6 +15,9 @@ public:
 	void UpdateMovement(double timestep);
 
 private:
+	void CheckPlayerCollisions(void);
+
+private:
 	Mupfel::Logger::SafeLoggerPtr						 logger;
 	Mupfel::Entity										 e;
 	std::unordered_map<std::string, Mupfel::ImageHandle> image_map;
