@@ -117,6 +117,9 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	/* Add Scene 0 */
 	SceneHandle first_handle = CreateScene<DefaultScene>({"DefaultScene"});
 
+	/* prevent unused variable warning in release builds */
+	(void)first_handle;
+
 	/* We should be the first ones to create a Scene! */
 	assert(first_handle == 0);
 
