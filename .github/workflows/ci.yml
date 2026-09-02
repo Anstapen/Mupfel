@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VULKAN_SDK_VERSION: "1.4.321.1"
+  PREMAKE_VERSION: "5.0.0-beta8"
+
+jobs:
+  windows:
+    name: Windows / ${{ matrix.config }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulkan SDK
+        if: steps.vulkan-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $url = "https://sdk.lunarg.com/sdk/download/$env:VULKAN_SDK_VERSION/windows/vulkan_sdk.exe"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\vulkan_sdk.exe"
+          & "$env:RUNNER_TEMP\vulkan_sdk.exe" --root "C:\VulkanSDK\$env:VULKAN_SDK_VERSION" --accept-licenses --default-answer --confirm-command install | Out-Null
+
+      - name: Export VULKAN_SDK
+        shell: pwsh
+        run: echo "VULKAN_SDK=C:\VulkanSDK\$env:VULKAN_SDK_VERSION" >> $env:GITHUB_ENV
+
+      - name: Generate solution
+        run: Vendor\Binaries\Premake\Windows\premake5.exe --file=Build.lua vs2022
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        run: msbuild Mupfel.sln -p:Configuration=${{ matrix.config }} -p:Platform=x64 -m
+
+      - name: Run tests
+        run: .\Binaries\windows-x86_64\${{ matrix.config }}\Tests\Tests.exe
