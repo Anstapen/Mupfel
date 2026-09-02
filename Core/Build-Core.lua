@@ -9,11 +9,13 @@
 -- Core no longer links "Logger" directly -- Core/Include/Core/Logger.h is Mupfel's own spdlog wrapper.
 -- The Logger vendor project still builds because Ping links it (see Vendor/Build-Vendor.lua).
 --
--- Note: glm has no includedirs entry, yet Core uses it in five files (Camera.cpp, ECSRenderer.cpp,
--- IMRenderer.cpp, DebugLayer.cpp, Renderer/Quad.h). It resolves only because the LunarG Vulkan SDK
--- ships glm under its own Include directory, which is on the external path below.
--- Vendor/Sources/glm-master is downloaded by Dependencies.lua and unused. Add DepPath("glm", "glm") to externalincludedirs if a
--- Vulkan SDK without bundled glm ever breaks the build.
+-- Note: glm is vendored (Deps.glm in Dependencies.lua) and listed under externalincludedirs below.
+-- It used to have no entry at all and resolved only because the LunarG *Windows* SDK happens to ship
+-- a copy under its own Include directory -- which quietly made a full SDK install a requirement of
+-- the build on every platform, glm having nothing to do with Vulkan. The path is DepPath("glm") and
+-- not DepPath("glm", "glm"): the archive root already contains the glm/ directory that the five
+-- users of it (Camera.cpp, ECSRenderer.cpp, IMRenderer.cpp, DebugLayer.cpp, Renderer/Quad.h) name
+-- as <glm/glm.hpp>.
 --
 -- Headers are split across two roots. "Include" is the published surface, reachable from Mupfel.h and
 -- the only root App puts on its include path (see App/Build-App.lua). "Source" holds engine internals
@@ -50,8 +52,11 @@ project "Core"
     externalincludedirs
     {
         DepPath("nlohmann"),
+        DepPath("glm"),
         DepPath("ping", "Source"),
-        vulkan_sdk_path .. "/Include",
+        VulkanIncludeDir,
+        -- Windows-only prebuilt GLFW (Deps.glfw is windows_only). On Linux this path does not exist
+        -- and the system headers installed by libglfw3-dev are found on the default search path.
         DepPath("glfw", "include"),
         DepPath("spdlog", "include"),
         DepPath("imgui"),
@@ -60,8 +65,7 @@ project "Core"
 
     libdirs
     {
-        DepPath("glfw", "lib-vc2022"),
-        vulkan_sdk_path .. "/Lib",
+        VulkanLibDir,
     }
 
     links
@@ -69,7 +73,18 @@ project "Core"
         "Ping",
         "spdlog",
         "imgui",
-        "glfw3",
         "vulkan",
         "box2d",
     }
+
+    -- GLFW is the one dependency that is not vendored the same way on both platforms, so it cannot be
+    -- linked unconditionally: Windows uses the prebuilt binary fetched as Deps.glfw, Linux links the
+    -- system libglfw.so from libglfw3-dev -- which is -lglfw, not -lglfw3.
+    filter "system:windows"
+        libdirs { DepPath("glfw", "lib-vc2022") }
+        links   { "glfw3" }
+
+    filter "system:not windows"
+        links   { "glfw" }
+
+    filter {}

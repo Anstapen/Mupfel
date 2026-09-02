@@ -16,6 +16,11 @@ if not vulkan_sdk_path then
    error("VULKAN_SDK not set. Please set this variable to the path of the installed Vulkan SDK. Exiting...")
 end
 
+-- handling the windows vs linux directory naming ("Include" and "Lib" vs "include" and "lib")
+local vulkan_windows_case = (os.target() == "windows")
+VulkanIncludeDir = vulkan_sdk_path .. (vulkan_windows_case and "/Include" or "/include")
+VulkanLibDir     = vulkan_sdk_path .. (vulkan_windows_case and "/Lib"     or "/lib")
+
 -- Modules.lua first: it parses --modules, and Dependencies.lua skips fetching the frameworks whose
 -- module isn't in this solution.
 include "Modules.lua"

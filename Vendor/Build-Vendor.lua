@@ -53,7 +53,7 @@ project "Ping"
     includedirs
     {
         DepPath("ping", "Source"),
-        vulkan_sdk_path .. "/Include", -- system dependency (VULKAN_SDK env var), not vendored/fetched
+        VulkanIncludeDir, -- system dependency (VULKAN_SDK env var), not vendored/fetched
         DepPath("glfw", "include"),
         DepPath("spdlog", "include"),
         DepPath("stb"),

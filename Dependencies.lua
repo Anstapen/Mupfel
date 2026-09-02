@@ -33,6 +33,14 @@ Deps = {
         url         = "https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp",
         single_file = "json.hpp",
     },
+    -- Header-only, and vendored rather than taken from the Vulkan SDK: the LunarG *Windows* installer
+    -- happens to ship a copy under its own Include/, which is what Core used to resolve <glm/glm.hpp>
+    -- against. That quietly made a full SDK install a requirement of the build on every platform.
+    -- The archive root already contains the glm/ directory, so the include path is DepPath("glm").
+    glm = {
+        relpath = "Vendor/Sources/glm-1.0.1",
+        url     = "https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip",
+    },
     ping = {
         relpath = "Vendor/Sources/vulkan_starter-main/Ping",
         url     = "https://github.com/Anstapen/vulkan_starter/archive/refs/heads/main.zip",
@@ -118,6 +126,7 @@ end
 function build_externals()
     print("Checking external dependencies...")
     fetch_dependency("nlohmann")
+    fetch_dependency("glm")
     fetch_dependency("ping")
     fetch_dependency("spdlog")
     fetch_dependency("stb")

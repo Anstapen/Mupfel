@@ -33,8 +33,11 @@ project "Tests"
     {
         DepPath("catch2"),
         DepPath("nlohmann"),
+        -- Tests has Core/Source on its include path, so it can pull in an internal header that uses
+        -- glm (Renderer/Quad.h, Renderer/CameraMath.h) even though no test names glm itself.
+        DepPath("glm"),
         DepPath("ping", "Source"),
-        vulkan_sdk_path .. "/Include",
+        VulkanIncludeDir,
         DepPath("glfw", "include"),
         DepPath("spdlog", "include"),
         DepPath("imgui"),
@@ -42,12 +45,18 @@ project "Tests"
 
     libdirs
     {
-        DepPath("glfw", "lib-vc2022"),
-        vulkan_sdk_path .. "/Lib",
+        VulkanLibDir,
     }
 
     links { "Core", "catch2" }
 
+    -- Same platform split on GLFW as Core; see Core/Build-Core.lua for why.
     filter "system:windows"
         defines { "WINDOWS" }
+        libdirs { DepPath("glfw", "lib-vc2022") }
+        links   { "glfw3" }
+
+    filter "system:not windows"
+        links   { "glfw" }
+
     filter {}

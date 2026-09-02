@@ -4,7 +4,7 @@ This is a little quick-start project template for C++ projects which utilise a C
 
 Core builds into a static library and is meant to contain common code intended for use in multiple applications. App builds into an executable and links the Core static library, as well as provides an include path to Core's code.
 
-The `Scripts/` directory contains build scripts for Windows and Linux, and the `Vendor/` directory contains Premake binaries (currently version `5.0-beta2`).
+The `Scripts/` directory contains build scripts for Windows and Linux, and the `Vendor/` directory contains Premake binaries (`5.0.0-beta8` for Windows and Linux; the unused macOS binary is still `5.0-beta2`).
 
 ## Getting Started
 1. Clone this repository or use the "Use this template" button on GitHub to quickly set up your own repository based on this template
@@ -17,7 +17,7 @@ Note that no macOS setup script is currently provided; you can duplicate the Lin
 ## Included
 - Some example code (in `App/Source` and `Core/Source`) to provide a starting point and test
 - Simple `.gitignore` to ignore project files and binaries
-- Premake binaries for Win/Mac/Linux (`v5.0-beta2`)
+- Premake binaries for Win/Mac/Linux (`v5.0.0-beta8`; macOS still `v5.0-beta2`, no setup script uses it)
 
 ## License
 - UNLICENSE for this repository (see `UNLICENSE.txt` for more details)
