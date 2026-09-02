@@ -30,16 +30,42 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Vulkan SDK
-        if: steps.vulkan-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $url = "https://sdk.lunarg.com/sdk/download/$env:VULKAN_SDK_VERSION/windows/vulkan_sdk.exe"
-          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\vulkan_sdk.exe"
-          & "$env:RUNNER_TEMP\vulkan_sdk.exe" --root "C:\VulkanSDK\$env:VULKAN_SDK_VERSION" --accept-licenses --default-answer --confirm-command install | Out-Null
+          $ErrorActionPreference = "Stop"
+          $ver = $env:VULKAN_SDK_VERSION
+          $root = "C:\VulkanSDK\$ver"
+          $exe = "$env:RUNNER_TEMP\vulkan_sdk.exe"
 
-      - name: Export VULKAN_SDK
+          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/$ver/windows/vulkan_sdk.exe" -OutFile $exe
+          Write-Host "Downloaded $((Get-Item $exe).Length) bytes to $exe"
+
+          $p = Start-Process -FilePath $exe -NoNewWindow -Wait -PassThru -ArgumentList @(
+            "--root", $root,
+            "--accept-licenses", "--default-answer", "--confirm-command",
+            "install"
+          )
+          Write-Host "Installer exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "Vulkan SDK installer failed with exit code $($p.ExitCode)" }
+
+      - name: Verify Vulkan SDK and export VULKAN_SDK
         shell: pwsh
-        run: echo "VULKAN_SDK=C:\VulkanSDK\$env:VULKAN_SDK_VERSION" >> $env:GITHUB_ENV
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "C:\VulkanSDK\$env:VULKAN_SDK_VERSION"
+          $required = @("Include\vulkan\vulkan.h", "Lib\vulkan-1.lib")
+          $missing = $required | Where-Object { -not (Test-Path (Join-Path $root $_)) }
+          if ($missing) {
+            Write-Host "Contents of C:\VulkanSDK:"
+            if (Test-Path "C:\VulkanSDK") {
+              Get-ChildItem "C:\VulkanSDK" -Recurse -Depth 2 | ForEach-Object { Write-Host "  $($_.FullName)" }
+            } else {
+              Write-Host "  (C:\VulkanSDK does not exist)"
+            }
+            throw "Vulkan SDK install incomplete at ${root}: missing $($missing -join ', ')"
+          }
+          Write-Host "Vulkan SDK OK at $root"
+          "VULKAN_SDK=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Generate solution
         run: Vendor\Binaries\Premake\Windows\premake5.exe --file=Build.lua vs2022
