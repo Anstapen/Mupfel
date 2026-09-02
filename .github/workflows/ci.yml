@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VULKAN_SDK_VERSION: "1.4.341.1"
+  VULKAN_SDK_VERSION: "1.4.357.0"
   PREMAKE_VERSION: "5.0.0-beta8"
 
 jobs:
@@ -53,8 +53,13 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $root = "C:\VulkanSDK\$env:VULKAN_SDK_VERSION"
-          $required = @("Include/vulkan/vulkan.h", "Lib/vulkan.lib")
-          $missing = $required | Where-Object { -not (Test-Path (Join-Path $root $_)) }
+          $missing = @()
+          if (-not (Test-Path (Join-Path $root "Include/vulkan/vulkan.h"))) { $missing += "Include/vulkan/vulkan.h" }
+          # Either name is acceptable; Build.lua probes for the same two and links whichever
+          # this SDK ships. Echo the winner so a future rename is visible in the log.
+          $lib = @("Lib/vulkan-1.lib", "Lib/vulkan.lib") | Where-Object { Test-Path (Join-Path $root $_) }
+          if ($lib) { Write-Host "Loader import library: $lib" }
+          else { $missing += "Lib/vulkan-1.lib or Lib/vulkan.lib" }
           if ($missing) {
             Write-Host "Contents of C:\VulkanSDK:"
             if (Test-Path "C:\VulkanSDK") {

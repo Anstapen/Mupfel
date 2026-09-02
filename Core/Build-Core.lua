@@ -73,7 +73,7 @@ project "Core"
         "Ping",
         "spdlog",
         "imgui",
-        "vulkan",
+        VulkanLibName,
         "box2d",
     }
 

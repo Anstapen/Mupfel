@@ -21,6 +21,21 @@ local vulkan_windows_case = (os.target() == "windows")
 VulkanIncludeDir = vulkan_sdk_path .. (vulkan_windows_case and "/Include" or "/include")
 VulkanLibDir     = vulkan_sdk_path .. (vulkan_windows_case and "/Lib"     or "/lib")
 
+if vulkan_windows_case then
+   for _, name in ipairs({ "vulkan-1", "vulkan" }) do
+      if os.isfile(VulkanLibDir .. "/" .. name .. ".lib") then
+         VulkanLibName = name
+         break
+      end
+   end
+   if not VulkanLibName then
+      error("No Vulkan loader import library in " .. VulkanLibDir
+            .. " (looked for vulkan-1.lib and vulkan.lib). Is the Vulkan SDK install complete?")
+   end
+else
+   VulkanLibName = "vulkan"
+end
+
 -- Modules.lua first: it parses --modules, and Dependencies.lua skips fetching the frameworks whose
 -- module isn't in this solution.
 include "Modules.lua"
