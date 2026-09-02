@@ -46,7 +46,6 @@ public:
 
 struct Binding
 {
-	KeyAction						  actionMask = KeyAction::NONE;
 	std::function<void(EventSystem&)> emitter = nullptr;
 };
 
@@ -97,7 +96,7 @@ public:
 	 */
 	double GetCurrentCursorY() const;
 
-	bool CheckUserInput(UserInput ui) const;
+	bool CheckUserInput(UserInput ui, KeyAction a) const;
 
 	/**
 	 * Map a Keyboard button to an Event object.
@@ -110,7 +109,7 @@ public:
 	 */
 	template <typename T>
 		requires std::derived_from<T, Event> && std::copy_constructible<T>
-	void MapKeyboardButton(Key key, KeyAction in_action_mask, T prototype);
+	void MapKeyboardButton(Key key, KeyAction in_action, T prototype);
 
 	/**
 	 * Map a mouse button to an Event object.
@@ -123,7 +122,7 @@ public:
 	 */
 	template <typename T>
 		requires std::derived_from<T, Event> && std::copy_constructible<T>
-	void MapMouseButton(MouseButton button, KeyAction in_action_mask, T prototype);
+	void MapMouseButton(MouseButton button, KeyAction in_action, T prototype);
 
 	/**
 	 * Map a gamepad button to an Event object.
@@ -136,7 +135,7 @@ public:
 	 */
 	template <typename T>
 		requires std::derived_from<T, Event> && std::copy_constructible<T>
-	void MapGamepadButton(GamepadButton button, KeyAction in_action_mask, T prototype);
+	void MapGamepadButton(GamepadButton button, KeyAction in_action, T prototype);
 
 protected:
 	/**
@@ -148,6 +147,8 @@ protected:
 
 	void MouseButtonPressed(MouseButton b, KeyAction action);
 
+	void UpdateScrollWheel(double offset_x, double offset_y);
+
 private:
 	/** @brief The active input mode (Mouse + Keyboard or Gamepad). */
 	Mode current_mode;
@@ -156,13 +157,13 @@ private:
 	EventSystem& event_system;
 
 	/** @brief Mapping of keyboard keys to input events. */
-	std::array<Binding, 512> keyboard_map;
+	std::array<std::array<Binding, 3>, 512> keyboard_map;
 
 	/** @brief Mapping of mouse buttons to input events. */
-	std::array<Binding, 16> mouse_map;
+	std::array<std::array<Binding, 3>, 16> mouse_map;
 
 	/** @brief Mapping of gamepad buttons to input events. */
-	std::array<Binding, 32> gamepad_map;
+	std::array<std::array<Binding, 3>, 32> gamepad_map;
 
 	double current_mouse_pos_x = 0.0f;
 	double current_mouse_pos_y = 0.0f;
@@ -170,40 +171,74 @@ private:
 
 template <typename T>
 	requires std::derived_from<T, Event> && std::copy_constructible<T>
-inline void InputManager::MapKeyboardButton(Key key, KeyAction in_action_mask, T prototype)
+inline void InputManager::MapKeyboardButton(Key key, KeyAction in_action, T prototype)
 {
-	const auto idx = static_cast<size_t>(key);
-	if (idx >= keyboard_map.size())
+	const auto key_idx = static_cast<size_t>(key);
+	if (key_idx >= keyboard_map.size())
 	{
 		return;
 	}
-	keyboard_map[idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
-	keyboard_map[idx].actionMask = in_action_mask;
+	auto action_idx = static_cast<size_t>(in_action);
+
+	if (action_idx > 0)
+	{
+		action_idx -= 1;
+	}
+
+	if (action_idx >= keyboard_map[key_idx].size())
+	{
+		return;
+	}
+
+	keyboard_map[key_idx][action_idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
 }
 
 template <typename T>
 	requires std::derived_from<T, Event> && std::copy_constructible<T>
-inline void InputManager::MapMouseButton(MouseButton button, KeyAction in_action_mask, T prototype)
+inline void InputManager::MapMouseButton(MouseButton button, KeyAction in_action, T prototype)
 {
 	const auto idx = static_cast<size_t>(button);
 	if (idx >= mouse_map.size())
 	{
 		return;
 	}
-	mouse_map[idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
-	mouse_map[idx].actionMask = in_action_mask;
+
+	auto action_idx = static_cast<size_t>(in_action);
+
+	if (action_idx > 0)
+	{
+		action_idx -= 1;
+	}
+
+	if (action_idx >= mouse_map[idx].size())
+	{
+		return;
+	}
+
+	mouse_map[idx][action_idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
 }
 
 template <typename T>
 	requires std::derived_from<T, Event> && std::copy_constructible<T>
-inline void InputManager::MapGamepadButton(GamepadButton button, KeyAction in_action_mask, T prototype)
+inline void InputManager::MapGamepadButton(GamepadButton button, KeyAction in_action, T prototype)
 {
 	const auto idx = static_cast<size_t>(button);
 	if (idx >= gamepad_map.size())
 	{
 		return;
 	}
-	gamepad_map[idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
-	gamepad_map[idx].actionMask = in_action_mask;
+	auto action_idx = static_cast<size_t>(in_action);
+
+	if (action_idx > 0)
+	{
+		action_idx -= 1;
+	}
+
+	if (action_idx >= gamepad_map[idx].size())
+	{
+		return;
+	}
+
+	gamepad_map[idx][action_idx].emitter = [p = std::move(prototype)](EventSystem& es) { es.AddEvent<T>(T(p)); };
 }
 } // namespace Mupfel

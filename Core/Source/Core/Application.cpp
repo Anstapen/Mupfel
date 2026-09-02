@@ -186,10 +186,7 @@ void Mupfel::Application::SetMovement(Entity e, float vel_x, float vel_y, float 
 	return Get().physics->SetMovement(e, vel_x, vel_y, vel_ang);
 }
 
-void Mupfel::Application::GetContacts(Entity e, std::vector<ContactData>& buffer)
-{
-	Get().physics->GetContacts(e, buffer);
-}
+bool Mupfel::Application::HasPhysicsEvents(Entity e) { return Get().physics->HasPhysicsEvents(e); }
 
 Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
 {
@@ -266,7 +263,7 @@ void Application::Run()
 		window.PollEvents();
 		Application::StartFrameTime();
 		frame_count++;
-		ProfilingSample prof("Application::Run()");
+		ProfilingSample main_app("Application::Run()");
 
 		double currentTime = Application::GetTime();
 		double timestep = std::clamp<double>(currentTime - lastTime, 0.00001f, 0.1f);
@@ -275,13 +272,13 @@ void Application::Run()
 		{
 			ProfilingSample prof("Application::Run(): Check ");
 			/* Check for Application related changes */
-			if (input_manager.CheckUserInput(UserInput::WINDOW_FULLSCREEN))
+			if (input_manager.CheckUserInput(UserInput::WINDOW_FULLSCREEN, KeyAction::NONE))
 			{
 				logger->info("Toggling Full Screen...");
 				window.ToggleFS();
 			}
 
-			if (input_manager.CheckUserInput(UserInput::TOGGLE_DEBUG_MODE))
+			if (input_manager.CheckUserInput(UserInput::TOGGLE_DEBUG_MODE, KeyAction::NONE))
 			{
 				logger->debug("Toggled Debug Mode.");
 				debugModeEnabled = !debugModeEnabled;
@@ -357,7 +354,7 @@ void Application::Run()
 		}
 
 		{
-			ProfilingSample prof2("Event System Update");
+			ProfilingSample prof("Event System Update");
 			/* Update the EventSystem */
 			evt_system.Update();
 		}

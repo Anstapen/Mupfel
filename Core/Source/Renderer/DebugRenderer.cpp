@@ -19,6 +19,8 @@ bool Mupfel::DebugRenderer::Init(const Ping::Device& device, Ping::Format swapCh
 }
 
 void Mupfel::DebugRenderer::PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) {
+	(void)device;
+	(void)current_command_buffer;
 	gui.value().NewFrame();
 }
 

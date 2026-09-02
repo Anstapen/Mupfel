@@ -54,7 +54,7 @@ namespace Mupfel {
 		 * Use this to update game logic, animations, or other
 		 * time-dependent behavior.
 		 */
-		virtual void OnUpdate(double timestep) {}
+		virtual void OnUpdate(double timestep) { (void)timestep; }
 
 		/**
 		 * @brief Called once per frame to render the layer’s contents.

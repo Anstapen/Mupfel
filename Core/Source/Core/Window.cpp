@@ -8,6 +8,10 @@ using namespace Mupfel;
 
 void Window::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	(void)window;
+	(void)scancode;
+	(void)mods;
+
 	KeyAction keyaction;
 	switch (action)
 	{
@@ -28,6 +32,8 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 }
 
 void Mupfel::Window::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+	(void)window;
+	(void)mods;
 	KeyAction keyaction;
 	switch (action)
 	{
@@ -47,8 +53,15 @@ void Mupfel::Window::mouse_button_callback(GLFWwindow* window, int button, int a
 	Application::GetCurrentInputManager().MouseButtonPressed(static_cast<MouseButton>(button), keyaction);
 }
 
+void Mupfel::Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	(void)window;
+	Application::GetCurrentInputManager().UpdateScrollWheel(xoffset, yoffset);
+}
+
 void Window::cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
+	(void)window;
 	Application::GetCurrentInputManager().UpdateCursor(xpos, ypos);
 }
 
@@ -93,17 +106,17 @@ int32_t Mupfel::Window::GetWindowHeight() const { return current_height; }
 
 void Mupfel::Window::PollEvents() const { glfwPollEvents(); }
 
-bool Window::Init(const WindowSpecification& spec)
+bool Window::Init(const WindowSpecification& in_spec)
 {
-	this->spec = spec;
+	this->spec = in_spec;
 
 	/* Zero dimensions in the spec mean that we should search for a good default. */
-	const std::string window_name = (spec.title.empty()) ? "Mupfel" : spec.title;
+	const std::string window_name = (in_spec.title.empty()) ? "Mupfel" : in_spec.title;
 
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	if (spec.isResizeable)
+	if (in_spec.isResizeable)
 	{
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 	}
@@ -141,6 +154,7 @@ bool Window::Init(const WindowSpecification& spec)
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 
 	return true;
 }

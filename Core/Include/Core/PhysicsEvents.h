@@ -9,8 +9,6 @@ struct ContactData
 {
 	Entity a;
 	Entity b;
-	float  normal_x;
-	float  normal_y;
 };
 
 class CollisionBeganEvent : public Event

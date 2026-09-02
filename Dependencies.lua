@@ -2,7 +2,8 @@
 --
 -- Single source of truth for every vendored third-party dependency Mupfel builds against: where its
 -- source lives once fetched (Deps.<name>.relpath, relative to the repo root) and where to download it
--- from if missing. Vendor/Build-Vendor.lua, Core/Build-Core.lua and App/Build-App.lua all resolve
+-- from if missing. Which of them actually get fetched depends on the --modules selection -- see
+-- build_externals() at the bottom, and Modules.lua. Vendor/Build-Vendor.lua, Core/Build-Core.lua and App/Build-App.lua all resolve
 -- include/lib paths through DepPath() below instead of hardcoding directory names or version strings,
 -- so bumping a version only means editing the table below.
 
@@ -40,16 +41,6 @@ Deps = {
         relpath = "Vendor/Sources/box2d-3.1.1",
         url     = "https://github.com/erincatto/box2d/archive/refs/tags/v3.1.1.zip",
     },
-    nanobench = {
-        relpath     = "Vendor/Sources/nanobench",
-        url         = "https://raw.githubusercontent.com/martinus/nanobench/v4.3.11/src/include/nanobench.h",
-        single_file = "nanobench.h", -- header-only microbenchmark framework, used by the Benchmarks project
-    },
-    -- Catch2 v3 is normally consumed through CMake, which generates catch_user_config.hpp from a .in
-    -- template before anything can compile. Upstream also publishes an "amalgamated" build of each
-    -- release - one header plus one .cpp, with that config already baked in - so we take those two
-    -- files instead and build them as an ordinary static lib (see Vendor/Build-Vendor.lua). Used by
-    -- the Tests project.
     catch2 = {
         relpath      = "Vendor/Sources/catch2-3.15.3",
         single_files = {
@@ -131,9 +122,10 @@ function build_externals()
     fetch_dependency("spdlog")
     fetch_dependency("stb")
     fetch_dependency("imgui")
-    fetch_dependency("nanobench")
-    fetch_dependency("catch2")
     fetch_dependency("box2d")
+    if ModuleSelected("tests") then
+        fetch_dependency("catch2")
+    end
     if os.target() == "windows" then
         fetch_dependency("glfw")
     end

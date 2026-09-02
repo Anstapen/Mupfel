@@ -26,9 +26,9 @@ void ConfigManager::LoadConfig(const std::string path)
 	/* remove spaces that may have been added by the user. */
 	CleanUpRawConfig(rawConfig);
 
-	std::vector<std::string> configEntries = SplitRawConfig(rawConfig);
+	std::vector<std::string> config_entries = SplitRawConfig(rawConfig);
 
-	FindExistingEntries(configEntries);
+	FindExistingEntries(config_entries);
 }
 
 void ConfigManager::SaveConfig(const std::string path)

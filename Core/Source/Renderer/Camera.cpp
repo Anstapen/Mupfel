@@ -61,3 +61,48 @@ std::optional<WorldPoint> Mupfel::Camera::ScreenToWorld(float screen_x, float sc
 
 	return WorldPoint{hit.x, hit.y, plane_z};
 }
+
+ScreenVector Camera::WorldToScreenVector(float world_dx, float world_dy, float world_dz) const
+{
+	const float width = static_cast<float>(Application::GetCurrentRenderWidth());
+	const float height = static_cast<float>(Application::GetCurrentRenderHeight());
+
+	if (width <= 0.0f || height <= 0.0f)
+	{
+		return {};
+	}
+
+	const glm::vec4 clip = CameraMath::Projection(*this, width, height) * CameraMath::View(*this) *
+						   glm::vec4(world_dx, world_dy, world_dz, 0.0f);
+
+	return {clip.x * 0.5f * width, clip.y * 0.5f * height};
+}
+
+std::optional<WorldVector> Camera::ScreenToWorldVector(float screen_dx, float screen_dy) const
+{
+	const float width = static_cast<float>(Application::GetCurrentRenderWidth());
+	const float height = static_cast<float>(Application::GetCurrentRenderHeight());
+
+	if (width <= 0.0f || height <= 0.0f)
+	{
+		return std::nullopt;
+	}
+
+	const glm::vec3 forward = CameraMath::Forward(*this);
+
+	/* If the pitch is 0, the ray does not hit the x,y plane. */
+	if (glm::abs(forward.z) < 1e-6f)
+	{
+		return std::nullopt;
+	}
+
+	const glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 0.0f, 1.0f)));
+	const glm::vec3 up = glm::cross(right, forward);
+	const glm::vec2 half = CameraMath::HalfExtents(*this, width, height);
+
+	const glm::vec3 offset =
+		right * ((screen_dx / width) * 2.0f * half.x) - up * ((screen_dy / height) * 2.0f * half.y);
+
+	return WorldVector{
+		offset.x - forward.x * (offset.z / forward.z), offset.y - forward.y * (offset.z / forward.z), 0.0f};
+}

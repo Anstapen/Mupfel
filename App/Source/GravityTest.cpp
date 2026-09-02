@@ -19,52 +19,25 @@ void GravityTest::OnInit()
 	Entities::AddComponent<Transform>(ground, t);
 	Entities::AddComponent<Body>(ground, {});
 	Collider c;
-	c.half_width = 15;
-	c.half_height = 0.2;
+	c.SetBox(30, 0.4);
 	Entities::AddComponent<Collider>(ground, c);
 	Entity side_right = Entities::Create();
 	t.pos_x = 15.2f;
 	t.pos_y = -1.2f;
 	Entities::AddComponent<Transform>(side_right, t);
-	c.half_width = 0.2;
-	c.half_height = 7;
+	c.SetBox(0.4, 14);
 	Entities::AddComponent<Collider>(side_right, c);
 	Entities::AddComponent<Body>(side_right, {});
 	Entity side_left = Entities::Create();
 	t.pos_x = -15.2f;
 	t.pos_y = -1.2f;
 	Entities::AddComponent<Transform>(side_left, t);
-	c.half_width = 0.2;
-	c.half_height = 7;
+	c.SetBox(0.4, 14);
 	Entities::AddComponent<Collider>(side_left, c);
 	Entities::AddComponent<Body>(side_left, {});
 
 	/* Add some balls */
 	Imager::Load("Ball", "Images/ball_blue.png");
-
-	float pos_x = -4;
-
-	for (uint32_t i = 0; i < 5; i++)
-	{
-		Entity	  e = Entities::Create();
-		Transform t;
-		t.pos_x = pos_x;
-		t.pos_y = 5;
-		t.pos_z = 0.08f;
-		Entities::AddComponent<Transform>(e, t);
-		Body b;
-		b.type = BodyType::Dynamic;
-		Entities::AddComponent<Body>(e, b);
-
-		Collider c;
-		c.half_width = 0.5;
-		c.shape = ColliderShape::Circle;
-		Entities::AddComponent<Collider>(e, c);
-
-		Entities::AddComponent<Texture>(e, {Imager::Get("Ball")});
-
-		pos_x -= 1.0f;
-	}
 }
 
 void GravityTest::OnUpdate(double timestep)
@@ -112,7 +85,9 @@ void GravityTest::OnUpdate(double timestep)
 		Entity e = Entities::Create();
 		Entities::AddComponent<Transform>(e, {.pos_x = pos_x, .pos_y = 7.0f});
 		Entities::AddComponent<Body>(e, {.type = BodyType::Dynamic});
-		Entities::AddComponent<Collider>(e, {.shape = ColliderShape::Circle, .half_width = collider_size});
+		Collider c;
+		c.SetCircle(collider_size);
+		Entities::AddComponent<Collider>(e, c);
 		Entities::AddComponent<Texture>(e, {Imager::Get("Ball"), collider_size * 2, collider_size * 2});
 
 		total_balls++;

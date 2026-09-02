@@ -47,10 +47,19 @@ public:
 	 */
 	Registry(EventSystem& in_evt_sys, ThreadPool& in_pool) : evt_system(in_evt_sys), thread_pool(in_pool) {}
 
-	/** Create an entity. Additonally, a "EntityCreatedEvent" event is fired to notify everyone. */
+	/** Create an entity. Additonally, an "EntityCreatedEvent" event is fired to notify everyone. */
 	Entity CreateEntity();
 
-	/** Destroy an entity. Additonally, a "EntityDestroyedEvent" event is fired to notify everyone. */
+	/**
+	 * Destroy the entity \a e.
+	 * 
+	 * A call to this function destroys the given entity and all its components.
+	 * Before doing so, an immediate \ref EntityDestroyedEvent is published, to notify
+	 * everyone about the destruction. Additionally, for every component that the entity has,
+	 * a ComponentRemovedEvent (not immediate!) is issued.
+	 * 
+	 * \param e The entity to be destroyed.
+	 */
 	void DestroyEntity(Entity e);
 
 	/** Return the number of current entities in the registry. */

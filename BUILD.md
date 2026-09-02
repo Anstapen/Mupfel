@@ -9,7 +9,8 @@ give the build a clear three-tier separation — **Vendor** (third-party code) /
 
 ```
 Build.lua                  Workspace root: declares the workspace, shared per-project settings
-                            (ApplyDefaultProjectSettings), and the Vendor/Engine/App group structure.
+                            (ApplyDefaultProjectSettings), the strict-warning opt-in for our own
+                            code (ApplyStrictWarnings), and the Vendor/Engine/App group structure.
 Dependencies.lua           Single source of truth for third-party dependencies: where each one's
                             source lives (Deps table) and how to fetch it (DepPath, fetch_dependency).
 
@@ -26,10 +27,6 @@ Core/
 App/
   Build-App.lua            Builds the "App" executable from App/Source (+ App/Shaders).
   Source/                  Game/editor-specific layers.
-
-Benchmarks/
-  Build-Benchmarks.lua     Builds the "Benchmarks" executable (microbenchmarks) from Benchmarks/Source.
-  Source/                  nanobench-based ECS/View/lifecycle benchmarks (links Core; see its README).
 
 Tests/
   Build-Tests.lua          Builds the "Tests" executable (unit tests) from Tests/Source.
@@ -76,14 +73,13 @@ belong to that tier — `Vendor/Build-Vendor.lua` never reaches into `Core/` or 
                                 └─────────────────────────┘
 ```
 
-`Benchmarks` and `Tests` hang off `Core` the same way `App` does — each is a `ConsoleApp` linking the
-engine, drawn above with its own framework (nanobench / catch2) rather than folded into the diagram.
+`Tests` hangs off `Core` the same way `App` does — a `ConsoleApp` linking the engine, kept out of the
+diagram above along with its catch2 framework rather than folded into it.
 
-Header-only dependencies (no build project, just `includedirs`): **nlohmann/json**, **glm**, **stb_image**,
-**nanobench**. `stb_image` is only ever included by `Ping`; `nlohmann` is used by both `Core` (entity
-serialization) and `App`; `glm` (math) is only used by `App` today; `nanobench` is only used by the
-`Benchmarks` project (see below). **catch2** is *not* header-only — see "Catch2" below for why it gets a
-project of its own despite shipping as two files.
+Header-only dependencies (no build project, just `includedirs`): **nlohmann/json**, **glm**,
+**stb_image**. `stb_image` is only ever included by `Ping`; `nlohmann` is used by both `Core` (entity
+serialization) and `App`; `glm` (math) is only used by `App` today. **catch2** is *not* header-only — see
+"Catch2" below for why it gets a project of its own despite shipping as two files.
 
 **Who links what:**
 
@@ -97,7 +93,6 @@ project of its own despite shipping as two files.
 | `catch2` | —                                                  | —                                |
 | `Core`   | Ping, Logger, spdlog, imgui, glfw3, vulkan, box2d  | nlohmann                         |
 | `App`    | Core                                               | nlohmann, glm, ping, spdlog, vulkan |
-| `Benchmarks` | Core                                           | nanobench, + Core's header set (for ParallelForEach's Application.h) |
 | `Tests`  | Core, catch2                                       | + Core's header set (anything reaching Application.h) |
 
 This table is the direct answer to "who includes which headers" — it's now also mechanically
@@ -165,6 +160,46 @@ project "Core"
 Only what's genuinely project-specific (`kind`, `files`, `includedirs`, `links`, extra `defines`)
 stays in each `Build-*.lua` file.
 
+## Warnings: strict for our code, silent for vendored code
+
+`Core` and `Tests` compile with warnings on and warnings fatal. That's the second shared
+helper in `Build.lua`, `ApplyStrictWarnings()`, called right after `ApplyDefaultProjectSettings()`:
+
+```lua
+function ApplyStrictWarnings()
+    warnings "High"           -- -Wall   (clang/gcc) | /W4 (MSVC)
+    externalwarnings "Off"    --                     | /external:W0
+    fatalwarnings { "All" }   -- -Werror (clang/gcc) | /WX (MSVC)
+end
+```
+
+It is deliberately *not* folded into `ApplyDefaultProjectSettings()`, which every project calls: third-party
+source keeps whatever warning level its authors settled on. We don't patch spdlog or ImGui, and bumping a
+dependency must not be able to break our build. `App` doesn't call it either — add the one line to
+`App/Build-App.lua` if the game code should be held to the same bar.
+
+Premake's portable verbs are used rather than raw flags because the same scripts generate an MSVC solution
+*and* clang makefiles, and the literal flags don't translate: `-Wall` on MSVC (`/Wall`) means every
+off-by-default warning including the ones the CRT headers trip. `warnings "High"` is the intended
+equivalent. The two are not identical sets — MSVC's `/W4` includes C4100 (unreferenced formal parameter)
+and C4456/C4458 (shadowing), which GCC/Clang put in `-Wextra` and `-Wshadow` respectively — so the Windows
+build is the stricter of the two. `disablewarnings { "4100" }` inside the helper is the escape hatch if
+that asymmetry ever becomes a nuisance.
+
+**Vendored headers are the other half of this.** A third-party header included from one of our `.cpp`
+files warns as if we had written it, and `/WX` would then fail our build over ImGui's code. So both
+strict projects list every vendored and SDK path under `externalincludedirs` instead of `includedirs`:
+
+```lua
+includedirs { "Include", "Include/Core", ..., "Source" }   -- ours: warnings on, fatal
+externalincludedirs { DepPath("spdlog", "include"), ... }  -- theirs: warnings off
+```
+
+That emits `-isystem` on GCC/Clang and `<ExternalIncludePath>` + `<ExternalWarningLevel>` on MSVC. Search
+order is unchanged — both are searched *after* the normal include dirs, which is exactly where the vendored
+entries already sat — so this is warning policy only, not a resolution change. **When you add a vendored
+dependency to `Core` or `Tests`, put its path in `externalincludedirs`, not `includedirs`.**
+
 ## Box2D — the one project that isn't C++
 
 Box2D 3.x (we vendor the [v3.1.1 release](https://github.com/erincatto/box2d/releases/tag/v3.1.1)) is a
@@ -196,8 +231,8 @@ project block if you ever want it. Box2D's asserts are gated by `NDEBUG`, which 
 already defines for `Release`/`Dist`, so they're live in `Debug` only — the same policy as the ECS asserts.
 
 Only `Core` sees Box2D today (`includedirs` + `links`). If a *public* `Core` header ever exposes Box2D
-types (e.g. a `b2BodyId` on a physics component), `App` and `Benchmarks` will need
-`DepPath("box2d", "include")` added to their `includedirs` too — exactly how they already carry
+types (e.g. a `b2BodyId` on a physics component), `App` and `Tests` will need
+`DepPath("box2d", "include")` on their include paths too — exactly how `Tests` already carries the
 Ping/spdlog/Vulkan header paths for the types `Application.h` exposes.
 
 ## Catch2 — vendored as an amalgamation, not a source tree
@@ -236,20 +271,17 @@ group "Vendor"
    include "Vendor/Build-Vendor.lua"   -- spdlog, imgui, Logger, Ping, box2d, catch2
 group ""
 
-group "Engine"
-   include "Core/Build-Core.lua"       -- Core
-group ""
-
-include "App/Build-App.lua"            -- App (ungrouped — it's the startproject)
-
-group "Benchmarks"
-   include "Benchmarks/Build-Benchmarks.lua"  -- Benchmarks (microbenchmarks, links Core)
-group ""
-
-group "Tests"
-   include "Tests/Build-Tests.lua"     -- Tests (Catch2 unit tests, links Core)
-group ""
+for _, module in ipairs(SelectedModules()) do
+   group (Modules[module].group)
+      include (Modules[module].build_script)
+   group ""
+end
 ```
+
+The loop covers `Core` (group `Engine`), `App` (ungrouped — it's the startproject) and `Tests` (group
+`Tests`). Which group each lands in, and which file defines it, comes from the module table in
+`Modules.lua`; that table is also what the `--modules` option filters, so a subset selection generates
+a subset of these includes.
 
 ## Bugs fixed along the way
 

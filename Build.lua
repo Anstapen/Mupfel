@@ -4,8 +4,11 @@
 --   Vendor group     -> Vendor/Build-Vendor.lua          (third-party libraries built from vendored source)
 --   Engine group     -> Core/Build-Core.lua              (Mupfel's own engine static library, "Core")
 --   (ungrouped)      -> App/Build-App.lua                (the executable, startproject)
---   Benchmarks group -> Benchmarks/Build-Benchmarks.lua  (nanobench microbenchmarks, links Core)
 --   Tests group      -> Tests/Build-Tests.lua            (Catch2 unit tests, links Core)
+--
+-- Everything below Vendor is conditional: --modules=core,app generates a solution with just those
+-- two, and the default remains all four. The option, the module table and the dependency closure
+-- that keeps a selection buildable all live in Modules.lua.
 
 -- Ping (Vendor/Build-Vendor.lua) needs the Vulkan SDK to compile
 vulkan_sdk_path = os.getenv("VULKAN_SDK")
@@ -13,12 +16,21 @@ if not vulkan_sdk_path then
    error("VULKAN_SDK not set. Please set this variable to the path of the installed Vulkan SDK. Exiting...")
 end
 
+-- Modules.lua first: it parses --modules, and Dependencies.lua skips fetching the frameworks whose
+-- module isn't in this solution.
+include "Modules.lua"
 include "Dependencies.lua"
 
 workspace "Mupfel"
    architecture "x64"
    configurations { "Debug", "Release", "Dist" }
-   startproject "App"
+
+   -- App when it's in the solution, otherwise the first runnable module. Left unset for a Core-only
+   -- solution: a startproject naming a project that was never generated confuses the IDE.
+   local start_project = StartProjectName()
+   if start_project then
+      startproject (start_project)
+   end
 
    -- Workspace-wide build options for MSVC
    -- spdlog's bundled fmt headers require an UTF-8 execution charset (their own headers are valid
@@ -56,43 +68,73 @@ function ApplyDefaultProjectSettings()
     filter "system:windows"
         systemversion "latest"
 
+    -- optimize "Off" is stated rather than left to Premake's default: Debug is for stepping through
+    -- code that still matches the source, so nothing here may be reordered or inlined away.
+    --   optimize "Off"   -> -O0 (clang/gcc) | /Od (MSVC, i.e. <Optimization>Disabled)
     filter "configurations:Debug"
         defines { "DEBUG" }
         runtime "Debug"
         symbols "On"
+        optimize "Off"
 
     -- NDEBUG disables assert() in the optimized configurations. The ECS hot paths assert per entity
     -- (Registry::GetSignature) and per component access (CPUComponentArray::Get -> Has), so leaving
     -- them enabled costs measurable time in View iteration. Premake does not define NDEBUG on its own.
+    --
+    -- optimize "Speed", not "On": the two verbs differ per toolset, and Speed is the one that means
+    -- "optimize for speed" on both.
+    --   optimize "Speed" -> -O3 (clang/gcc) | /O2 (MSVC, i.e. <Optimization>MaxSpeed)
+    --   optimize "On"    -> -O2 (clang/gcc) | /Ox (MSVC, a *subset* of /O2)
     filter "configurations:Release"
         defines { "RELEASE", "NDEBUG" }
         runtime "Release"
-        optimize "On"
+        optimize "Speed"
         symbols "On"
 
+    -- Same code generation as Release; Dist only drops the debug symbols.
     filter "configurations:Dist"
         defines { "DIST", "NDEBUG" }
         runtime "Release"
-        optimize "On"
+        optimize "Speed"
         symbols "Off"
 
     filter {}
 end
 
+-- Strict warnings, applied only to Mupfel's own compiled code (Core, Tests). Deliberately
+-- NOT part of ApplyDefaultProjectSettings(): every project calls that one, the vendored ones included,
+-- and third-party source keeps whatever warning level its authors settled on -- we don't fix their
+-- code, and a dependency bump must not be able to break our build.
+--
+-- Spelled with Premake's portable verbs rather than raw compiler flags, because these same scripts
+-- generate both an MSVC solution and clang makefiles:
+--   warnings "High"         -> -Wall   (clang/gcc) | /W4 (MSVC, i.e. <WarningLevel>Level4)
+--   fatalwarnings { "All" } -> -Werror (clang/gcc) | /WX (MSVC, i.e. <TreatWarningAsError>)
+--   externalwarnings "Off"  -> see below           | /external:W0
+--
+-- The other half of "ignore vendored warnings" is include *paths*: a third-party header included from
+-- one of our .cpp files warns as if we had written it, so -Werror would fail our build over spdlog's
+-- or ImGui's code. The three projects therefore list every vendored path under `externalincludedirs`
+-- (emits -isystem, and <ExternalIncludePath> + the external warning level above) instead of
+-- `includedirs`, which silences warnings originating inside those headers. Search order is unchanged:
+-- both -isystem and MSVC's external paths are searched after the normal include dirs, which is exactly
+-- where the vendored entries already sat.
+function ApplyStrictWarnings()
+    warnings "High"
+    externalwarnings "Off"
+    fatalwarnings { "All" }
+end
+
+-- Vendor is unconditional: every possible --modules selection contains Core (see Modules.lua), and
+-- Core links Ping, spdlog, imgui and box2d. catch2 is the one vendored project that isn't always
+-- needed, and it gates itself inside Vendor/Build-Vendor.lua.
 group "Vendor"
    include "Vendor/Build-Vendor.lua"
 group ""
 
-group "Engine"
-   include "Core/Build-Core.lua"
-group ""
-
-include "App/Build-App.lua"
-
-group "Benchmarks"
-   include "Benchmarks/Build-Benchmarks.lua"
-group ""
-
-group "Tests"
-   include "Tests/Build-Tests.lua"
-group ""
+-- Our own modules, in ModuleOrder order, restricted to what --modules asked for.
+for _, module in ipairs(SelectedModules()) do
+   group (Modules[module].group)
+      include (Modules[module].build_script)
+   group ""
+end

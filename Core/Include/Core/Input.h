@@ -194,21 +194,11 @@ enum class UserInput
 	TOGGLE_DEBUG_MODE
 };
 
-enum class KeyAction : uint32_t
+enum KeyAction : uint32_t
 {
 	NONE = 0,
-	PRESSED = 1 << 0,
-	RELEASED = 1 << 1,
-	REPEATED = 1 << 2
+	PRESSED = 1,
+	RELEASED = 2,
+	REPEATED = 3
 };
-
-inline bool HasFlag(KeyAction action, KeyAction flag)
-{
-	return (static_cast<uint32_t>(action) & static_cast<uint32_t>(flag)) != 0;
-}
-
-inline KeyAction operator|(KeyAction l, KeyAction r)
-{
-	return static_cast<KeyAction>(static_cast<uint32_t>(l) | static_cast<uint32_t>(r));
-}
 } // namespace Mupfel

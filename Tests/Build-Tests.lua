@@ -3,10 +3,6 @@
 -- Builds the "Tests" executable: unit tests for the engine, built on Catch2 v3 (see Deps.catch2 in
 -- Dependencies.lua and the catch2 project in Vendor/Build-Vendor.lua). Links Core and catch2.
 --
--- The include/lib dirs mirror Core/Build-Core.lua rather than App/Build-App.lua for the same reason
--- Benchmarks does: anything reaching into Core/Application.h pulls in the full Ping/Vulkan/GLFW/spdlog/
--- imgui header chain behind it, so those paths have to be visible here even though nothing but Core
--- and catch2 is linked.
 --
 -- Two source roots, both globbed and both on the include path, so adding a file to either needs no
 -- edit here -- only a re-run of the setup script so Premake regenerates the project:
@@ -17,6 +13,7 @@
 project "Tests"
     kind "ConsoleApp"
     ApplyDefaultProjectSettings()
+    ApplyStrictWarnings()
 
     files { "Source/**.h", "Source/**.cpp", "Common/**.h", "Common/**.cpp" }
 
@@ -28,6 +25,12 @@ project "Tests"
         -- and so get both of Core's header roots rather than just the published one.
         "%{wks.location}/Core/Include",
         "%{wks.location}/Core/Source",
+    }
+
+    -- Third-party headers (Catch2 included), kept off includedirs so ApplyStrictWarnings()'s
+    -- -Werror / /WX only ever fires on our own code. See Build.lua.
+    externalincludedirs
+    {
         DepPath("catch2"),
         DepPath("nlohmann"),
         DepPath("ping", "Source"),

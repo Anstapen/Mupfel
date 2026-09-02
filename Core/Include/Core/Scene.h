@@ -48,8 +48,9 @@ public:
 	const Camera& GetCamera() const;
 
 protected:
-	virtual void Serialize(const std::string& path) {};
-	virtual void Deserialize(const std::string& path) {};
+	virtual void Serialize(const std::string& path) { (void)path; };
+
+	virtual void Deserialize(const std::string& path) { (void)path; };
 
 	Scene(SceneHandle in_handle, const SceneDefinition& def)
 		: handle(in_handle), camera(def.cam), gravity_x(def.gravity_x), gravity_y(def.gravity_y)

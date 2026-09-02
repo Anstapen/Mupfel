@@ -149,7 +149,7 @@ public:
 
 	static void SetTransform(Entity e, Transform t);
 	static void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
-	static void GetContacts(Entity e, std::vector<ContactData>& buffer);
+	static bool HasPhysicsEvents(Entity e);
 
 	/**
 	 * Load a simple image.

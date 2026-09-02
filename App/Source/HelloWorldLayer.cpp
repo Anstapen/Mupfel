@@ -22,7 +22,7 @@ void HelloWorldLayer::OnInit()
 	gravityTest = Scenes::Create<GravityTest>(def);
 
 	/* We are starting with the gravityTest. */
-	Scenes::Switch(gravityTest);
+	Scenes::Switch(level);
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)

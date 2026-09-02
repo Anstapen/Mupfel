@@ -6,13 +6,11 @@ using namespace Mupfel;
 InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system(evt_system), current_mode(in_mode)
 {
 	/* First, reset all mappings */
-	Binding default_binding;
-	default_binding.emitter = [](EventSystem& es) { es.AddEvent<UserInputEvent>({UserInput::NONE, KeyAction::NONE}); };
-	keyboard_map.fill(default_binding);
-	mouse_map.fill(default_binding);
-	gamepad_map.fill(default_binding);
-
-	/* Set the GLFW key callback */
+	std::function<void(EventSystem&)> default_emitter = nullptr;
+	std::array<Binding, 3> default_bindings = {default_emitter, default_emitter, default_emitter};
+	keyboard_map.fill(default_bindings);
+	mouse_map.fill(default_bindings);
+	gamepad_map.fill(default_bindings);
 
 	/*
 		For now, just manually set the default mappings.
@@ -24,17 +22,23 @@ InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system
 	MapKeyboardButton<UserInputEvent>(Key::KEY_F1, KeyAction::PRESSED, {UserInput::TOGGLE_DEBUG_MODE, KeyAction::NONE});
 	MapMouseButton<UserInputEvent>(
 		MouseButton::MOUSE_BUTTON_LEFT, KeyAction::RELEASED, {UserInput::LEFT_MOUSE_CLICK, KeyAction::RELEASED});
+	MapMouseButton<UserInputEvent>(
+		MouseButton::MOUSE_BUTTON_LEFT, KeyAction::PRESSED, {UserInput::LEFT_MOUSE_CLICK, KeyAction::PRESSED});
+	MapMouseButton<UserInputEvent>(
+		MouseButton::MOUSE_BUTTON_RIGHT, KeyAction::RELEASED, {UserInput::RIGHT_MOUSE_CLICK, KeyAction::RELEASED});
+	MapMouseButton<UserInputEvent>(
+		MouseButton::MOUSE_BUTTON_RIGHT, KeyAction::PRESSED, {UserInput::RIGHT_MOUSE_CLICK, KeyAction::PRESSED});
 }
 
 double Mupfel::InputManager::GetCurrentCursorX() const { return current_mouse_pos_x; }
 
 double Mupfel::InputManager::GetCurrentCursorY() const { return current_mouse_pos_y; }
 
-bool Mupfel::InputManager::CheckUserInput(UserInput ui) const
+bool Mupfel::InputManager::CheckUserInput(UserInput ui, KeyAction a) const
 {
 	for (const auto& evt : event_system.GetEvents<Mupfel::UserInputEvent>())
 	{
-		if (evt.input == ui)
+		if (evt.input == ui && evt.action == a)
 		{
 			return true;
 		}
@@ -68,10 +72,22 @@ void Mupfel::InputManager::KeyPressed(Key key, KeyAction action)
 		return;
 	}
 
-	/* Check if the key is mapped to a function. */
-	if (HasFlag(keyboard_map[key_index].actionMask, action))
+	auto action_idx = static_cast<size_t>(action);
+
+	if (action_idx > 0)
 	{
-		keyboard_map[key_index].emitter(event_system);
+		action_idx -= 1;
+	}
+
+	if (action_idx >= keyboard_map[key_index].size())
+	{
+		return;
+	}
+
+	/* Check if the key is mapped to a function. */
+	if (keyboard_map[key_index][action_idx].emitter != nullptr)
+	{
+		keyboard_map[key_index][action_idx].emitter(event_system);
 	}
 }
 
@@ -90,9 +106,36 @@ void Mupfel::InputManager::MouseButtonPressed(MouseButton b, KeyAction action)
 		return;
 	}
 
-	/* Check if the key is mapped to a function. */
-	if (HasFlag(mouse_map[mb_index].actionMask, action))
+	auto action_idx = static_cast<size_t>(action);
+
+	if (action_idx > 0)
 	{
-		mouse_map[mb_index].emitter(event_system);
+		action_idx -= 1;
 	}
+
+	if (action_idx >= keyboard_map[mb_index].size())
+	{
+		return;
+	}
+
+	/* Check if the key is mapped to a function. */
+	if (mouse_map[mb_index][action_idx].emitter != nullptr)
+	{
+		mouse_map[mb_index][action_idx].emitter(event_system);
+	}
+}
+
+void Mupfel::InputManager::UpdateScrollWheel(double offset_x, double offset_y)
+{
+	(void)offset_x;
+	/* For now, we only support scrolling on the y-axis. */
+	if (offset_y < 0.0)
+	{
+		event_system.AddEvent<UserInputEvent>({UserInput::SCROLLWHEEL_DOWN, KeyAction::NONE});
+	}
+	else if (offset_y > 0.0)
+	{
+		event_system.AddEvent<UserInputEvent>({UserInput::SCROLLWHEEL_UP, KeyAction::NONE});
+	}
+	
 }

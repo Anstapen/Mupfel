@@ -122,6 +122,8 @@ bool Mupfel::IMRenderer::Init(const Ping::Device& device, Ping::Format swapChain
 
 void Mupfel::IMRenderer::PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
 {
+	(void)device;
+	(void)current_command_buffer;
 	drawable_items = 0;
 }
 
@@ -178,12 +180,12 @@ uint32_t Mupfel::IMRenderer::Button(float x, float y, float width, float height,
 	if (hovering)
 	{
 		/* The button is released. TODO: this search is linear currently! */
-		if (Application::GetCurrentInputManager().CheckUserInput(UserInput::LEFT_MOUSE_CLICK))
+		if (Application::GetCurrentInputManager().CheckUserInput(UserInput::LEFT_MOUSE_CLICK, KeyAction::RELEASED))
 		{
 			image_h = it->second[2];
 			return_value = 3;
 		}
-		else if (Application::GetMouseButton(MouseButton::MOUSE_BUTTON_LEFT) == KeyAction::PRESSED)
+		else if (Application::GetCurrentInputManager().CheckUserInput(UserInput::LEFT_MOUSE_CLICK, KeyAction::PRESSED))
 		{
 			image_h = it->second[2];
 			return_value = 2;
@@ -231,18 +233,18 @@ bool Mupfel::IMRenderer::UploadImage(const std::string& image_path)
 
 void Mupfel::IMRenderer::UpdateSamplerDescriptors(const Ping::Device& device)
 {
-	const std::vector<Ping::Image>& images = Application::GetCurrentImageManager().GetImages();
+	const std::vector<Ping::Image>& total_images = Application::GetCurrentImageManager().GetImages();
 
-	if (images.size() == currentImageCount)
+	if (total_images.size() == currentImageCount)
 	{
 		return;
 	}
-	currentImageCount = static_cast<uint32_t>(images.size());
+	currentImageCount = static_cast<uint32_t>(total_images.size());
 
-	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
+	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(total_images.size(), samplers.front());
 
 	samplerDescriptorSets = device.CreateTextureArrayDescriptorSet(
-		pipeline.value(), samplerSetIndex, max_textures, images, sampler_refs, images.front(), samplers.front());
+		pipeline.value(), samplerSetIndex, max_textures, total_images, sampler_refs, total_images.front(), samplers.front());
 }
 
 void Mupfel::IMRenderer::EnsureTransformCapacity(uint32_t required_capacity)

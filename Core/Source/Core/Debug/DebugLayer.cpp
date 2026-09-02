@@ -1,14 +1,14 @@
 #include "DebugLayer.h"
 #include "Core/Application.h"
 #include "Core/Profiler.h"
-#include "ECS/Components/Collider.h"
-#include "ECS/Components/Transform.h"
 #include "ECS/Components/Body.h"
+#include "ECS/Components/Collider.h"
 #include "ECS/Components/Sensor.h"
+#include "ECS/Components/Transform.h"
 #include "ECS/Registry.h"
 #include "ECS/View.h"
-#include "Renderer/Renderer.h"
 #include "Renderer/CameraMath.h"
+#include "Renderer/Renderer.h"
 #include <algorithm>
 #include <format>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,15 +18,7 @@
 
 void Mupfel::DebugLayer::OnInit() {}
 
-void Mupfel::DebugLayer::OnUpdate(double timestep)
-{
-#if 0
-	if (single_stepping && IsKeyPressed(KEY_SPACE))
-	{
-		Application::PhysicsStep();
-	}
-#endif
-}
+void Mupfel::DebugLayer::OnUpdate(double timestep) { (void)timestep; }
 
 void Mupfel::DebugLayer::OnRender()
 {
@@ -44,7 +36,7 @@ void Mupfel::DebugLayer::OnRender()
 	ImGui::SetWindowSize({width, height});
 
 	// ImGui::ShowDemoWindow();
-	
+
 	if (ImGui::CollapsingHeader("Camera Controls"))
 	{
 		DrawCameraControls();
@@ -108,65 +100,139 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 {
 	UpdateMVP();
 
-	const float screen_w = static_cast<float>(Application::GetCurrentRenderWidth());
-	const float screen_h = static_cast<float>(Application::GetCurrentRenderHeight());
-
-	/* The position in the transform component is a world position, we need to convert it to a screen position
-	 * (pixels). */
-	auto to_pixels = [&](glm::vec3 world_pos)
-	{
-		const glm::vec4 clip = proj * view * glm::vec4(world_pos, 1.0f);
-		const glm::vec2 ndc = glm::vec2(clip) / clip.w;
-		return glm::vec2((ndc.x * 0.5f + 0.5f) * screen_w, (ndc.y * 0.5f + 0.5f) * screen_h);
-	};
-
+	/* Draw all existing colliders in red. */
 	for (auto [e, t, c, b] : Application::GetCurrentRegistry().view<Transform, Collider, Body>())
 	{
-		const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
 
-		const glm::vec2 p = to_pixels(centre);
-
-		const float half_w = glm::length(to_pixels(centre + glm::vec3(c.half_width, 0.0f, 0.0f)) - p);
-		const float half_h = glm::length(to_pixels(centre + glm::vec3(0.0f, c.half_height, 0.0f)) - p);
-
-		glm::vec4 red = {1.0f, 0.0f, 0.0f, 1.0f};
 		switch (c.shape)
 		{
 		case ColliderShape::Circle:
-			Application::Get().renderer->geoRenderer->Circle({p.x, p.y}, half_w, red, 2);
+			DrawCircleCollider(t, c);
+			break;
+		case ColliderShape::Capsule:
+			DrawCapsuleCollider(t, c);
 			break;
 		default:
-			/* Rectangle positions by its lower-left corner, not its centre. */
-			Application::Get().renderer->geoRenderer->Rectangle(
-				{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, red, 2);
+			DrawBoxCollider(t, c);
 			break;
 		}
 	}
 
-	for (auto [e, t, c, b] : Application::GetCurrentRegistry().view<Transform, Sensor, Body>())
+	/* Draw all existing sensors in light blue. */
+	for (auto [e, t, s, b] : Application::GetCurrentRegistry().view<Transform, Sensor, Body>())
 	{
-		const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
-
-		const glm::vec2 p = to_pixels(centre);
-
-		/* The half extents also need to be converted to screen pixels. */
-		const float half_w = glm::length(to_pixels(centre + glm::vec3(c.half_width, 0.0f, 0.0f)) - p);
-		const float half_h = glm::length(to_pixels(centre + glm::vec3(0.0f, c.half_height, 0.0f)) - p);
-
-		/* Depending on the collider shape, draw a primitive in red. */
-		glm::vec4 light_blue = {0.212f, 0.906f, 1.0f, 1.0f};
-		switch (c.shape)
+		switch (s.shape)
 		{
-		case SensorShape::Circle:
-			Application::Get().renderer->geoRenderer->Circle({p.x, p.y}, half_w, light_blue, 2);
+		case ColliderShape::Circle:
+			DrawCircleSensor(t, s);
+			break;
+		case ColliderShape::Capsule:
+			DrawCapsuleSensor(t, s);
 			break;
 		default:
-			/* Rectangle positions by its lower-left corner, not its centre. */
-			Application::Get().renderer->geoRenderer->Rectangle(
-				{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, light_blue, 2);
+			DrawBoxSensor(t, s);
 			break;
 		}
 	}
+}
+
+void Mupfel::DebugLayer::DrawCircleCollider(Transform& t, Collider& c)
+{
+
+	const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
+
+	const glm::vec2 p = ToPixels(centre);
+
+	const float radius = glm::length(ToPixels(centre + glm::vec3(0.0f, c.data.circle.radius, 0.0f)) - p);
+	glm::vec4	red = {1.0f, 0.0f, 0.0f, 1.0f};
+
+	Application::Get().renderer->geoRenderer->Circle({p.x, p.y}, radius, red, 2);
+}
+
+void Mupfel::DebugLayer::DrawBoxCollider(Transform& t, Collider& c)
+{
+	const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
+
+	const glm::vec2 p = ToPixels(centre);
+
+	const float half_w = glm::length(ToPixels(centre + glm::vec3(c.data.box.half_width, 0.0f, 0.0f)) - p);
+	const float half_h = glm::length(ToPixels(centre + glm::vec3(0.0f, c.data.box.half_height, 0.0f)) - p);
+	glm::vec4	red = {1.0f, 0.0f, 0.0f, 1.0f};
+
+	Application::Get().renderer->geoRenderer->Rectangle(
+		{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, red, 2);
+}
+
+void Mupfel::DebugLayer::DrawCapsuleCollider(Transform& t, Collider& c)
+{
+	const glm::vec3 centre(t.pos_x + c.offset_x, t.pos_y + c.offset_y, t.pos_z);
+
+	const glm::vec2 p = ToPixels(centre);
+
+	const float		radius = glm::length(ToPixels(centre + glm::vec3(0.0f, c.data.circle.radius, 0.0f)) - p);
+	const glm::vec2 centre1_pixels =
+		ToPixels(glm::vec3(centre.x + c.data.capsule.center1_x, centre.y + c.data.capsule.center1_y, centre.z));
+	const glm::vec2 centre2_pixels =
+		ToPixels(glm::vec3(centre.x + c.data.capsule.center2_x, centre.y + c.data.capsule.center2_y, centre.z));
+
+	const glm::vec2 bottom_left =
+		ToPixels(glm::vec3(centre.x + c.data.capsule.center2_x, centre.y + c.data.capsule.center2_y, centre.z));
+
+	glm::vec4 red = {1.0f, 0.0f, 0.0f, 1.0f};
+
+	Application::Get().renderer->geoRenderer->Circle({centre1_pixels.x, centre1_pixels.y}, radius, red, 2);
+	Application::Get().renderer->geoRenderer->Circle({centre2_pixels.x, centre2_pixels.y}, radius, red, 2);
+	Application::Get().renderer->geoRenderer->Line(
+		{centre1_pixels.x, centre1_pixels.y + radius}, {centre2_pixels.x, centre2_pixels.y + radius}, red);
+	Application::Get().renderer->geoRenderer->Line(
+		{centre1_pixels.x, centre1_pixels.y - radius}, {centre2_pixels.x, centre2_pixels.y - radius}, red);
+}
+
+void Mupfel::DebugLayer::DrawCircleSensor(Transform& t, Sensor& s)
+{
+	glm::vec4		light_blue = {0.212f, 0.906f, 1.0f, 1.0f};
+	const glm::vec3 centre(t.pos_x + s.offset_x, t.pos_y + s.offset_y, t.pos_z);
+
+	const glm::vec2 p = ToPixels(centre);
+
+	const float radius = glm::length(ToPixels(centre + glm::vec3(0.0f, s.data.circle.radius, 0.0f)) - p);
+
+	Application::Get().renderer->geoRenderer->Circle({p.x, p.y}, radius, light_blue, 2);
+}
+
+void Mupfel::DebugLayer::DrawBoxSensor(Transform& t, Sensor& s)
+{
+	glm::vec4		light_blue = {0.212f, 0.906f, 1.0f, 1.0f};
+	const glm::vec3 centre(t.pos_x + s.offset_x, t.pos_y + s.offset_y, t.pos_z);
+
+	const glm::vec2 p = ToPixels(centre);
+
+	const float half_w = glm::length(ToPixels(centre + glm::vec3(s.data.box.half_width, 0.0f, 0.0f)) - p);
+	const float half_h = glm::length(ToPixels(centre + glm::vec3(0.0f, s.data.box.half_height, 0.0f)) - p);
+
+	Application::Get().renderer->geoRenderer->Rectangle(
+		{p.x - half_w, p.y - half_h}, half_w * 2.0f, half_h * 2.0f, light_blue, 2);
+}
+
+void Mupfel::DebugLayer::DrawCapsuleSensor(Transform& t, Sensor& s)
+{
+	glm::vec4		light_blue = {0.212f, 0.906f, 1.0f, 1.0f};
+	const glm::vec3 centre(t.pos_x + s.offset_x, t.pos_y + s.offset_y, t.pos_z);
+
+	const glm::vec2 p = ToPixels(centre);
+
+	const float		radius = glm::length(ToPixels(centre + glm::vec3(0.0f, s.data.circle.radius, 0.0f)) - p);
+	const glm::vec2 centre1_pixels =
+		ToPixels(glm::vec3(centre.x + s.data.capsule.center1_x, centre.y + s.data.capsule.center1_y, centre.z));
+	const glm::vec2 centre2_pixels =
+		ToPixels(glm::vec3(centre.x + s.data.capsule.center2_x, centre.y + s.data.capsule.center2_y, centre.z));
+
+	Application::Get().renderer->geoRenderer->Circle({centre1_pixels.x, centre1_pixels.y}, radius, light_blue, 2);
+	Application::Get().renderer->geoRenderer->Circle({centre2_pixels.x, centre2_pixels.y}, radius, light_blue, 2);
+	Application::Get().renderer->geoRenderer->Line(
+		{centre1_pixels.x, centre1_pixels.y + radius}, {centre2_pixels.x, centre2_pixels.y + radius}, light_blue);
+	Application::Get().renderer->geoRenderer->Line(
+		{centre1_pixels.x, centre1_pixels.y - radius}, {centre2_pixels.x, centre2_pixels.y - radius}, light_blue);
 }
 
 void Mupfel::DebugLayer::UpdateMVP()
@@ -177,5 +243,15 @@ void Mupfel::DebugLayer::UpdateMVP()
 
 	view = CameraMath::View(cam);
 
-	proj = CameraMath::Projection(cam, width, height);
+	proj = CameraMath::Projection(cam, static_cast<float>(width), static_cast<float>(height));
+}
+
+glm::vec2 Mupfel::DebugLayer::ToPixels(glm::vec3 world_pos)
+{
+	const float screen_w = static_cast<float>(Application::GetCurrentRenderWidth());
+	const float screen_h = static_cast<float>(Application::GetCurrentRenderHeight());
+
+	const glm::vec4 clip = proj * view * glm::vec4(world_pos, 1.0f);
+	const glm::vec2 ndc = glm::vec2(clip) / clip.w;
+	return glm::vec2((ndc.x * 0.5f + 0.5f) * screen_w, (ndc.y * 0.5f + 0.5f) * screen_h);
 }

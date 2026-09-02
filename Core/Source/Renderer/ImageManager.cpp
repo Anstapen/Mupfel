@@ -111,7 +111,7 @@ void Mupfel::ImageManager::Unload(const std::string path)
 	}
 }
 
-void Mupfel::ImageManager::Unload(ImageHandle image) {}
+void Mupfel::ImageManager::Unload(ImageHandle image) { (void)image; }
 
 const std::vector<Ping::Image>& Mupfel::ImageManager::GetImages() const
 { return images; }

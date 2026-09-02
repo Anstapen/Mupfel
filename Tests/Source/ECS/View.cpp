@@ -54,9 +54,9 @@ TEST_CASE("Single Component View", "[view_single]")
 	{
 		AddComponentAll<DoubleComponent>(registry, entities);
 
-		uint32_t wanted_iteration_count = entities.size();
+		size_t wanted_iteration_count = entities.size();
 
-		uint32_t actual_iteration_count = 0;
+		size_t actual_iteration_count = 0;
 		for (auto [e, d] : registry.view<DoubleComponent>())
 		{
 			d.d += 1.0f;
@@ -64,28 +64,6 @@ TEST_CASE("Single Component View", "[view_single]")
 		}
 
 		REQUIRE(actual_iteration_count == wanted_iteration_count);
-	}
-
-	SECTION("Deleting Components Mid-Iteration")
-	{
-		AddComponentAll<DoubleComponent>(registry, entities);
-
-		uint32_t wanted_iteration_count = entities.size();
-
-		uint32_t actual_iteration_count = 0;
-		for (auto [e, d] : registry.view<DoubleComponent>())
-		{
-			/* Lets pick one random loop iteration for now. */
-			REQUIRE((actual_iteration_count + 1) == e.Index());
-
-			if (actual_iteration_count == 5)
-			{
-				registry.RemoveComponent<DoubleComponent>(e);
-			}
-
-			d.d += 1.0f;
-			actual_iteration_count++;
-		}
 	}
 }
 

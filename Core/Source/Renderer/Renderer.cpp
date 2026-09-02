@@ -60,6 +60,7 @@ bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, double delta_time)
 {
+	(void)delta_time;
 	/* Don't do anything if the window is minimized. */
 	if (Application::IsWindowMinimized())
 	{
@@ -117,6 +118,7 @@ void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, d
 
 void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, double delta_time)
 {
+	(void)delta_time;
 	/* Don't do anything if the window is minimized. */
 	if (Application::IsWindowMinimized())
 	{

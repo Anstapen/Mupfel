@@ -11,9 +11,9 @@
 --
 -- Note: glm has no includedirs entry, yet Core uses it in five files (Camera.cpp, ECSRenderer.cpp,
 -- IMRenderer.cpp, DebugLayer.cpp, Renderer/Quad.h). It resolves only because the LunarG Vulkan SDK
--- ships glm under its own Include directory, which is on the path above. Vendor/Sources/glm-master is
--- downloaded by Dependencies.lua and unused. Add DepPath("glm", "glm") here if a Vulkan SDK without
--- bundled glm ever breaks the build.
+-- ships glm under its own Include directory, which is on the external path below.
+-- Vendor/Sources/glm-master is downloaded by Dependencies.lua and unused. Add DepPath("glm", "glm") to externalincludedirs if a
+-- Vulkan SDK without bundled glm ever breaks the build.
 --
 -- Headers are split across two roots. "Include" is the published surface, reachable from Mupfel.h and
 -- the only root App puts on its include path (see App/Build-App.lua). "Source" holds engine internals
@@ -29,6 +29,7 @@
 project "Core"
     kind "StaticLib"
     ApplyDefaultProjectSettings()
+    ApplyStrictWarnings()
 
     files { "Include/**.h", "Source/**.h", "Source/**.cpp" }
 
@@ -41,6 +42,13 @@ project "Core"
         "Include/FS",
         "Include/Renderer",
         "Source",
+    }
+
+    -- Vendored/system headers, kept out of includedirs so ApplyStrictWarnings()'s -Werror / /WX can't
+    -- fail the build over third-party code: these emit -isystem (clang/gcc) and <ExternalIncludePath>
+    -- (MSVC), both compiled at the "Off" external warning level. See Build.lua.
+    externalincludedirs
+    {
         DepPath("nlohmann"),
         DepPath("ping", "Source"),
         vulkan_sdk_path .. "/Include",

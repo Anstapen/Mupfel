@@ -1,8 +1,8 @@
 #pragma once
 #include "Mupfel.h"
 #include "Player.h"
-#include <string>
-#include <unordered_map>
+#include <memory>
+#include "GameObjects/Interactable.h"
 
 class Level : public Mupfel::Scene
 {
@@ -17,5 +17,9 @@ public:
 	void OnRender() final;
 
 private:
+	void UpdateUserInputs();
+
+private:
 	Player player;
+	std::vector<std::unique_ptr<Interactable>> interactables;
 };

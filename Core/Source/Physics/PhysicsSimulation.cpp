@@ -65,7 +65,4 @@ void Mupfel::PhysicsSimulation::SetMovement(Entity e, float vel_x, float vel_y, 
 	collision_system->SetMovement(e, vel_x, vel_y, vel_ang);
 }
 
-void Mupfel::PhysicsSimulation::GetContacts(Entity e, std::vector<ContactData>& buffer)
-{
-	collision_system->GetContacts(e, buffer);
-}
+bool Mupfel::PhysicsSimulation::HasPhysicsEvents(Entity e) { return collision_system->HasEvents(e); }

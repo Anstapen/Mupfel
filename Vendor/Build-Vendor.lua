@@ -12,6 +12,9 @@
 --   Ping     -> spdlog/glfw/imgui/stb headers, Vulkan SDK headers
 --   box2d    (no internal deps)           (collision detection/resolution, linked by Core)
 --   catch2   (no internal deps)           (unit test framework, linked by the Tests project)
+--
+-- All but catch2 are linked by Core, which is part of every possible --modules selection, so they are
+-- defined unconditionally. catch2 is generated only when the Tests module is (see Modules.lua).
 
 project "spdlog"
     kind "StaticLib"
@@ -94,8 +97,17 @@ project "box2d"
     filter "system:not windows"
         buildoptions { "-ffp-contract=off" }
 
+    -- Box2D is the one project that stays optimized in Debug: an unoptimized solver/broadphase makes
+    -- the game too slow to debug, and this is third-party code nobody steps through anyway. Build.lua
+    -- gives every other project optimize "Off" there.
+    --
+    -- On MSVC that combination needs the runtime-check opt-out. MSBuild's CL task turns on /RTC1
+    -- whenever the runtime is Debug, and /RTC1 together with /O2 is a hard "error D8016: incompatible
+    -- options" -- so this configuration failed to compile at all until runtimechecks "Off" was added.
+    -- Premake does not infer the opt-out from the optimize level.
     filter "configurations:Debug"
         optimize "Speed"
+        runtimechecks "Off"
 
     filter {}
 
@@ -111,11 +123,13 @@ project "box2d"
 -- MSVC picks the CRT entry point (mainCRTStartup vs. wmainCRTStartup) by looking only at the object
 -- files on the link line -- never inside a static lib -- so it would settle on mainCRTStartup and
 -- then fail with an unresolved "main". Forcing the narrow-char entry point sidesteps that entirely.
-project "catch2"
-    kind "StaticLib"
-    ApplyDefaultProjectSettings()
+if ModuleSelected("tests") then
+    project "catch2"
+        kind "StaticLib"
+        ApplyDefaultProjectSettings()
 
-    files { DepPath("catch2", "catch_amalgamated.hpp"), DepPath("catch2", "catch_amalgamated.cpp") }
-    includedirs { DepPath("catch2") }
+        files { DepPath("catch2", "catch_amalgamated.hpp"), DepPath("catch2", "catch_amalgamated.cpp") }
+        includedirs { DepPath("catch2") }
 
-    defines { "DO_NOT_USE_WMAIN" }
+        defines { "DO_NOT_USE_WMAIN" }
+end

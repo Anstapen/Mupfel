@@ -16,7 +16,10 @@
 
 using namespace Mupfel;
 
-Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys) : registry(reg), evt_system(evt_sys) {}
+Mupfel::CollisionSystem::CollisionSystem(Registry& reg, EventSystem& evt_sys)
+	: registry(reg), evt_system(evt_sys), entity_has_events(100, false)
+{
+}
 
 void CollisionSystem::Init()
 {
@@ -83,7 +86,7 @@ void CollisionSystem::Step(double delta, uint32_t sub_steps)
 		HandlePendingEvents();
 	}
 	{
-		b2World_Step(current_world, delta, sub_steps);
+		b2World_Step(current_world, static_cast<float>(delta), sub_steps);
 	}
 }
 
@@ -118,11 +121,19 @@ void CollisionSystem::SyncTransforms()
 void CollisionSystem::DispatchEvents()
 {
 	assert(!B2_IS_NULL(current_world));
+
+	/* Clear the entity event buffer */
+	std::fill(entity_has_events.begin(), entity_has_events.end(), false);
+
 	b2ContactEvents contacts = b2World_GetContactEvents(current_world);
 	for (int i = 0; i < contacts.beginCount; ++i)
 	{
 		const b2ContactBeginTouchEvent& ev = contacts.beginEvents[i];
-		evt_system.AddEvent<CollisionBeganEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
+		Entity							a = EntityOf(ev.shapeIdA);
+		Entity							b = EntityOf(ev.shapeIdB);
+		SetEventForEntity(a);
+		SetEventForEntity(b);
+		evt_system.AddEvent<CollisionBeganEvent>({a, b});
 	}
 
 	for (int i = 0; i < contacts.endCount; ++i)
@@ -133,20 +144,38 @@ void CollisionSystem::DispatchEvents()
 		{
 			continue;
 		}
-		evt_system.AddEvent<CollisionEndedEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
+
+		Entity a = EntityOf(ev.shapeIdA);
+		Entity b = EntityOf(ev.shapeIdB);
+		SetEventForEntity(a);
+		SetEventForEntity(b);
+
+		evt_system.AddEvent<CollisionEndedEvent>({a, b});
 	}
 
 	for (int i = 0; i < contacts.hitCount; ++i)
 	{
 		const b2ContactHitEvent& ev = contacts.hitEvents[i];
-		evt_system.AddEvent<CollisionHitEvent>({EntityOf(ev.shapeIdA), EntityOf(ev.shapeIdB)});
+
+		Entity a = EntityOf(ev.shapeIdA);
+		Entity b = EntityOf(ev.shapeIdB);
+		SetEventForEntity(a);
+		SetEventForEntity(b);
+
+		evt_system.AddEvent<CollisionHitEvent>({a, b});
 	}
 
 	b2SensorEvents sensors = b2World_GetSensorEvents(current_world);
 	for (int i = 0; i < sensors.beginCount; ++i)
 	{
 		const b2SensorBeginTouchEvent& ev = sensors.beginEvents[i];
-		evt_system.AddEvent<SensorEnteredEvent>({EntityOf(ev.sensorShapeId), EntityOf(ev.visitorShapeId)});
+
+		Entity sensor = EntityOf(ev.sensorShapeId);
+		Entity visitor = EntityOf(ev.visitorShapeId);
+		SetEventForEntity(sensor);
+		SetEventForEntity(visitor);
+
+		evt_system.AddEvent<SensorEnteredEvent>({sensor, visitor});
 	}
 
 	for (int i = 0; i < sensors.endCount; ++i)
@@ -157,7 +186,13 @@ void CollisionSystem::DispatchEvents()
 		{
 			continue;
 		}
-		evt_system.AddEvent<SensorExitedEvent>({EntityOf(ev.sensorShapeId), EntityOf(ev.visitorShapeId)});
+
+		Entity sensor = EntityOf(ev.sensorShapeId);
+		Entity visitor = EntityOf(ev.visitorShapeId);
+		SetEventForEntity(sensor);
+		SetEventForEntity(visitor);
+
+		evt_system.AddEvent<SensorExitedEvent>({sensor, visitor});
 	}
 }
 
@@ -192,30 +227,14 @@ void Mupfel::CollisionSystem::SetMovement(Entity e, float vel_x, float vel_y, fl
 	}
 }
 
-void Mupfel::CollisionSystem::GetContacts(Entity e, std::vector<ContactData>& buffer)
+bool Mupfel::CollisionSystem::HasEvents(Entity e)
 {
-	if (!HasBody(e))
+	if (e.Index() >= entity_has_events.size())
 	{
-		return;
+		return false;
 	}
 
-	b2BodyId body = bodies[e.Index()];
-
-	int capacity = b2Body_GetContactCapacity(body);
-
-	/* For now, do it the lazy way by copying the data 2 times... */
-	/* TODO: check perf optimization! */
-
-	static b2ContactData contactData[16];
-
-	int contact_count = b2Body_GetContactData(body, contactData, 16);
-
-	for (int i = 0; i < contact_count; i++)
-	{
-		buffer.push_back(
-			{EntityOf(contactData[i].shapeIdA), EntityOf(contactData[i].shapeIdB), contactData[i].manifold.normal.x,
-			 contactData[i].manifold.normal.y});
-	}
+	return entity_has_events[e.Index()];
 }
 
 bool Mupfel::CollisionSystem::HasBody(Entity e) const
@@ -349,7 +368,6 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 		return;
 	}
 
-	const Transform& t = registry.GetComponent<Transform>(e);
 	const Collider&	 c = registry.GetComponent<Collider>(e);
 
 	b2BodyId body = bodies[e.Index()];
@@ -370,23 +388,29 @@ void Mupfel::CollisionSystem::CreateCollider(Entity e)
 	{
 	case ColliderShape::Box:
 	{
-		b2Polygon box = b2MakeOffsetBox(c.half_width, c.half_height, {c.offset_x, c.offset_y}, b2Rot_identity);
+		b2Polygon box =
+			b2MakeOffsetBox(c.data.box.half_width, c.data.box.half_height, {c.offset_x, c.offset_y}, b2Rot_identity);
 		b2CreatePolygonShape(body, &sd, &box);
 		break;
 	}
 	case ColliderShape::Circle:
 	{
-		b2Circle circle = {{c.offset_x, c.offset_y}, c.half_width};
+		b2Circle circle = {{c.offset_x, c.offset_y}, c.data.circle.radius};
 		b2CreateCircleShape(body, &sd, &circle);
 		break;
 	}
 	case ColliderShape::Capsule: /* b2Capsule + b2CreateCapsuleShape */
+		b2Capsule capsule = {
+			{c.data.capsule.center1_x + c.offset_x, c.data.capsule.center1_y + c.offset_y},
+			{c.data.capsule.center2_x + c.offset_x, c.data.capsule.center2_y + c.offset_y},
+			c.data.capsule.radius};
+		b2CreateCapsuleShape(body, &sd, &capsule);
 		break;
 	}
 }
 
 void Mupfel::CollisionSystem::CreateSensor(Entity e)
-{ 
+{
 	/* If the entity currently does not have a body, there is nothing to do. */
 	if (!HasBody(e))
 	{
@@ -409,7 +433,6 @@ void Mupfel::CollisionSystem::CreateSensor(Entity e)
 		return;
 	}
 
-	const Transform& t = registry.GetComponent<Transform>(e);
 	const Sensor&	 s = registry.GetComponent<Sensor>(e);
 
 	b2BodyId body = bodies[e.Index()];
@@ -425,19 +448,25 @@ void Mupfel::CollisionSystem::CreateSensor(Entity e)
 
 	switch (s.shape)
 	{
-	case SensorShape::Box:
+	case ColliderShape::Box:
 	{
-		b2Polygon box = b2MakeOffsetBox(s.half_width, s.half_height, {s.offset_x, s.offset_y}, b2Rot_identity);
+		b2Polygon box =
+			b2MakeOffsetBox(s.data.box.half_width, s.data.box.half_height, {s.offset_x, s.offset_y}, b2Rot_identity);
 		b2CreatePolygonShape(body, &sd, &box);
 		break;
 	}
-	case SensorShape::Circle:
+	case ColliderShape::Circle:
 	{
-		b2Circle circle = {{s.offset_x, s.offset_y}, s.half_width};
+		b2Circle circle = {{s.offset_x, s.offset_y}, s.data.circle.radius};
 		b2CreateCircleShape(body, &sd, &circle);
 		break;
 	}
-	case SensorShape::Capsule: /* b2Capsule + b2CreateCapsuleShape */
+	case ColliderShape::Capsule:
+		b2Capsule capsule = {
+			{s.data.capsule.center1_x, s.data.capsule.center1_y},
+			{s.data.capsule.center2_x, s.data.capsule.center2_y},
+			s.data.capsule.radius};
+		b2CreateCapsuleShape(body, &sd, &capsule);
 		break;
 	}
 }
@@ -489,4 +518,16 @@ b2WorldId Mupfel::CollisionSystem::WorldForScene(SceneHandle scene)
 		it->second = b2CreateWorld(&def);
 	}
 	return it->second;
+}
+
+void Mupfel::CollisionSystem::SetEventForEntity(Entity e)
+{
+	if (e.Index() >= entity_has_events.size())
+	{
+		uint64_t new_size = (static_cast<uint64_t>(e.Index()) * 2);
+		new_size = std::min<uint64_t>(std::numeric_limits<uint32_t>::max(), new_size);
+		entity_has_events.resize(new_size, false);
+	}
+
+	entity_has_events[e.Index()] = true;
 }

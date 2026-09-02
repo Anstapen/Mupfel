@@ -30,7 +30,7 @@ public:
 
 	void SetTransform(Entity e, Transform t);
 	void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
-	void GetContacts(Entity e, std::vector<ContactData>& buffer);
+	bool HasEvents(Entity e);
 
 private:
 	bool	  HasBody(Entity e) const;
@@ -43,6 +43,7 @@ private:
 	Entity	  EntityOf(b2ShapeId id);
 	Entity	  EntityOf(b2BodyId id);
 	b2WorldId WorldForScene(SceneHandle scene);
+	void	  SetEventForEntity(Entity e);
 
 private:
 	Registry&								   registry;
@@ -56,5 +57,10 @@ private:
 	std::mutex								   pending_mutex;
 	std::unordered_map<SceneHandle, b2WorldId> worlds;
 	std::vector<b2BodyId>					   bodies;
+	/**
+	 * @brief This vector is indexed by the entity ID and holds the number of events
+	 * that are available for that entity this frame.
+	 */
+	std::vector<bool> entity_has_events;
 };
 } // namespace Mupfel

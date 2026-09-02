@@ -1,8 +1,10 @@
 #include "Level.h"
 #include "Imager.h"
+#include "GameObjects/Chest.h"
+#include "GameObjects/Spike.h"
 #include "SceneSwitches.h"
-#include <vector>
 #include "Types.h"
+#include <vector>
 
 using namespace Mupfel;
 
@@ -10,15 +12,14 @@ void Level::OnInit()
 {
 
 	Imager::Load("Map", "Images/dungeon.png");
-	Imager::LoadAnimated(
-		"Vampire", "Images/Vampires1/With_shadow/Vampires1_Idle_with_shadow.png", {.rows = 4, .columns = 4});
 
-	Imager::LoadAnimated("Chest", "Images/chest.png", {.rows = 3, .columns = 5});
+	Imager::LoadAnimated("NormalChest", "Images/normal_chest.png", {.rows = 1, .columns = 5});
+	Imager::LoadAnimated("FilledChest", "Images/filled_chest.png", {.rows = 1, .columns = 5});
+	Imager::LoadAnimated("MonsterChest", "Images/monster_chest.png", {.rows = 1, .columns = 5});
 	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3});
 	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3});
 	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7});
 
-	// Ground: one large flat quad in the x/y plane, grass tiled ~1 texture per world unit.
 	{
 		Entity e = Entities::Create();
 		Entities::AddComponent<Transform>(e, {});
@@ -34,7 +35,7 @@ void Level::OnInit()
 		Entities::AddComponent<Transform>(e, g);
 
 		Light l;
-		l.ambientStrength = 0.1;
+		l.ambientStrength = 0.1f;
 		l.r = 1.0f;
 		l.g = 1.0f;
 		l.b = 1.0f;
@@ -42,54 +43,11 @@ void Level::OnInit()
 		Entities::AddComponent<Light>(e, l);
 	}
 
-	/* The 3 different chests */
-	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_z = 0.08f;
-
-		Entities::AddComponent<Transform>(e, g);
-
-		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
-
-		Entities::AddComponent<Animation>(e, {0, 5, 4.0f, 0.0f, false, false});
-	}
-
-	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_x = 1.0f;
-		g.pos_z = 0.08f;
-
-		Entities::AddComponent<Transform>(e, g);
-		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
-
-		Entities::AddComponent<Animation>(e, {5, 5, 4.0f, 0.0f, false, false});
-	}
-
-	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_x = 2.0f;
-		g.pos_z = 0.08f;
-
-		Entities::AddComponent<Transform>(e, g);
-
-		Entities::AddComponent<Texture>(e, {Imager::Get("Chest"), 1.0f});
-
-		Entities::AddComponent<Animation>(e, {10, 5, 4.0f, 0.0f, false, false});
-
-		Entities::AddComponent<Body>(e, {});
-
-		Sensor s;
-		s.shape = SensorShape::Circle;
-		s.half_width = 0.7;
-		s.report_events = true;
-		s.category = ColliderType::Furniture;
-		s.mask = ColliderType::Player;
-		Entities::AddComponent<Sensor>(e, s);
-	}
-
+	interactables.push_back(std::make_unique<Chest>("NormalChest", -5.0f, 0.0f));
+	interactables.push_back(std::make_unique<Chest>("NormalChest", -6.0f, 0.0f));
+	interactables.push_back(std::make_unique<Chest>("NormalChest", -5.0f, 1.0f));
+	interactables.push_back(std::make_unique<Chest>("NormalChest", -6.0f, 1.0f));
+	
 	/* Two gargs */
 	{
 		Entity	  e = Entities::Create();
@@ -136,31 +94,19 @@ void Level::OnInit()
 
 	for (auto& [x, y] : spike_positions)
 	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_x = x;
-		g.pos_y = y;
-		g.pos_z = 0.08f;
-
-		Entities::AddComponent<Transform>(e, g);
-
-		Sensor s;
-		s.report_events = true;
-		s.category = ColliderType::GroundObject;
-		s.mask = ColliderType::Player;
-		Entities::AddComponent<Sensor>(e, s);
-		Body b;
-		b.fixed_rotation = true;
-		b.type = BodyType::Static;
-		Entities::AddComponent<Body>(e, b);
-		Entities::AddComponent<Texture>(e, {Imager::Get("Spikes"), 1.0f});
-		Entities::AddComponent<Animation>(e, {0, 7, 10.0f, 0.0f, false, false});
+		interactables.push_back(std::make_unique<Spike>("Spikes", x, y));
 	}
 
 	player.Init();
 }
 
-void Level::OnUpdate(double timestep) { player.UpdateMovement(timestep); }
+void Level::OnUpdate(double timestep) { 
+	UpdateUserInputs();
+	for (auto& i : interactables)
+	{
+		i->CheckEvents();
+	}
+	player.UpdateMovement(timestep); }
 
 void Level::OnRender()
 {
@@ -169,6 +115,72 @@ void Level::OnRender()
 	{
 		logger->info("Switching to the Main Menu...");
 		Events::Post<SwitchToMainMenuEvent>({});
-		
 	}
+}
+
+void Level::UpdateUserInputs()
+{
+	static bool movable_camera = false;
+	static ScreenPoint				 last_cursor_on_screen = {Input::CursorX(), Input::CursorY()};
+	static float					 last_camera_x = camera.target_x;
+	static float					 last_camera_y = camera.target_y;
+	/* First, check mouse movement */
+	for (auto& event : Events::Get<UserInputEvent>())
+	{
+		if (event.input == UserInput::RIGHT_MOUSE_CLICK && event.action == KeyAction::PRESSED)
+		{
+			/* Mouse button has been pressed this frame */
+			movable_camera = true;
+			last_cursor_on_screen.x = Input::CursorX();
+			last_cursor_on_screen.y = Input::CursorY();
+		}
+
+		if (event.input == UserInput::RIGHT_MOUSE_CLICK && event.action == KeyAction::RELEASED)
+		{
+			movable_camera = false;
+			/* Mouse button has been pressed this frame */
+			ScreenPoint screen_cursor = {Input::CursorX(), Input::CursorY()};
+
+			ScreenVector diff = {screen_cursor.x - last_cursor_on_screen.x, screen_cursor.y - last_cursor_on_screen.y};
+
+			auto world_diff = camera.ScreenToWorldVector(diff.x, diff.y);
+
+			if (world_diff)
+			{
+				last_camera_x = last_camera_x - world_diff.value().x;
+				last_camera_y = last_camera_y - world_diff.value().y;
+			}
+		}
+
+		if (event.input == UserInput::SCROLLWHEEL_UP)
+		{
+			if (camera.distance > 1.0f)
+			camera.distance -= 1.0f;
+		}
+
+		if (event.input == UserInput::SCROLLWHEEL_DOWN)
+		{
+			camera.distance += 1.0f;
+		}
+	}
+
+
+	/* Update the camera if needed. */
+	if (movable_camera)
+	{
+
+		ScreenPoint screen_cursor = {Input::CursorX(), Input::CursorY()};
+
+		ScreenVector diff = {screen_cursor.x - last_cursor_on_screen.x, screen_cursor.y - last_cursor_on_screen.y};
+
+		auto world_diff = camera.ScreenToWorldVector(diff.x, diff.y);
+
+		if (world_diff)
+		{
+			camera.target_x = last_camera_x - world_diff.value().x;
+			camera.target_y = last_camera_y - world_diff.value().y;
+		}
+
+	}
+
 }

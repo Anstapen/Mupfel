@@ -13,9 +13,5 @@ public:
 	void OnRender() final;
 	void OnSwitchIn() final;
 	void OnSwitchOut() final;
-
-private:
-	void Serialize(const std::string& path) final;
-	void Deserialize(const std::string& path) final;
 };
 } // namespace Mupfel

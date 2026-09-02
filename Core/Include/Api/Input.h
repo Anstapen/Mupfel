@@ -19,9 +19,9 @@ namespace Mupfel::Input
 /** The current state of mouse button \a button this frame. */
 [[nodiscard]] inline KeyAction GetMouseButton(MouseButton button) { return Application::GetMouseButton(button); }
 
-[[nodiscard]] inline bool CheckUserInput(UserInput ui)
+[[nodiscard]] inline bool CheckUserInput(UserInput ui, KeyAction a)
 {
-	return Application::GetCurrentInputManager().CheckUserInput(ui);
+	return Application::GetCurrentInputManager().CheckUserInput(ui, a);
 }
 
 /** The cursor's X position in screen space. */

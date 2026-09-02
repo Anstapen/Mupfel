@@ -215,7 +215,11 @@ bool Mupfel::ECSRenderer::Init(const Ping::Device& device, Ping::Format swapChai
 }
 
 void Mupfel::ECSRenderer::PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
-{ /* Currently the ECS renderer does all the work after user input. */ }
+{
+	/* Currently the ECS renderer does all the work after user input. */
+	(void)device;
+	(void)current_command_buffer;
+}
 
 void Mupfel::ECSRenderer::PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
 {

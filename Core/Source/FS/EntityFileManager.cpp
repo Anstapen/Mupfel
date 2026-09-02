@@ -44,9 +44,7 @@ FileManager::Handle Mupfel::EntityFileManager::Load(std::filesystem::path file)
 	return Handle();
 }
 
-void Mupfel::EntityFileManager::Store(const FileManager::Handle& handle)
-{
-}
+void Mupfel::EntityFileManager::Store(const FileManager::Handle& handle) { (void)handle; }
 
 bool Mupfel::EntityFileManager::RegisterComponentLoader(std::string loader_name, ComponentLoader loader)
 {
@@ -67,7 +65,7 @@ void Mupfel::EntityFileManager::LoadTransform(Entity e, nlohmann::json source)
 
 void Mupfel::EntityFileManager::LoadCollider(Entity e, nlohmann::json source)
 {
-
+	(void)e;
 	if (source["type"] == "Circle" && source.contains("radius"))
 	{
 		

@@ -21,12 +21,11 @@ Build files are generated with Premake5 (vendored binaries, not a system install
 own `Build-*.lua` (see `BUILD.md` for the full dependency graph): `Vendor/Build-Vendor.lua`
 (third-party libraries built from vendored source: spdlog, imgui, Logger, Ping),
 `Core/Build-Core.lua` (the `Core` engine static lib), `App/Build-App.lua` (the `App` executable, and
-the workspace's `startproject`), plus `Tests/Build-Tests.lua` and
-`Benchmarks/Build-Benchmarks.lua`, which both link `Core`. `Build.lua` at the repo root wires these
-together and defines
-`ApplyDefaultProjectSettings()`, the shared per-project toolchain/output configuration every project
-calls into. `Dependencies.lua` is the single source of truth for where each vendored dependency's
-source lives and how to fetch it (`Deps` table, `DepPath()` helper, `fetch_dependency()`).
+the workspace's `startproject`), plus `Tests/Build-Tests.lua`, which links `Core`. `Build.lua` at
+the repo root wires these together and defines `ApplyDefaultProjectSettings()`, the shared
+per-project toolchain/output configuration every project calls into. `Dependencies.lua` is the
+single source of truth for where each vendored dependency's source lives and how to fetch it
+(`Deps` table, `DepPath()` helper, `fetch_dependency()`).
 
 - Windows: run `Scripts/Setup-Windows.bat` (generates a VS2026 solution at the repo root via
   `premake5.exe --file=Build.lua vs2026`), then build with MSBuild or open the generated `.slnx` in
@@ -50,10 +49,9 @@ There are three configurations: `Debug`, `Release`, `Dist` (see `Core/Build-Core
 `App/Build-App.lua` for the exact defines/runtime settings per configuration). Output binaries land in
 `Binaries/<system>-<arch>/<config>/<project>/`.
 
-`Tests` is a Catch2 unit-test executable (`Tests/Source`) and `Benchmarks` a nanobench microbenchmark
-executable (`Benchmarks/Source`); both link `Core` and are built by the same solution. Run them
-directly from their output directories — there is no CLI test runner or lint step wired into the
-build.
+`Tests` is a Catch2 unit-test executable (`Tests/Source`); it links `Core` and is built by the same
+solution. Run it directly from its output directory — there is no CLI test runner or lint step wired
+into the build.
 
 ### Public vs. private headers
 
@@ -71,8 +69,8 @@ boundary, not a convention:
 
 Premake has no CMake-style `PUBLIC`/`PRIVATE` include model, so the enforcement *is* the directory
 split: `App` puts only `Core/Include` on its include path and cannot reach `Core/Source` at all.
-`Tests` and `Benchmarks` are deliberately white-box and get both roots (they exercise
-`ResourceManager.h`, which is private).
+`Tests` is deliberately white-box and gets both roots (it exercises `ResourceManager.h`, which is
+private).
 
 Two consequences when adding code:
 

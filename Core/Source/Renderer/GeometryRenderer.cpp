@@ -103,12 +103,15 @@ bool Mupfel::GeometryRenderer::Init(const Ping::Device& device, Ping::Format swa
 
 void Mupfel::GeometryRenderer::PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
 {
+	(void)device;
+	(void)current_command_buffer;
 	drawable_items = 0;
 }
 
 void Mupfel::GeometryRenderer::PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
-{ /* If there are no objects to draw, we can early exit. */
-
+{
+	(void)device;
+	/* If there are no objects to draw, we can early exit. */
 	if (drawable_items == 0)
 	{
 		IncrementFrameIndex();
@@ -132,12 +135,15 @@ void Mupfel::GeometryRenderer::PostUser(const Ping::Device& device, Ping::Comman
 void Mupfel::GeometryRenderer::Rectangle(glm::vec2 pos, float width, float height, glm::vec4 color, uint32_t thickness)
 {
 	PushObject(
-		{pos.x + width * 0.5f, pos.y + height * 0.5f}, {width, 0.0f}, {0.0f, height}, color, Shape::RECT, thickness);
+		{pos.x + width * 0.5f, pos.y + height * 0.5f}, {width, 0.0f}, {0.0f, height}, color, Shape::RECT,
+		static_cast<float>(thickness));
 }
 
 void Mupfel::GeometryRenderer::Circle(glm::vec2 pos, float radius, glm::vec4 color, uint32_t thickness)
 {
-	PushObject({pos.x, pos.y}, {radius * 2.0f, 0.0f}, {0.0f, radius * 2.0f}, color, Shape::CIRCLE, thickness);
+	PushObject(
+		{pos.x, pos.y}, {radius * 2.0f, 0.0f}, {0.0f, radius * 2.0f}, color, Shape::CIRCLE,
+		static_cast<float>(thickness));
 }
 
 void Mupfel::GeometryRenderer::Line(glm::vec2 start, glm::vec2 end, glm::vec4 color)

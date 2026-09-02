@@ -1,9 +1,13 @@
 #pragma once
+#include <cstdint>
 
-enum ColliderType
+namespace ColliderType
 {
-	Player = 1 << 0,
-	GroundObject = 1 << 2,
-	WallObject = 1 << 3,
-	Furniture = 1 << 4
+enum : uint64_t
+{
+	Player = 1ULL << 0,
+	GroundObject = 1ULL << 1,
+	WallObject = 1ULL << 2,
+	Furniture = 1ULL << 3
 };
+}

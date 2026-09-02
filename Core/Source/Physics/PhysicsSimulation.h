@@ -32,7 +32,7 @@ namespace Mupfel {
 
 		void SetTransform(Entity e, Transform t);
 		void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
-		void GetContacts(Entity e, std::vector<ContactData>& buffer);
+		bool HasPhysicsEvents(Entity e);
 
 	private:
 		double time_multi;
