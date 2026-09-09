@@ -1,5 +1,4 @@
 #pragma once
-#include "Ping/Types.h"
 #include <array>
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -13,17 +12,6 @@ struct Quad
 	glm::vec2 pos;
 	/** Texture coordinate. Bound to vertex shader location 1. */
 	glm::vec2 texCoord;
-
-	static Ping::VertexBinding GetVertexLayout()
-	{
-		return {
-			.binding = 0,
-			.stride = sizeof(Quad),
-			.inputRate = Ping::VertexInputRate::Vertex,
-			.attributes = {
-				{0, Ping::VertexFormat::Float32x2, offsetof(Quad, pos)},
-				{1, Ping::VertexFormat::Float32x2, offsetof(Quad, texCoord)}}};
-	}
 };
 
 inline constexpr std::array<Quad, 4> quadVertices = {

@@ -1,0 +1,113 @@
+#include "quad.slang"
+
+struct UniformBuffer {
+    float4x4 view;
+    float4x4 proj;
+    float4   cameraPos;
+};
+[[vk::binding(0, 0)]]
+ConstantBuffer<UniformBuffer> ubo;
+
+struct TextureInstance {
+    float3 pos;
+    float  _pad0;
+    float2 scale;
+    float  rotation;
+    uint   textureIndex;
+    float  _pad1;
+    uint   emitsLight;
+    uint   frame;
+	float  _pad2;
+};
+[[vk::binding(0, 2)]]
+StructuredBuffer<TextureInstance> texture_instances;
+
+struct VSOutput
+{
+    float4 pos : SV_Position;
+    float2 fragTexCoord;
+    nointerpolation uint textureIndex : TEXCOORD1;
+    nointerpolation uint frameIndex;
+    nointerpolation uint emitsLight;
+    float3 worldPos;
+    float3 worldNormal;
+};
+
+[shader("vertex")]
+VSOutput vertMain(QuadVSInput input) {
+    VSOutput output;
+
+    TextureInstance t = texture_instances[input.instanceIndex];
+
+    float2 offset   = ExpandQuad(input.inPos, t.scale, t.rotation);
+    float3 worldPos = t.pos + float3(offset, 0.0);
+
+    output.worldPos = worldPos;
+    output.worldNormal = float3(0.0, 0.0, 1.0);
+
+    output.pos          = mul(ubo.proj, mul(ubo.view, float4(worldPos, 1.0)));
+    output.fragTexCoord = input.inTexCoord;
+    output.textureIndex = t.textureIndex;
+    output.emitsLight = t.emitsLight;
+    output.frameIndex = t.frame;
+    return output;
+}
+
+static const uint kMaxTextures = 4096;
+[[vk::binding(0, 1)]]
+Sampler2DArray textures[kMaxTextures];
+
+struct LightInstance {
+    float3 color;
+    float  ambientLight;
+    float3 pos;
+    float _pad1;
+};
+[[vk::binding(0, 3)]]
+StructuredBuffer<LightInstance> light_instances;
+
+struct LightParams {
+	uint numLights;
+	float	 pad0;
+	float	 pad1;
+    float    pad2;
+};
+[[vk::binding(0, 4)]]
+ConstantBuffer<LightParams> light_params;
+
+[shader("fragment")]
+float4 fragMain(VSOutput vertIn) : SV_TARGET {
+
+    float4 tex_color = textures[NonUniformResourceIndex(vertIn.textureIndex)].Sample(float3(vertIn.fragTexCoord, vertIn.frameIndex));
+
+    if(tex_color.w < 0.1f)
+    {
+        discard;
+    }
+   
+    if((vertIn.emitsLight == 0) && (light_params.numLights > 0))
+    {
+        var ambient = float3(0.0f);
+        var diffuse = float3(0.0f);
+        var specular = float3(0.0f);
+        for(uint i = 0; i < light_params.numLights; i++)
+        {
+            ambient  += light_instances[i].color * light_instances[i].ambientLight;
+
+            float3 lightDir = normalize(light_instances[i].pos - vertIn.worldPos);
+            float diff = max(dot(vertIn.worldNormal, lightDir), 0.0);
+            diffuse += light_instances[i].color * diff;
+
+            float3 viewDir = normalize(ubo.cameraPos.xyz - vertIn.worldPos);
+            float3 reflectDir = reflect(-lightDir, vertIn.worldNormal);
+
+            specular += pow(max(dot(viewDir, reflectDir), 0.0), 32);
+        }
+
+        tex_color.xyz = (ambient + diffuse + specular) * tex_color.xyz;
+
+        return float4(tex_color.rgb, tex_color.a);
+    }
+
+    return tex_color;
+}

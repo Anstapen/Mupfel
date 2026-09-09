@@ -1,7 +1,7 @@
 #include "IMRenderer.h"
 #include "Core/Application.h"
-#include <cassert>
 #include "Quad.h"
+#include <cassert>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -20,141 +20,36 @@ struct TextureInstance
 
 static const uint32_t default_entity_capacity = 1000;
 
-bool Mupfel::IMRenderer::Init(const Ping::Device& device, Ping::Format swapChainFormat)
+bool Mupfel::IMRenderer::Init(
+	nvrhi::DeviceHandle			  device,
+	const nvrhi::FramebufferInfo& frameBufferInfo,
+	uint32_t					  framesInFlight)
 {
+	(void)device;
+	(void)frameBufferInfo;
+	(void)framesInFlight;
 	logger = Logger::Create("Immediate Mode Renderer");
-	Ping::PipelineSpecification pipeline_spec{
-		"Shaders/im.spv",
-		Quad::GetVertexLayout(),
-		{
-			{.set = samplerSetIndex,
-			 .binding = 0,
-			 .type = Ping::DescriptorType::CombinedImageSampler,
-			 .stageFlags = Ping::ShaderStage::Fragment,
-			 .count = max_textures},
-			{.set = transformSetIndex,
-			 .binding = 0,
-			 .type = Ping::DescriptorType::StorageBuffer,
-			 .stageFlags = Ping::ShaderStage::Vertex},
-		},
-		Ping::CullMode::None,
-		Ping::BlendFactor::Zero,
-		false,
-		swapChainFormat};
-	try
-	{
-		pipeline = device.CreatePipeline(pipeline_spec);
-	}
-	catch (std::runtime_error err)
-	{
-		logger->error("Unable to create Pipeline: {}", err.what());
-		return false;
-	}
-	
-
-	if (!pipeline)
-	{
-		logger->error("Could not create Pipeline!");
-		return false;
-	}
-
-	/* We need one vertex buffer for each frame in flight */
-	for (uint32_t i = 0; i < framesInFlight; i++)
-	{
-		/* Create vertex buffers. These hold the 4 vertices used to draw the quad. */
-		auto& buffer = vertex_buffers.emplace_back(device.CreateBuffer(
-			sizeof(Quad) * quadVertices.size(), Ping::BufferUsage::VertexBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
-				Ping::MemoryProperty::DeviceLocal));
-		auto* mapped_ptr = static_cast<Quad*>(buffer.GetMappedPtr());
-
-		/* Copy vertices */
-		std::memcpy(mapped_ptr, quadVertices.data(), buffer.Size());
-
-		/* Create transform buffers to render entities */
-		textureInstanceBuffers.emplace_back(device.CreateBuffer(
-			sizeof(TextureInstance) * default_entity_capacity, Ping::BufferUsage::StorageBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
-				Ping::MemoryProperty::DeviceLocal));
-	}
-	transformCapacity = default_entity_capacity;
-
-	index_buffer = std::move(device.CreateBuffer(
-		sizeof(uint16_t) * quadIndices.size(), Ping::BufferUsage::IndexBuffer | Ping::BufferUsage::TransferDst,
-		Ping::MemoryProperty::DeviceLocal));
-
-	if (!index_buffer)
-	{
-		logger->error("Could not create Index Buffers!");
-		return false;
-	}
-
-	/* Copy indices */
-	index_buffer.value().CopyHostData(device, quadIndices.data(), sizeof(uint16_t) * quadIndices.size());
-
-	samplers.push_back(device.CreateSampler(
-		{.filterMode = Ping::SamplerFilterMode::Nearest,
-		 .mipmapMode = Ping::SamplerMipMapMode::Nearest,
-		 .addressMode = Ping::SamplerAddressMode::ClampToEdge,
-		 .anisotropyEnable = false}));
-
-	transformDescriptorSets =
-		device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, textureInstanceBuffers);
-
-	if (!transformDescriptorSets)
-	{
-		logger->error("Could not create Descriptor Sets for Texture instances!");
-		return false;
-	}
-
-	auto image = Application::GetCurrentImageManager().Load(device, "Images/default.jpg");
-
-	if (!image)
-	{
-		logger->error("Unable to load default texture!");
-		return false;
-	}
-
-	UpdateSamplerDescriptors(device);
-
 	return true;
 }
 
-void Mupfel::IMRenderer::PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
+void Mupfel::IMRenderer::PreUser(
+	nvrhi::DeviceHandle		 device,
+	nvrhi::CommandListHandle current_command_list,
+	const FrameContext&		 context)
 {
 	(void)device;
-	(void)current_command_buffer;
-	drawable_items = 0;
+	(void)current_command_list;
+	(void)context;
 }
 
-void Mupfel::IMRenderer::PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
+void Mupfel::IMRenderer::PostUser(
+	nvrhi::DeviceHandle		 device,
+	nvrhi::CommandListHandle current_command_list,
+	const FrameContext&		 context)
 {
-	/* If there are no objects to draw, we can early exit. */
-
-	if (drawable_items == 0)
-	{
-		IncrementFrameIndex();
-		return;
-	}
-
-	current_command_buffer.BindPipeline(pipeline.value());
-
-	if (samplerDescriptorSets.has_value())
-	{
-		UpdateSamplerDescriptors(device);
-		current_command_buffer.BindDescriptorSet(pipeline.value(), samplerDescriptorSets.value(), 0, samplerSetIndex);
-	}
-
-	current_command_buffer.BindDescriptorSet(
-		pipeline.value(), transformDescriptorSets.value(), frameIndex, transformSetIndex);
-
-	current_command_buffer.BindVertexBuffer(vertex_buffers[frameIndex], 0);
-
-	current_command_buffer.BindIndexBuffer(index_buffer.value());
-
-	current_command_buffer.DrawIndexed(static_cast<uint32_t>(quadIndices.size()), drawable_items);
-
-	IncrementFrameIndex();
+	(void)device;
+	(void)current_command_list;
+	(void)context;
 }
 
 uint32_t Mupfel::IMRenderer::Button(float x, float y, float width, float height, const std::string& image_path)
@@ -231,56 +126,6 @@ bool Mupfel::IMRenderer::UploadImage(const std::string& image_path)
 	return true;
 }
 
-void Mupfel::IMRenderer::UpdateSamplerDescriptors(const Ping::Device& device)
-{
-	const std::vector<Ping::Image>& total_images = Application::GetCurrentImageManager().GetImages();
-
-	if (total_images.size() == currentImageCount)
-	{
-		return;
-	}
-	currentImageCount = static_cast<uint32_t>(total_images.size());
-
-	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(total_images.size(), samplers.front());
-
-	samplerDescriptorSets = device.CreateTextureArrayDescriptorSet(
-		pipeline.value(), samplerSetIndex, max_textures, total_images, sampler_refs, total_images.front(), samplers.front());
-}
-
-void Mupfel::IMRenderer::EnsureTransformCapacity(uint32_t required_capacity)
-{
-	if (required_capacity <= transformCapacity)
-	{
-		return;
-	}
-
-	uint32_t new_capacity = transformCapacity;
-	while (new_capacity < required_capacity)
-	{
-		new_capacity *= 2;
-	}
-
-	const Ping::Device* device = Application::Get().gpu.get();
-
-	/* Every frame-in-flight buffer is recreated together, so no in-flight submission may still be
-	 * reading the old buffers/descriptor sets we're about to destroy. */
-	device->WaitForCommands();
-
-	textureInstanceBuffers.clear();
-	for (uint32_t i = 0; i < framesInFlight; i++)
-	{
-		textureInstanceBuffers.emplace_back(device->CreateBuffer(
-			sizeof(TextureInstance) * new_capacity, Ping::BufferUsage::StorageBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
-				Ping::MemoryProperty::DeviceLocal));
-	}
-
-	transformDescriptorSets =
-		device->CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, textureInstanceBuffers);
-
-	transformCapacity = new_capacity;
-}
-
 void Mupfel::IMRenderer::PushObject(
 	float	 x,
 	float	 y,
@@ -290,8 +135,6 @@ void Mupfel::IMRenderer::PushObject(
 	uint32_t index,
 	float	 uv_scale)
 {
-	EnsureTransformCapacity(drawable_items + 1);
-
 	const float screen_w = static_cast<float>(Application::GetCurrentRenderWidth());
 	const float screen_h = static_cast<float>(Application::GetCurrentRenderHeight());
 
@@ -311,6 +154,5 @@ void Mupfel::IMRenderer::PushObject(
 	t.index = index;
 	t.uvScale = uv_scale;
 
-	static_cast<TextureInstance*>(textureInstanceBuffers[frameIndex].GetMappedPtr())[drawable_items] = t;
-	++drawable_items;
+	/* TODO: push the object into the gpu buffer */
 }

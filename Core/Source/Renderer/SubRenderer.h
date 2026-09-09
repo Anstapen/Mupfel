@@ -1,45 +1,72 @@
 #pragma once
-#include "Ping/Device.h"
-#include "Ping/Types.h"
-#include "Ping/CommandBuffer.h"
+#include "nvrhi/nvrhi.h"
+#include <cstdint>
 
 namespace Mupfel
 {
+
+/**
+ * This structure encapsulates frame information needed by the subrenderer.
+ */
+struct FrameContext
+{
+	/** The framebuffer for the image of the current frame. */
+	nvrhi::IFramebuffer* frameBuffer = nullptr;
+
+	/**
+	 * The current frameIndex. The subrenderer can use this index to select
+	 * the GPU resources to write this frame.
+	 */
+	uint32_t frameIndex = 0;
+
+	/** The current width of the image. */
+	uint32_t width = 0;
+
+	/** The current height of the image. */
+	uint32_t height = 0;
+
+	/** The time since the last frame. */
+	double deltaTime = 0.0;
+};
+
+/**
+ * This interface can be used to implement a new Subrenderer.
+ */
 class SubRenderer
 {
 public:
-	SubRenderer(uint32_t frames_in_flight);
-	virtual ~SubRenderer() = default;
 	/**
-	 * Initialize the Renderer.
+	 * Initialize the subrenderer.
 	 *
-	 * \param swapChainFormat The format of the swapchain format.
-	 * \return Whether or not the Init succeeded.
+	 * \param device NVRHI device handle for which to create the subrenderer.
+	 * \param frameBufferInfo The framebuffer information used for pipeline creation.
+	 * \param framesInFlight The number of frames in flight. Each subrenderer is expected to create N copies of its
+	 * internal GPU structures.
+	 * \return True if the subrenderer initialization was successful, false otherwise.
 	 */
-	virtual bool Init(const Ping::Device& device, Ping::Format swapChainFormat) = 0;
-
-	/**
-	 * This function is executed by the main renderer every frame before user code is executed.
-	 *
-	 */
-	virtual void PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) = 0;
+	virtual bool
+	Init(nvrhi::DeviceHandle device, const nvrhi::FramebufferInfo& frameBufferInfo, uint32_t framesInFlight) = 0;
 
 	/**
-	 * This function is executed by the main renderer every frame after user code was executed.
-	 *
+	 * Do work before any user layers are rendered.
+	 * 
+	 * \param device NVRHI device that is used to render.
+	 * \param current_command_list The command list to which the draw calls can be submitted.
+	 * \param context The frame context.
 	 */
-	virtual void PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) = 0;
+	virtual void
+	PreUser(nvrhi::DeviceHandle device, nvrhi::CommandListHandle current_command_list, const FrameContext& context) = 0;
 
-protected:
-	void IncrementFrameIndex();
-
-protected:
-	/** The total frames in flight. The implementer is expected to allocate each of its buffers for all frames in
-	 *  flight, to ensure exclusive access by the GPU.
+	/**
+	 * Do work after any user layers are rendered.
+	 * 
+	 * \param device NVRHI device that is used to render.
+	 * \param current_command_list The command list to which the draw calls can be submitted.
+	 * \param context The frame context.
 	 */
-	uint32_t framesInFlight;
-
-	/** The index of the current frame, used to select the correct buffer. */
-	uint32_t frameIndex;
+	virtual void PostUser(
+		nvrhi::DeviceHandle		 device,
+		nvrhi::CommandListHandle current_command_list,
+		const FrameContext&		 context) = 0;
 };
 } // namespace Mupfel

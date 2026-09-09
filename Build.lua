@@ -36,6 +36,39 @@ else
    VulkanLibName = "vulkan"
 end
 
+-- Two vendored libraries impose a floor on the SDK's header version, and both fail late and badly
+-- without this check:
+--   * NVRHI's src/vulkan/vulkan-backend.h has `#if (VK_HEADER_VERSION < 318) #error`, which only
+--     fires once MSBuild is already compiling nvrhi_vk.
+--   * vk-bootstrap is generated against a specific header version (Deps.vk_bootstrap's tag names it)
+--     and references structs and enum values that older headers don't declare, so it fails as a wall
+--     of "undeclared identifier" rather than as one legible message.
+-- The higher of the two is the floor. Keep this number and the vk_bootstrap pin in Dependencies.lua
+-- moving together; the NVRHI half only rises when upstream raises its own #error.
+VulkanHeaderVersionFloor = 357
+
+local vulkan_core_header = VulkanIncludeDir .. "/vulkan/vulkan_core.h"
+local vulkan_core_contents = io.readfile(vulkan_core_header)
+if not vulkan_core_contents then
+   error("Cannot read " .. vulkan_core_header .. ". Is the Vulkan SDK install at "
+         .. vulkan_sdk_path .. " complete?")
+end
+
+-- Anchored on whitespace so VK_HEADER_VERSION_COMPLETE, defined a few lines below it in terms of this
+-- macro, cannot match instead.
+local vulkan_header_version = tonumber(vulkan_core_contents:match("#define%s+VK_HEADER_VERSION%s+(%d+)"))
+if not vulkan_header_version then
+   error("No VK_HEADER_VERSION found in " .. vulkan_core_header .. ". Unexpected SDK layout.")
+end
+
+if vulkan_header_version < VulkanHeaderVersionFloor then
+   error("Vulkan SDK at " .. vulkan_sdk_path .. " is too old: VK_HEADER_VERSION is "
+         .. vulkan_header_version .. ", but NVRHI and vk-bootstrap need at least "
+         .. VulkanHeaderVersionFloor .. " (SDK 1.4." .. VulkanHeaderVersionFloor .. " or newer).")
+end
+
+print("Vulkan SDK: " .. vulkan_sdk_path .. " (VK_HEADER_VERSION " .. vulkan_header_version .. ")")
+
 -- Modules.lua first: it parses --modules, and Dependencies.lua skips fetching the frameworks whose
 -- module isn't in this solution.
 include "Modules.lua"

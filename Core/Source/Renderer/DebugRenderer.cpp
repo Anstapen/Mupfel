@@ -2,30 +2,36 @@
 #include "Core/Application.h"
 #include "imgui.h"
 
-Mupfel::DebugRenderer::DebugRenderer(uint32_t frames_in_flight) : SubRenderer(frames_in_flight) {}
 
-bool Mupfel::DebugRenderer::Init(const Ping::Device& device, Ping::Format swapChainFormat)
+bool Mupfel::DebugRenderer::Init(
+	nvrhi::DeviceHandle			  device,
+	const nvrhi::FramebufferInfo& frameBufferInfo,
+	uint32_t					  framesInFlight)
 {
+	(void)device;
+	(void)frameBufferInfo;
+	(void)framesInFlight;
 	logger = Logger::Create("Debug Renderer");
-	gui = device.CreateGui(Application::Get().window.GetGLFWHandle(), swapChainFormat, framesInFlight);
-
-	if (!gui)
-	{
-		logger->error("Unable to create GUI!");
-		return false;
-	}
-
 	return true;
 }
 
-void Mupfel::DebugRenderer::PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) {
+void Mupfel::DebugRenderer::PreUser(
+	nvrhi::DeviceHandle		 device,
+	nvrhi::CommandListHandle current_command_list,
+	const FrameContext&		 context)
+{
 	(void)device;
-	(void)current_command_buffer;
-	gui.value().NewFrame();
+	(void)current_command_list;
+	(void)context;
+	/* TODO: draw Imgui */
 }
 
-void Mupfel::DebugRenderer::PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer)
+void Mupfel::DebugRenderer::PostUser(
+	nvrhi::DeviceHandle		 device,
+	nvrhi::CommandListHandle current_command_list,
+	const FrameContext&		 context)
 {
-	current_command_buffer.DrawGui(device, gui.value(), frameIndex);
-	IncrementFrameIndex();
+	(void)device;
+	(void)current_command_list;
+	(void)context;
 }

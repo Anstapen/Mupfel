@@ -6,18 +6,18 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Ping/Pipeline.h"
-
 namespace Mupfel
 {
 class IMRenderer : public SubRenderer
 {
 public:
-	IMRenderer(uint32_t frames_in_flight) : SubRenderer(frames_in_flight) {}
-
-	bool Init(const Ping::Device& device, Ping::Format swapChainFormat) final;
-	void PreUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) final;
-	void PostUser(const Ping::Device& device, Ping::CommandBuffer& current_command_buffer) final;
+	bool Init(nvrhi::DeviceHandle device, const nvrhi::FramebufferInfo& frameBufferInfo, uint32_t framesInFlight) final;
+	void PreUser(nvrhi::DeviceHandle device, nvrhi::CommandListHandle current_command_list, const FrameContext& context)
+		final;
+	void PostUser(
+		nvrhi::DeviceHandle		 device,
+		nvrhi::CommandListHandle current_command_list,
+		const FrameContext&		 context) final;
 
 	/**
 	 * Display a button with the given texture.
@@ -34,37 +34,11 @@ public:
 
 private:
 	bool UploadImage(const std::string& image_path);
-	void UpdateSamplerDescriptors(const Ping::Device& device);
-	void EnsureTransformCapacity(uint32_t required_capacity);
-	void PushObject(
-		float				x,
-		float				y,
-		float				width,
-		float				height,
-		float				rotation,
-		uint32_t			index,
-		float				uv_scale);
+	void PushObject(float x, float y, float width, float height, float rotation, uint32_t index, float uv_scale);
 
 private:
-	static constexpr uint32_t								  samplerSetIndex = 0;
-	static constexpr uint32_t								  transformSetIndex = 1;
-	static constexpr uint32_t								  max_textures = 4096;
 	Logger::SafeLoggerPtr									  logger;
 	std::unordered_map<std::string, std::vector<ImageHandle>> images;
-	std::optional<Ping::Pipeline>							  pipeline;
-	/** One host-visible vertex buffer per frame in flight. */
-	std::vector<Ping::Buffer> vertex_buffers;
-	/** One device-local index buffer */
-	std::optional<Ping::Buffer> index_buffer;
-	/** One storage buffer per frame in flight for the transform data */
-	std::vector<Ping::Buffer> textureInstanceBuffers;
-	uint32_t				  transformCapacity = 0;
-	uint32_t				  drawable_items = 0;
-
-	/** Descriptor sets */
-	std::optional<Ping::DescriptorSets> transformDescriptorSets;
-	std::vector<Ping::Sampler>			samplers;
-	std::optional<Ping::DescriptorSets> samplerDescriptorSets;
-	uint32_t							currentImageCount = 0;
+	uint32_t												  currentImageCount = 0;
 };
 } // namespace Mupfel

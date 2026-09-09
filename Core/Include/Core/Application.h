@@ -291,9 +291,6 @@ private:
 	/** @brief Manages user input and input event mapping. */
 	InputManager input_manager;
 
-	/** RHI interface handle. */
-	std::unique_ptr<Ping::Device> gpu;
-
 	/** Renders to the screen. */
 	std::unique_ptr<Renderer> renderer;
 

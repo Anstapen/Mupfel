@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Mupfel is a C++20 2D game engine with a focus on simplicity. Entity behavior is established using a lightweight and performant ECS. Every system apart from the Rendering is done on the GPU.
 
-Windowing and rendering are built on Vulkan via the vendored `Ping` library (see below): `Window` wraps
-GLFW, and `Renderer` drives `Ping`'s Vulkan device/swapchain/pipeline directly.
+Windowing and rendering are built on Vulkan: `Window` wraps GLFW, `Renderer` drives NVIDIA's
+[NVRHI](https://github.com/NVIDIA-RTX/NVRHI) (see below), and the Vulkan instance/device/swapchain that
+NVRHI does not create come from vk-bootstrap. This replaced `Ping`, Mupfel's own Vulkan wrapper.
 
 The repo follows a `Core`/`App` split (originally generated from a C++ Premake starter template):
 `Core` builds as a static library containing all reusable engine code; `App` builds the executable,
@@ -19,7 +20,7 @@ headers" below, since that split decides where a new header belongs.
 
 Build files are generated with Premake5 (vendored binaries, not a system install). Each tier has its
 own `Build-*.lua` (see `BUILD.md` for the full dependency graph): `Vendor/Build-Vendor.lua`
-(third-party libraries built from vendored source: spdlog, imgui, Logger, Ping),
+(third-party libraries built from vendored source: spdlog, imgui, nvrhi, nvrhi_vk, vk-bootstrap),
 `Core/Build-Core.lua` (the `Core` engine static lib), `App/Build-App.lua` (the `App` executable, and
 the workspace's `startproject`), plus `Tests/Build-Tests.lua`, which links `Core`. `Build.lua` at
 the repo root wires these together and defines `ApplyDefaultProjectSettings()`, the shared
@@ -37,13 +38,17 @@ single source of truth for where each vendored dependency's source lives and how
 Both scripts must be run from inside `Scripts/` (they `pushd ..` to reach the repo root first).
 
 On first run, `Dependencies.lua` (included by `Build.lua`) downloads and unzips missing third-party
-sources into `Vendor/Sources/`: glm, nlohmann/json, the `vulkan_starter` repo (for `Ping`), spdlog,
-ImGui (pinned docking-branch commit), stb_image, and (Windows only) a prebuilt GLFW release. This
-requires network access; if `Vendor/Sources/` already contains a dependency's directory, it's skipped.
+sources into `Vendor/Sources/`: glm, nlohmann/json, NVRHI (pinned commit — the repo has no tags),
+vk-bootstrap (pinned tag), spdlog, ImGui (pinned docking-branch commit), stb_image, and (Windows only)
+a prebuilt GLFW release. This requires network access; if `Vendor/Sources/` already contains a
+dependency's directory, it's skipped.
 
-Building requires the **Vulkan SDK** installed with the `VULKAN_SDK` environment variable set —
-`Build.lua` aborts immediately if it isn't found, since `Vendor/Build-Vendor.lua` needs its headers/libs
-to build `Ping`, which `Core` depends on directly (see below).
+Building requires the **Vulkan SDK** installed with the `VULKAN_SDK` environment variable set.
+`Build.lua` aborts immediately if it isn't found, and additionally reads `VK_HEADER_VERSION` out of
+`$VULKAN_SDK/Include/vulkan/vulkan_core.h` and aborts if it is below `VulkanHeaderVersionFloor`
+(**357**, i.e. SDK 1.4.357). NVRHI hard-`#error`s below 318 and vk-bootstrap needs headers matching its
+pinned tag; without the check both fail deep inside a compile instead of at generation time. That floor
+and the `vk_bootstrap` pin in `Dependencies.lua` move together.
 
 There are three configurations: `Debug`, `Release`, `Dist` (see `Core/Build-Core.lua` /
 `App/Build-App.lua` for the exact defines/runtime settings per configuration). Output binaries land in
@@ -85,9 +90,9 @@ Two consequences when adding code:
 ### Vendor visibility
 
 `App/Build-App.lua`'s `includedirs` is down to `"Source"`, `Core/Include`, spdlog and nlohmann json.
-Ping, the Vulkan SDK, GLFW, ImGui, Box2D and glm are **fully hidden** behind `Core`'s public headers
-and are not reachable from application code. This was verified by compiling every public header
-against exactly those paths and nothing else; re-run that check after changing a public header.
+NVRHI, vk-bootstrap, the Vulkan SDK, GLFW, ImGui, Box2D and glm are **fully hidden** behind `Core`'s
+public headers and are not reachable from application code. This was verified by compiling every public
+header against exactly those paths and nothing else; re-run that check after changing a public header.
 
 spdlog and nlohmann json are *deliberately published*, not leaked — they are considered useful to the
 application author:
@@ -95,7 +100,7 @@ application author:
 - `Core/Include/Core/Logger.h` is Mupfel's own logging header (`Logger::SafeLoggerPtr` =
   `std::shared_ptr<spdlog::logger>`, plus the shared console/file sinks). It replaced the
   `Logger/Logger.h` that used to come from `Ping`, which is what previously forced Ping's include
-  path onto `App`.
+  path onto `App`. It is unaffected by the NVRHI migration.
 - `FS/EntityFileManager.h` names `nlohmann::json` in its public `ComponentLoader` signature.
 
 Both entries are load-bearing: removing either breaks a public header. Don't "clean them up".
@@ -103,10 +108,10 @@ Both entries are load-bearing: removing either breaks a public header. Don't "cl
 The techniques that got the rest hidden, and the rules that keep them working:
 
 - **Forward declaration + `std::unique_ptr` for leaky members.** `Application` forward-declares
-  `Renderer`, `PhysicsSimulation`, `AnimationSystem`, `DebugLayer`, `Ping::Device` etc. and holds
+  `Renderer`, `PhysicsSimulation`, `AnimationSystem`, `DebugLayer`, the GPU device etc. and holds
   them by `unique_ptr` instead of by value. A **by-value** member always needs a complete type — the
   compiler needs its size for layout, and `private` doesn't change that. So does `std::optional<T>`,
-  which is why `gpu` became `unique_ptr<Ping::Device>` rather than staying an `optional`.
+  which is why `gpu` became a `unique_ptr` rather than staying an `optional`.
 - **`~Application()` must stay out-of-line** (declared in `Application.h`, defined in
   `Application.cpp:61`). `unique_ptr<T>` instantiates its deleter in the destructor, which needs a
   complete `T`. Letting the compiler generate it in the header breaks every construction site with a
@@ -117,12 +122,14 @@ The techniques that got the rest hidden, and the rules that keep them working:
 - **`Window.h` / `InputManager.h` forward-declare `GLFWwindow`** (`struct GLFWwindow;`) rather than
   including GLFW. That is why GLFW never appears in `App`'s include path.
 
-One fragile spot to be aware of: `Application` holds `ImageManager` **by value**, and
-`Renderer/ImageManager.h` holds `std::vector<Ping::Image>` with `Ping::Image` only forward-declared.
-That is legal since C++17 and compiles only because `~Application()` is out-of-line where `Ping::Image`
-is complete. It breaks if anything else instantiates an `ImageManager` destructor. Splitting the header
-(public `ImageTypes.h` with `ImageHandle`/`ImageSpecification`, private `ImageManager` class) would
-remove the hazard — `App` only ever needs those two trivial types, since it goes through
+One spot the NVRHI migration forces a decision on: `Application` holds `ImageManager` **by value**, and
+`Renderer/ImageManager.h` used to hold `std::vector<Ping::Image>` with `Ping::Image` only
+forward-declared. That was legal since C++17 and compiled only because `~Application()` is out-of-line.
+The equivalent trick is **not** available with NVRHI: `nvrhi::TextureHandle` is
+`RefCountPtr<ITexture>`, a class template instantiation that cannot be forward-declared the way an
+opaque class could. The header split that was previously optional is therefore now required — public
+`ImageTypes.h` carrying `ImageHandle`/`ImageSpecification`, private `ImageManager` class — and it is
+a clean split, because `App` only ever needs those two trivial types anyway: it goes through
 `Application::LoadBasicImage` and friends.
 
 ## Architecture
@@ -179,26 +186,50 @@ type ID the first time it's used, and buffers are created on demand.
 
 
 
-### Ping (Vulkan wrapper, vendored)
+### NVRHI (Vulkan RHI, vendored) — and what it does not cover
 
-`Ping` (`Vendor/Build-Vendor.lua`) is a Vulkan rendering wrapper library pulled in from the `main`
-branch of [Anstapen/vulkan_starter](https://github.com/Anstapen/vulkan_starter) (vendored to
-`Vendor/Sources/vulkan_starter-main/Ping/`) and built as its own static-lib project that `Core` links
-against — its `Source/Ping` and `Source/Vulkan` headers are on `Core`'s include path
-(`#include "Ping/Ping.h"` etc.). It brings its own transitive dependencies, also vendored and built as
-separate static-lib projects in `Vendor/Build-Vendor.lua`: spdlog (logging), Dear ImGui (pinned
-docking-branch commit, GLFW backend only), stb_image, and a prebuilt GLFW 3.4 Windows binary. `Core`'s
-`links{}` pulls in `Ping`, `spdlog`, `imgui`, `glfw3`, and `vulkan` so the final `App` executable
-resolves them transitively. `Ping` is the sole windowing/rendering dependency, used directly by
-`Window` (GLFW handle), `Application` (`Ping::Init`/`Ping::Device`), and `Renderer` (swapchain,
-pipeline, buffers, and the ImGui-based `Ping::Gui`).
+[NVRHI](https://github.com/NVIDIA-RTX/NVRHI) (MIT, pinned to a commit in `Dependencies.lua`) is
+NVIDIA's abstraction over D3D11/D3D12/Vulkan. Mupfel builds the **Vulkan backend only**, as two Premake
+static libs (`nvrhi`, `nvrhi_vk`) ported from upstream's CMake rather than built by it — see BUILD.md,
+"NVRHI — ported from CMake rather than built by it", for why and for the rules that keep the port valid.
 
-`Ping` is entirely engine-internal: it is on `Core`'s include path but **not** on `App`'s, so no
-`Ping::` type is nameable from application code. `Application.h` only forward-declares `Ping::Device`
-to hold it by `unique_ptr` (see "Vendor visibility"). Note that `Core/Include/Core/Logger.h` is
-Mupfel's own header and no longer the `Logger/Logger.h` that ships inside `Ping` — that swap is what
-freed `App` from Ping's include path, since both live under the same root
-(`Vendor/Sources/vulkan_starter-main/Ping/Source/`).
+The critical thing to understand before touching renderer code: **NVRHI is smaller than `Ping` was.**
+It covers resources, command lists, pipelines, binding layouts and automatic resource-state tracking.
+It explicitly does *not* do device creation, swapchain management, or window handling, and it has no
+ImGui integration. Three responsibilities `Ping` used to carry therefore live in `Core` now:
+
+- **Device and swapchain.** `vk-bootstrap` (MIT, one TU) builds the instance, picks the physical device,
+  creates the logical device, queues and swapchain; the glue hands those handles to
+  `nvrhi::vulkan::createDevice`. Swapchain images become NVRHI textures via
+  `IDevice::createHandleForNativeTexture`. Resize/recreate is ours.
+- **ImGui.** `Ping` had a hand-rolled Vulkan ImGui renderer. The platform half (`imgui_impl_glfw`) is
+  still the vendored `imgui` project; the renderer half is an ImGui-on-NVRHI backend in `Core`
+  (NVIDIA's donut has a reference implementation, `imgui_nvrhi.cpp`, MIT).
+- **Image decoding.** `STB_IMAGE_IMPLEMENTATION` used to be compiled inside `Ping`; `Core` owns that
+  single translation unit now.
+
+What NVRHI takes over in exchange, beyond the direct type-for-type mapping
+(`Buffer`/`Image`/`Sampler`/`Pipeline`/`CommandBuffer` → `IBuffer`/`ITexture`/`ISampler`/
+`IGraphicsPipeline`/`ICommandList`, `DescriptorSets` → `IBindingLayout` + `IBindingSet`):
+
+- **Barriers are automatic.** Every `Ping::ImageLayout` / `AccessMask` / `PipelineStage` transition
+  hand-written in `Renderer::Begin`/`End` is gone; NVRHI tracks resource state and inserts barriers.
+- **Resources are COM-style refcounted** (`nvrhi::TextureHandle` = `RefCountPtr<ITexture>`), so the
+  `std::optional<Ping::X>` members throughout the sub-renderers become handles.
+- **`IDevice::runGarbageCollection()` must be called at least once per frame** to finalize deferred
+  destruction.
+- **A validation layer** is available at runtime by wrapping the device in
+  `nvrhi::validation::createValidationLayer()`; it is compiled in unconditionally and costs nothing
+  until used.
+
+Shaders are already **Slang → SPIR-V** (`App/Shaders/*.slang`, built by `App/Shaders/compile.bat`),
+which is what NVRHI's ecosystem uses. Binding annotations are the one thing to watch: NVRHI applies
+`VulkanBindingOffsets` to binding layouts because Vulkan has no per-resource-type register namespaces.
+The current shaders use explicit `[[vk::binding(x, y)]]`, which works with all-zero offsets; switching
+to `register(tN, spaceM)` plus the standard shifts is what a future D3D12 backend would need.
+
+`nvrhi` is engine-internal in exactly the way `Ping` was: on `Core`'s include path, never on `App`'s,
+so no `nvrhi::` type is nameable from application code.
 
 Note: spdlog's bundled `fmt` headers require MSVC's `/utf-8` flag, added workspace-wide in `Build.lua`
 for this reason.
@@ -207,8 +238,12 @@ for this reason.
 
 Vendored under `Vendor/Sources/` (downloaded on first Premake run, gitignored): glm (math), nlohmann/json
 (used by `FS/EntityFileManager` for entity serialization), Box2D v3.1.1 (collision detection/resolution,
-linked by `Core`), and Ping's dependency chain (`vulkan_starter`, spdlog, ImGui, stb_image, GLFW)
-described above. Premake binaries themselves are checked into `Vendor/Binaries/`.
+linked by `Core`), NVRHI and vk-bootstrap (the rendering stack described above), plus spdlog, ImGui,
+stb_image and GLFW. Premake binaries themselves are checked into `Vendor/Binaries/`.
+
+`Vendor/Sources/vulkan_starter-main/` (the old `Ping` source) is no longer referenced by any build
+script but is left on disk as a reference while the renderer is ported; it is gitignored like every
+other fetched source tree.
 
 Box2D 3.x is a **C** library (not C++ like the 2.x line), so its project in `Vendor/Build-Vendor.lua` is
 the only one overriding `ApplyDefaultProjectSettings()`'s language/dialect (`language "C"`,

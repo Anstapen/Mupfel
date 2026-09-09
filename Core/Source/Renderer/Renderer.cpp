@@ -1,164 +1,435 @@
-#include "Renderer.h"
-#include "Ping/Types.h"
+/*****************************************************************/ /**
+																	 * \file   Renderer.cpp
+																	 * \brief  Implementation of Mupfel::Renderer.
+																	 *
+																	 * \author Anton Stapenhorst
+																	 * \date   September 2026
+																	 *********************************************************************/
 
+#include "Renderer.h"
 #include "Core/Application.h"
 #include "ECSRenderer.h"
-#include "IMRenderer.h"
-#include "GeometryRenderer.h"
+#include "TriangleRenderer.h"
+
+/* NVRHI and vk-bootstrap includes */
+#include "NVRHIContext.h"
+#include "nvrhi/utils.h"
+#include "nvrhi/validation.h"
+#include "nvrhi/vulkan.h"
+#include <vulkan/vulkan.hpp>
+
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 using namespace Mupfel;
 
-bool Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
+/**
+ * This class implements the IMessageCallback interface to print
+ * NVRHI related messages. It uses the logger object given at
+ * construction time.
+ */
+class CustomMessage : public nvrhi::IMessageCallback
+{
+public:
+	CustomMessage() { logger = Logger::Create("NVRHI"); }
+
+	void message(nvrhi::MessageSeverity severity, const char* messageText) final
+	{
+		switch (severity)
+		{
+		case nvrhi::MessageSeverity::Warning:
+			logger->warn(messageText);
+			break;
+		case nvrhi::MessageSeverity::Error:
+			logger->error(messageText);
+			break;
+		case nvrhi::MessageSeverity::Fatal:
+			logger->critical(messageText);
+			break;
+		default:
+			logger->info(messageText);
+			break;
+		}
+	}
+
+private:
+	/* The shared pointer to the logger. */
+	Logger::SafeLoggerPtr logger;
+};
+
+/**
+ * A static CustomMessage object that is used to log NVRHI related information.
+ */
+static CustomMessage* msg = nullptr;
+
+bool Renderer::Init(const Window& window)
 {
 	logger = Logger::Create("RenderingSystem");
-	logger->info("Rendering System initializing...");
+	logger->info("Initializing Renderer...");
 
-	/* The swapchain is owned by the rendering system */
-	swapchain = device.CreateSwapChain(window.GetGLFWHandle(), frames_in_flight);
+	int32_t width = 0;
+	int32_t height = 0;
+	window.GetFramebufferSize(width, height);
 
-	if (!swapchain)
+	/* This initializes the vulkan data structures that NVRHI device creation depends on. */
+	if (!context.Init(window.GetGLFWHandle(), width, height, frames_in_flight))
 	{
-		logger->error("Unable to create Swapchain!");
 		return false;
 	}
 
-	depthBuffer = device.CreateDepthBuffer(swapchain.value());
+	nvrhi::vulkan::DeviceDesc deviceDesc;
+	deviceDesc.instance = context.instance.instance;
+	msg = new CustomMessage();
+	deviceDesc.errorCB = msg;
+	deviceDesc.physicalDevice = context.phys_device.physical_device;
+	deviceDesc.device = context.device.device;
+	deviceDesc.graphicsQueue = context.graphics_q;
+	deviceDesc.graphicsQueueIndex = context.graphics_q_index;
+	deviceDesc.transferQueue = context.transfer_q;
+	deviceDesc.transferQueueIndex = context.transfer_q_index;
+	deviceDesc.computeQueue = context.compute_q;
+	deviceDesc.computeQueueIndex = context.compute_q_index;
 
-	if (!depthBuffer)
+	this->rawVKDevice = nvrhi::vulkan::createDevice(deviceDesc);
+	this->nvrhiDevice = rawVKDevice;
+
+	if (context.useValidation)
 	{
-		logger->error("Unable to create Depth Buffer!");
+		nvrhi::DeviceHandle nvrhiValidationLayer = nvrhi::validation::createValidationLayer(rawVKDevice);
+		this->nvrhiDevice = nvrhiValidationLayer;
+	}
+
+	if (!CreateSwapChainTexturesAndFramebuffers())
+	{
+		Shutdown();
 		return false;
 	}
 
-	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
+	/* All swapchain related data structures (semaphores, textures and framebuffers) are initialized. */
+	this->isSwapchainUsable = true;
 
-	if (!commandBuffers)
-	{
-		logger->error("Unable to create Command Buffers!");
-		return false;
-	}
-
-	/* Create the SubRenderers */
-	uiRenderer = std::make_shared<IMRenderer>(frames_in_flight);
-	geoRenderer = std::make_shared<GeometryRenderer>(frames_in_flight);
-	debugRenderer = std::make_shared<DebugRenderer>(frames_in_flight);
-	subRenderers.push_back(std::make_shared<ECSRenderer>(frames_in_flight));
-	subRenderers.push_back(uiRenderer);
-	subRenderers.push_back(geoRenderer);
-	subRenderers.push_back(debugRenderer);
+	/* Create and push back all the SubRenderers. */
+	auto tr = std::make_shared<TriangleRenderer>();
+	subRenderers.push_back(tr);
 
 	for (uint32_t i = 0; i < subRenderers.size(); i++)
 	{
-		if (!subRenderers[i]->Init(device, swapchain.value().GetFormat()))
+		if (!subRenderers[i]->Init(this->nvrhiDevice, this->frameBuffers[0]->getFramebufferInfo(), frames_in_flight))
 		{
+			Shutdown();
 			return false;
 		}
+	}
+
+	/* Create the command list and the eventqueries used to synchronize CPU and GPU. */
+	commandList = nvrhiDevice->createCommandList();
+
+	for (auto& query : framesInFlightQueries)
+	{
+		query = nvrhiDevice->createEventQuery();
+		nvrhiDevice->resetEventQuery(query);
+	}
+
+	isInitialized = true;
+	return true;
+}
+
+void Renderer::Begin(const Window& window, double delta_time)
+{
+	frameValid = false;
+
+	if (!isInitialized)
+	{
+		return;
+	}
+
+	if (Application::IsWindowMinimized())
+	{
+		return;
+	}
+
+	if (!isSwapchainUsable)
+	{
+		/* Attempt to recreate the swapchain. */
+		if (!RecreateSwapchain(window))
+		{
+			return;
+		}
+	}
+
+	WaitForFrameSlot();
+
+	VkSemaphore acquireSem = VK_NULL_HANDLE;
+
+	if (!AcquireNextSwapchainImage(window, acquireSem))
+	{
+		/* This frame cannot be rendered. */
+		return;
+	}
+
+	rawVKDevice->queueWaitForSemaphore(nvrhi::CommandQueue::Graphics, acquireSem, 0);
+
+	frameValid = true;
+
+	/* Draw Call recording phase. */
+
+	commandList->open();
+
+	nvrhi::utils::ClearColorAttachment(commandList, frameBuffers[imageIndex], 0, nvrhi::Color(0.1f, 0.1f, 0.12f, 1.0f));
+
+	FrameContext frame{
+		.frameBuffer = frameBuffers[imageIndex],
+		.frameIndex = frameIndex,
+		.width = context.swapchain.extent.width,
+		.height = context.swapchain.extent.height,
+		.deltaTime = delta_time,
+	};
+
+	for (auto& sr : subRenderers)
+	{
+		sr->PreUser(nvrhiDevice, commandList, frame);
+	}
+}
+
+void Renderer::End(const Window& window, double delta_time)
+{
+	if (!isInitialized)
+	{
+		return;
+	}
+
+	if (frameValid && isSwapchainUsable)
+	{
+		FrameContext frame{
+			.frameBuffer = frameBuffers[imageIndex],
+			.frameIndex = frameIndex,
+			.width = context.swapchain.extent.width,
+			.height = context.swapchain.extent.height,
+			.deltaTime = delta_time,
+		};
+
+		for (auto& sr : subRenderers)
+		{
+			sr->PostUser(nvrhiDevice, commandList, frame);
+		}
+
+		/* Present image to screen. */
+
+		VkSemaphore presentSem = context.presentSemaphores[imageIndex];
+
+		rawVKDevice->queueSignalSemaphore(nvrhi::CommandQueue::Graphics, presentSem, 0);
+
+		commandList->close();
+		this->nvrhiDevice->executeCommandList(commandList);
+
+		VkPresentInfoKHR info{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+		info.waitSemaphoreCount = 1;
+		info.pWaitSemaphores = &presentSem;
+		info.swapchainCount = 1;
+		info.pSwapchains = &context.swapchain.swapchain;
+		info.pImageIndices = &imageIndex;
+
+		VkResult res = vkQueuePresentKHR(context.present_q, &info);
+
+		if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR)
+		{
+			RecreateSwapchain(window);
+		}
+
+		MarkFrameSubmitted();
+		incrementFrameIndex();
+	}
+
+	this->nvrhiDevice->runGarbageCollection();
+}
+
+void Renderer::Shutdown()
+{
+	if (nvrhiDevice)
+	{
+		nvrhiDevice->waitForIdle();
+	}
+
+	/* Clear subrenderers. */
+	subRenderers.clear();
+	uiRenderer.reset();
+	debugRenderer.reset();
+	geoRenderer.reset();
+
+	/* Clear own NVRHI members. */
+	commandList = nullptr;
+	frameBuffers.clear();
+	swapChainTextures.clear();
+
+	if (nvrhiDevice)
+	{
+		nvrhiDevice->runGarbageCollection();
+	}
+
+	/* Clear the NVRHI device. */
+	nvrhiDevice = nullptr;
+	rawVKDevice = nullptr;
+
+	delete msg;
+	msg = nullptr;
+
+	/* Destroy raw vulkan data. */
+	context.Shutdown();
+
+	isInitialized = false;
+	isSwapchainUsable = false;
+}
+
+void Renderer::incrementFrameIndex() { frameIndex = (frameIndex + 1) % frames_in_flight; }
+
+bool Renderer::CreateSwapChainTexturesAndFramebuffers()
+{
+	frameBuffers.clear();
+	swapChainTextures.clear();
+	nvrhiDevice->runGarbageCollection();
+
+	/* Push the swapchain images */
+	auto images_ret = context.swapchain.get_images();
+	if (!images_ret)
+	{
+		/* There are no swapchain images. */
+		return false;
+	}
+
+	const nvrhi::Format format = SelectFormat();
+	if (format == nvrhi::Format::UNKNOWN)
+	{
+		logger->critical("Unsupported swapchain format: {}.", uint32_t(context.swapchain.image_format));
+		return false;
+	}
+
+	const auto& images = images_ret.value();
+	swapChainTextures.reserve(images.size());
+
+	for (VkImage image : images)
+	{
+		auto textureDesc = nvrhi::TextureDesc()
+							   .setDimension(nvrhi::TextureDimension::Texture2D)
+							   .setFormat(SelectFormat())
+							   .setWidth(context.swapchain.extent.width)
+							   .setHeight(context.swapchain.extent.height)
+							   .setIsRenderTarget(true)
+							   .setDebugName("Swap Chain Image")
+							   .enableAutomaticStateTracking(nvrhi::ResourceStates::Present);
+		swapChainTextures.push_back(
+			nvrhiDevice->createHandleForNativeTexture(nvrhi::ObjectTypes::VK_Image, nvrhi::Object(image), textureDesc));
+
+		auto framebufferDesc = nvrhi::FramebufferDesc().addColorAttachment(swapChainTextures.back());
+		frameBuffers.push_back(nvrhiDevice->createFramebuffer(framebufferDesc));
 	}
 
 	return true;
 }
 
-void Mupfel::Renderer::Begin(const Ping::Device& device, const Window& window, double delta_time)
+bool Renderer::AcquireNextSwapchainImage(const Window& window, VkSemaphore& semaphore)
 {
-	(void)delta_time;
-	/* Don't do anything if the window is minimized. */
-	if (Application::IsWindowMinimized())
+	VkResult res = VK_ERROR_UNKNOWN;
+
+	/*
+	 * Try to acquire the next image to render to.
+	 * This algorithm is heavily inspired by
+	 * https://github.com/NVIDIA-RTX/Donut/blob/main/src/app/vulkan/DeviceManager_VK.cpp.
+	 */
+	constexpr int maxAttempts = 3;
+	for (int attempt = 0; attempt < maxAttempts; ++attempt)
 	{
-		return;
+		semaphore = context.acquireSemaphores[context.acquireSemaphoreIndex];
+
+		res = vkAcquireNextImageKHR(
+			context.device.device, context.swapchain.swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
+
+		/* If VK_ERROR_OUT_OF_DATE_KHR got returned, we proceed with swapchain recreation. */
+		if (res != VK_ERROR_OUT_OF_DATE_KHR || (attempt + 1 == maxAttempts))
+		{
+			break;
+		}
+
+		if (!RecreateSwapchain(window))
+		{
+			/* Swapchain recreation failed, but vulkan wants a new one. We cannot proceed to render this frame! */
+			return false;
+		}
 	}
 
-	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
-	current_command_buffer.WaitForFences(device);
-
-	imageIndex = swapchain.value().AcquireNextImage(frameIndex);
-
-	/* Check if the index is valid */
-	if (imageIndex == std::numeric_limits<uint32_t>::max())
+	/* If there was any other error with image acquisition, we cannot render this frame. */
+	if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
 	{
-		/* Image was resized, swapchain needs to be recreated */
-		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
-		depthBuffer = device.CreateDepthBuffer(swapchain.value());
+		return false;
 	}
 
-	/* Start command recording */
-	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
+	/* Safely increment the semaphore index */
+	context.acquireSemaphoreIndex = (context.acquireSemaphoreIndex + 1) % uint32_t(context.acquireSemaphores.size());
 
-	/* transition the current swapchain image to be a color attachment. */
-	Ping::ImageLayoutTransition layout_transition = {
-		.oldLayout = Ping::ImageLayout::Undefined,
-		.newLayout = Ping::ImageLayout::ColorAttachmentOptimal,
-		.srcAccessMask = Ping::AccessMask::None,
-		.dstAccessMask = Ping::AccessMask::ColorAttachmentWrite,
-		.srcStage = Ping::PipelineStage::ColorAttachmentOutput,
-		.dstStage = Ping::PipelineStage::ColorAttachmentOutput,
-		.aspect = Ping::ImageAspect::Color};
-
-	current_command_buffer.transitionImageLayout(swapchain.value(), imageIndex, layout_transition);
-
-	/* transition the depth buffer. */
-	layout_transition.oldLayout = Ping::ImageLayout::Undefined;
-	layout_transition.newLayout = Ping::ImageLayout::DepthAttachmentOptimal;
-	layout_transition.srcAccessMask = Ping::AccessMask::DepthStencilAttachmentWrite;
-	layout_transition.dstAccessMask = Ping::AccessMask::DepthStencilAttachmentWrite;
-	layout_transition.srcStage = Ping::PipelineStage::EarlyFragmentTests | Ping::PipelineStage::LateFragmentTests;
-	layout_transition.dstStage = Ping::PipelineStage::EarlyFragmentTests | Ping::PipelineStage::LateFragmentTests;
-	layout_transition.aspect = Ping::ImageAspect::Depth;
-
-	current_command_buffer.transitionImageLayout(depthBuffer.value(), layout_transition);
-
-	/* start rendering to the swapchain image. */
-	current_command_buffer.BeginRendering(swapchain.value(), depthBuffer.value(), imageIndex);
-
-	for (uint32_t i = 0; i < subRenderers.size(); i++)
-	{
-		subRenderers[i]->PreUser(device, current_command_buffer);
-	}
-
+	return true;
 }
 
-void Mupfel::Renderer::End(const Ping::Device& device, const Window& window, double delta_time)
+bool Renderer::RecreateSwapchain(const Window& window)
 {
-	(void)delta_time;
-	/* Don't do anything if the window is minimized. */
-	if (Application::IsWindowMinimized())
+	int32_t w = 0, h = 0;
+	window.GetFramebufferSize(w, h);
+
+	/* Check if the window is minimized. If yes, we skip recreation + rendering and try next frame. */
+	if (w == 0 || h == 0)
 	{
-		return;
+		return false;
 	}
 
-	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
+	this->isSwapchainUsable = false;
 
-	for (uint32_t i = 0; i < subRenderers.size(); i++)
+	if (!nvrhiDevice->waitForIdle())
 	{
-		subRenderers[i]->PostUser(device, current_command_buffer);
+		logger->critical("Device lost before swapchain recreation.");
+		return false;
 	}
 
-	current_command_buffer.EndRendering();
+	frameBuffers.clear();
+	swapChainTextures.clear();
+	nvrhiDevice->runGarbageCollection();
 
-	Ping::ImageLayoutTransition layout_transition = {
-		.oldLayout = Ping::ImageLayout::ColorAttachmentOptimal,
-		.newLayout = Ping::ImageLayout::PresentSource,
-		.srcAccessMask = Ping::AccessMask::ColorAttachmentWrite,
-		.dstAccessMask = Ping::AccessMask::None,
-		.srcStage = Ping::PipelineStage::ColorAttachmentOutput,
-		.dstStage = Ping::PipelineStage::BottomOfPipe,
-		.aspect = Ping::ImageAspect::Color};
-
-	current_command_buffer.transitionImageLayout(swapchain.value(), imageIndex, layout_transition);
-
-	current_command_buffer.End();
-
-	current_command_buffer.Submit(device, swapchain.value(), frameIndex, imageIndex);
-
-	if (!swapchain.value().Present(device, imageIndex))
+	/* Attempt to rebuild the vulkan swapchain. */
+	if (!context.CreateSwapchain(w, h, this->frames_in_flight))
 	{
-		/* Image was resized, swapchain needs to be recreated */
-		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
-		depthBuffer = device.CreateDepthBuffer(swapchain.value());
+		logger->critical("Unable to recreate the swapchain.");
+		return false;
 	}
 
-	incrementFrameIndex();
+	/* Rebuild NVRHI related data from the new vulkan swapchain. */
+	if (!CreateSwapChainTexturesAndFramebuffers())
+	{
+		logger->critical("Unable to recreate swapchain textures and framebuffers.");
+		return false;
+	}
+
+	this->isSwapchainUsable = true;
+
+	return true;
 }
 
-void Mupfel::Renderer::Shutdown() {}
+nvrhi::Format Renderer::SelectFormat()
+{
+	switch (context.swapchain.image_format)
+	{
+	case VK_FORMAT_B8G8R8A8_UNORM:
+		return nvrhi::Format::BGRA8_UNORM;
+	case VK_FORMAT_R8G8B8A8_UNORM:
+		return nvrhi::Format::RGBA8_UNORM;
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		return nvrhi::Format::SBGRA8_UNORM;
+	case VK_FORMAT_R8G8B8A8_SRGB:
+		return nvrhi::Format::SRGBA8_UNORM;
+	default:
+		return nvrhi::Format::UNKNOWN;
+	}
+}
 
-void Mupfel::Renderer::incrementFrameIndex() { frameIndex = (frameIndex + 1) % frames_in_flight; }
+void Renderer::WaitForFrameSlot() { nvrhiDevice->waitEventQuery(framesInFlightQueries[frameIndex]); }
+
+void Renderer::MarkFrameSubmitted()
+{
+	nvrhiDevice->resetEventQuery(framesInFlightQueries[frameIndex]);
+	nvrhiDevice->setEventQuery(framesInFlightQueries[frameIndex], nvrhi::CommandQueue::Graphics);
+}

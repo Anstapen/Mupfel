@@ -4,14 +4,23 @@
 -- in this file is Mupfel's own code — see Core/Build-Core.lua for the engine and App/Build-App.lua for
 -- the application. Header-only deps (nlohmann json, glm, stb_image) and the prebuilt GLFW binary need
 -- no project here; they're just include/lib paths consumed directly via Deps/DepPath (Dependencies.lua).
+-- stb_image counts as header-only here too: Core now owns the single STB_IMAGE_IMPLEMENTATION
+-- translation unit that used to live inside Ping.
+--
+-- Ping, Mupfel's own Vulkan wrapper, used to be defined in this file. It was replaced by NVRHI
+-- (resources, command lists, pipelines, automatic resource-state tracking) plus vk-bootstrap (the
+-- instance/device/swapchain creation NVRHI deliberately does not do). See BUILD.md for that split.
 --
 -- Dependency graph of the projects defined below:
 --
---   spdlog   (no internal deps)
---   imgui    -> glfw headers only (imgui_impl_glfw backend)
---   Ping     -> spdlog/glfw/imgui/stb headers, Vulkan SDK headers
---   box2d    (no internal deps)           (collision detection/resolution, linked by Core)
---   catch2   (no internal deps)           (unit test framework, linked by the Tests project)
+--   spdlog       (no internal deps)
+--   imgui        -> glfw headers only (imgui_impl_glfw backend)
+--   nvrhi        (no internal deps)       (NVRHI core: common utilities + the validation layer)
+--   nvrhi_vk     -> nvrhi headers, Vulkan SDK headers   (NVRHI's Vulkan backend)
+--   vk-bootstrap -> Vulkan SDK headers    (instance/device/queue/swapchain creation, which NVRHI
+--                                          deliberately does not do -- see Dependencies.lua)
+--   box2d        (no internal deps)       (collision detection/resolution, linked by Core)
+--   catch2       (no internal deps)       (unit test framework, linked by the Tests project)
 --
 -- All but catch2 are linked by Core, which is part of every possible --modules selection, so they are
 -- defined unconditionally. catch2 is generated only when the Tests module is (see Modules.lua).
@@ -44,22 +53,118 @@ project "imgui"
         DepPath("glfw", "include"),
     }
 
-project "Ping"
+-- NVRHI, split into the same two targets upstream's CMakeLists.txt defines, so that adding the D3D12
+-- backend later is a new project here rather than a reshuffle of this one. Upstream's build is not
+-- invoked: it generates nothing (no configure_file, no generated headers), its source lists are flat,
+-- and the only definitions that matter are the two Windows ones on nvrhi_vk below -- so porting it
+-- costs less than making CMake a build requirement. See BUILD.md.
+--
+-- cppdialect is pinned to C++17 (what upstream compiles as) rather than inheriting the workspace's
+-- C++23 from ApplyDefaultProjectSettings(). Same reasoning as box2d overriding `language`: we don't
+-- fix third-party code, so a dependency bump must not be able to break our build over a dialect we
+-- picked for our own sources.
+project "nvrhi"
     kind "StaticLib"
     ApplyDefaultProjectSettings()
+    cppdialect "C++17"
 
-    files { DepPath("ping", "Source/**.h"), DepPath("ping", "Source/**.cpp") }
+    -- src/validation is an ordinary opt-in source set upstream (NVRHI_WITH_VALIDATION, default ON)
+    -- with no matching #define -- the validation layer is selected at runtime by wrapping a device in
+    -- nvrhi::validation::createValidationLayer(), so compiling it in costs nothing until it is used.
+    --
+    -- src/common/dxgi-format.cpp is deliberately absent: upstream compiles it into the D3D backends
+    -- only, and it does not build without the DirectX headers.
+    files
+    {
+        DepPath("nvrhi", "include/nvrhi/**.h"),
+        DepPath("nvrhi", "src/common/format-info.cpp"),
+        DepPath("nvrhi", "src/common/misc.cpp"),
+        DepPath("nvrhi", "src/common/state-tracking.cpp"),
+        DepPath("nvrhi", "src/common/utils.cpp"),
+        DepPath("nvrhi", "src/common/aftermath.cpp"),
+        DepPath("nvrhi", "src/common/*.h"),
+        DepPath("nvrhi", "src/validation/**.cpp"),
+        DepPath("nvrhi", "src/validation/**.h"),
+    }
+
+    includedirs { DepPath("nvrhi", "include") }
+
+    -- Upstream passes this as a $<BOOL:...> generator expression, which expands to 0 when the feature
+    -- is off. Spelled out because the sources test it with #if, not #ifdef.
+    defines { "NVRHI_WITH_AFTERMATH=0" }
+
+    -- Debugger visualizers for nvrhi's RefCountPtr handles and descriptor structs, the same treatment
+    -- box2d.natvis gets. MSVC-only, so it hangs off the vs* action rather than system:windows.
+    filter "action:vs*"
+        files { DepPath("nvrhi", "tools/nvrhi.natvis") }
+
+    filter {}
+
+-- NVRHI's Vulkan backend. Note that src/vulkan/vulkan-backend.h does its own
+--     #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+--     #include <vulkan/vulkan.hpp>
+-- which has two consequences reaching past this project, both documented in BUILD.md:
+--   * every TU in the process that includes <vulkan/vulkan.hpp> must agree on that macro (Core sets
+--     VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1 project-wide for exactly that reason), and exactly one TU
+--     may define the dispatcher storage. NVRHI defines it only under NVRHI_SHARED_LIBRARY_BUILD --
+--     see src/vulkan/vulkan-device.cpp:29 -- which a StaticLib must not set, since nvrhi.h:45 also
+--     keys NVRHI_API off it and would dllexport every public symbol. So in this build the storage,
+--     and the VULKAN_HPP_DEFAULT_DISPATCHER.init() calls the same #if skips, belong to Core:
+--     Renderer.cpp and NVRHIContext::Init respectively. See Reviews/NVRHI-Dispatcher.md.
+--   * vulkan.hpp is compiled with exceptions enabled (NVRHI does not define VULKAN_HPP_NO_EXCEPTIONS),
+--     which the workspace-wide /EHsc in Build.lua already provides on MSVC.
+--
+-- The same header hard-fails on `#if (VK_HEADER_VERSION < 318)`, which is why Build.lua asserts the
+-- installed SDK's header version up front rather than letting that surface as an #error mid-compile.
+project "nvrhi_vk"
+    kind "StaticLib"
+    ApplyDefaultProjectSettings()
+    cppdialect "C++17"
+
+    files { DepPath("nvrhi", "src/vulkan/**.cpp"), DepPath("nvrhi", "src/vulkan/**.h") }
 
     includedirs
     {
-        DepPath("ping", "Source"),
+        DepPath("nvrhi", "include"),
         VulkanIncludeDir, -- system dependency (VULKAN_SDK env var), not vendored/fetched
-        DepPath("glfw", "include"),
-        DepPath("spdlog", "include"),
-        DepPath("stb"),
-        DepPath("imgui"),
-        DepPath("imgui", "backends"),
     }
+
+    defines { "NVRHI_WITH_AFTERMATH=0" }
+
+    -- Both mirror upstream. VK_USE_PLATFORM_WIN32_KHR is PUBLIC there, so Core repeats it (see
+    -- Core/Build-Core.lua): it changes what <vulkan/vulkan.h> declares, and the two must agree. It is
+    -- also what pulls windows.h in, which is what makes NOMINMAX necessary.
+    filter "system:windows"
+        defines { "VK_USE_PLATFORM_WIN32_KHR", "NOMINMAX" }
+
+    filter {}
+
+-- vk-bootstrap: the instance / physical-device / device / queue / swapchain creation that NVRHI leaves
+-- to the application. One translation unit, C++17, no defines. It resolves Vulkan entry points by
+-- dlopening the loader at runtime rather than linking it, so it adds nothing to links{} here -- Core
+-- links `dl` on Linux on its behalf (see Core/Build-Core.lua).
+project "vk-bootstrap"
+    kind "StaticLib"
+    ApplyDefaultProjectSettings()
+    cppdialect "C++17"
+
+    files
+    {
+        DepPath("vk_bootstrap", "src/VkBootstrap.cpp"),
+        DepPath("vk_bootstrap", "src/*.h"),
+        DepPath("vk_bootstrap", "src/*.inl"),
+    }
+
+    includedirs
+    {
+        DepPath("vk_bootstrap", "src"),
+        VulkanIncludeDir,
+    }
+
+    filter "system:windows"
+        defines { "VK_USE_PLATFORM_WIN32_KHR", "NOMINMAX" }
+
+    filter {}
 
 -- Box2D 3.x (unlike the C++ 2.x line) is a pure C library requiring C17 for _Static_assert and
 -- anonymous unions, so this is the one project that overrides the C++ language/dialect that

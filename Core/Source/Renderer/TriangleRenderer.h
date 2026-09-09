@@ -1,11 +1,9 @@
 #pragma once
-#include "Logger.h"
 #include "SubRenderer.h"
-#include <optional>
 
 namespace Mupfel
 {
-class DebugRenderer : public SubRenderer
+class TriangleRenderer : public SubRenderer
 {
 public:
 	bool Init(nvrhi::DeviceHandle device, const nvrhi::FramebufferInfo& frameBufferInfo, uint32_t framesInFlight) final;
@@ -17,6 +15,7 @@ public:
 		const FrameContext&		 context) final;
 
 private:
-	Logger::SafeLoggerPtr logger;
+	nvrhi::GraphicsPipelineHandle pipeline{};
+	nvrhi::BufferHandle			  vertexBuffer{};
 };
 } // namespace Mupfel

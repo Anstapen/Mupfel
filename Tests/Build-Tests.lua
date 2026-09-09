@@ -36,11 +36,16 @@ project "Tests"
         -- Tests has Core/Source on its include path, so it can pull in an internal header that uses
         -- glm (Renderer/Quad.h, Renderer/CameraMath.h) even though no test names glm itself.
         DepPath("glm"),
-        DepPath("ping", "Source"),
+        -- Same reason as glm, and the reason this list tracks Core's: an internal renderer header
+        -- reachable from Core/Source now names nvrhi types, and nvrhi/vulkan.h pulls in vulkan.h.
+        DepPath("nvrhi", "include"),
+        DepPath("vk_bootstrap", "src"),
+        DepPath("stb"),
         VulkanIncludeDir,
         DepPath("glfw", "include"),
         DepPath("spdlog", "include"),
         DepPath("imgui"),
+        DepPath("imgui", "backends"),
     }
 
     libdirs
@@ -50,9 +55,11 @@ project "Tests"
 
     links { "Core", "catch2" }
 
-    -- Same platform split on GLFW as Core; see Core/Build-Core.lua for why.
+    -- Same platform split on GLFW as Core; see Core/Build-Core.lua for why. VK_USE_PLATFORM_WIN32_KHR
+    -- is repeated for the same reason it is repeated in Core: every TU that reaches <vulkan/vulkan.h>
+    -- must agree with the one that compiled nvrhi_vk, and Tests reaches it through Core/Source.
     filter "system:windows"
-        defines { "WINDOWS" }
+        defines { "WINDOWS", "VK_USE_PLATFORM_WIN32_KHR", "NOMINMAX" }
         libdirs { DepPath("glfw", "lib-vc2022") }
         links   { "glfw3" }
 

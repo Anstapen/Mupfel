@@ -12,15 +12,6 @@
 #include <unordered_map>
 #include <vector>
 
-/** Forward declaration of the underlying image format. */
-namespace Ping
-{
-class Image;
-class Device;
-class DescriptorSet;
-class Pipeline;
-} // namespace Ping
-
 namespace Mupfel
 {
 
@@ -58,15 +49,13 @@ public:
 	 * \param spec If an animated image should be loaded, this specification is used to interpret the image.
 	 * \return ImageHandle or Error Code.
 	 */
-	[[nodiscard]] Expected<ImageHandle> Load(const Ping::Device& device, const std::string path);
+	[[nodiscard]] Expected<ImageHandle> Load(const std::string path);
 
 	[[nodiscard]] Expected<ImageHandle> LoadAnimated(
-		const Ping::Device&		  device,
 		const std::string		  path,
 		const ImageSpecification& spec);
 
 	[[nodiscard]] Expected<std::vector<ImageHandle>> LoadSpriteSheet(
-		const Ping::Device&		  device,
 		const std::string		  path,
 		const ImageSpecification& spec);
 
@@ -81,14 +70,6 @@ public:
 	static constexpr uint32_t maxImageCount = 4096;
 
 private:
-	const std::vector<Ping::Image>& GetImages() const;
-
-private:
-	/**
-	 * This vector manages the RAII-based images.
-	 * ImageHandles directly translate to the vector index.
-	 */
-	std::vector<Ping::Image> images;
 	/**
 	 * This map contains a path -> ImageHandle association.
 	 * Not used by the engine itself but useful for the user to

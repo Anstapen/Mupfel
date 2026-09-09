@@ -4,8 +4,6 @@
 #include "ECS/Registry.h"
 #include "Logger.h"
 #include "Physics/PhysicsSimulation.h"
-#include "Ping/Device.h"
-#include "Ping/Ping.h"
 #include "Profiler.h"
 #include "Renderer/AnimationSystem.h"
 #include "Renderer/Renderer.h"
@@ -85,16 +83,8 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 		return false;
 	}
 
-	if (!Ping::Init())
-	{
-		logger->error("Failed to initialize the RHI.");
-		return false;
-	}
-
-	gpu = std::make_unique<Ping::Device>(Ping::DeviceSpecification(), Window::GetInstance().GetGLFWHandle());
-
 	renderer = std::make_unique<Renderer>();
-	if (!renderer->Init(*gpu, Window::GetInstance()))
+	if (!renderer->Init(Window::GetInstance()))
 	{
 		logger->error("Renderer Initialization failed!");
 		return false;
@@ -193,18 +183,18 @@ bool Mupfel::Application::HasPhysicsEvents(Entity e) { return Get().physics->Has
 
 Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
 {
-	return Get().image_manager.Load(*Get().gpu, path);
+	return Get().image_manager.Load(path);
 }
 
 Expected<ImageHandle> Mupfel::Application::LoadAnimatedImage(const std::string path, const ImageSpecification& spec)
 {
-	return Get().image_manager.LoadAnimated(*Get().gpu, path, spec);
+	return Get().image_manager.LoadAnimated(path, spec);
 }
 
 Expected<std::vector<ImageHandle>>
 Mupfel::Application::LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec)
 {
-	return Get().image_manager.LoadSpriteSheet(*Get().gpu, path, spec);
+	return Get().image_manager.LoadSpriteSheet(path, spec);
 }
 
 ThreadPool& Mupfel::Application::GetCurrentThreadPool() { return Get().thread_pool; }
@@ -294,7 +284,7 @@ void Application::Run()
 			SwitchScene(queued_scene);
 			queued_scene = Scene::INVALID_HANDLE;
 		}
-
+#if 0
 		{
 			ProfilingSample prof("Current Scene - OnUpdate ");
 			scenes[current_scene]->OnUpdate(timestep);
@@ -321,18 +311,17 @@ void Application::Run()
 			/* Update the Collision System */
 			animationSystem->Update(timestep);
 		}
-
+#endif
 		{
 			ProfilingSample prof("Engine Renderer Begin");
-			renderer->Begin(*gpu, Window::GetInstance(), timestep);
+			renderer->Begin(Window::GetInstance(), timestep);
 		}
-
+#if 0
 		{
 			ProfilingSample prof("Current Scene - OnRender");
 			scenes[current_scene]->OnRender();
 		}
 		
-
 		{
 			ProfilingSample prof("Layer Rendering");
 			for (const std::unique_ptr<Layer>& layer : layerStack)
@@ -340,7 +329,7 @@ void Application::Run()
 				layer->OnRender();
 			}
 		}
-
+		
 		{
 			ProfilingSample prof("DebugLayer");
 			if (debugModeEnabled)
@@ -350,10 +339,10 @@ void Application::Run()
 				debug_layer->OnRender();
 			}
 		}
-
+#endif
 		{
 			ProfilingSample prof("Engine Renderer End");
-			renderer->End(*gpu, Window::GetInstance(), timestep);
+			renderer->End(Window::GetInstance(), timestep);
 		}
 
 		{
@@ -374,8 +363,7 @@ void Application::Run()
 void Application::DeInit()
 {
 	physics->DeInit();
-	gpu->WaitForCommands();
-	Ping::Shutdown();
+	renderer->Shutdown();
 	animationSystem->Shutdown();
 
 	/* At the end, write the config. */

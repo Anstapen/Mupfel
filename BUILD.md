@@ -15,8 +15,8 @@ Dependencies.lua           Single source of truth for third-party dependencies: 
                             source lives (Deps table) and how to fetch it (DepPath, fetch_dependency).
 
 Vendor/
-  Build-Vendor.lua         Builds vendored third-party static libs: spdlog, imgui, Logger, Ping, box2d,
-                            catch2.
+  Build-Vendor.lua         Builds vendored third-party static libs: spdlog, imgui, nvrhi, nvrhi_vk,
+                            vk-bootstrap, box2d, catch2.
   Sources/                 Fetched/vendored source trees (gitignored, populated by Dependencies.lua).
   Binaries/Premake/        Vendored premake5 executables (checked into git).
 
@@ -40,60 +40,64 @@ belong to that tier — `Vendor/Build-Vendor.lua` never reaches into `Core/` or 
 
 ```
                          ┌─────────────┐
-                         │ Vulkan SDK  │  (system dependency, VULKAN_SDK env var — not vendored)
-                         └──────┬──────┘
+                         │ Vulkan SDK  │  (system dependency, VULKAN_SDK env var — not vendored.
+                         └──────┬──────┘   Build.lua asserts VK_HEADER_VERSION >= 357; see below)
                                 │ headers
-     ┌────────────┐            │            ┌────────────┐
-     │   glfw3    │◄───────────┼────────────┤   spdlog   │  (no internal deps)
-     │ (prebuilt, │  headers   │   headers  └─────┬──────┘
-     │  Windows)  │            │                  │ headers
-     └─────┬──────┘            │                  ▼
-           │ headers      ┌────▼───┐        ┌────────────┐
-           └─────────────►│ imgui  │        │   Logger   │  (split out of Ping's source
-                           └────────┘        └─────┬──────┘   tree so Core and Ping can
-                                                    │ link      each link it independently)
-                                                    ▼
-                                              ┌────────────┐
-                            headers  ┌───────►│    Ping    │
-                      (spdlog/glfw/  │        └─────┬──────┘
-                     imgui/stb/vk)   │              │ link
-                                     │              ▼
-     ┌────────────┐             ┌────┴───────────────────┐
-     │   box2d    ├────────────►│          Core           │  Mupfel's engine (Core/Source)
-     │  (C17, no  │    link     │  links: Ping, Logger,    │  headers: nlohmann, ping, vulkan,
-     │  int. deps)│             │  spdlog, imgui, glfw3,   │           glfw, spdlog, imgui,
-     └────────────┘             │  vulkan, box2d          │           box2d
-                                └────────────┬─────────────┘
-                                             │ link
-                                             ▼
-                                ┌─────────────────────────┐
-                                │           App            │  Game/editor (App/Source)
-                                │  links: Core              │  headers: nlohmann, glm, ping,
-                                │                            │           spdlog, vulkan
-                                └─────────────────────────┘
+     ┌────────────┐             │             ┌────────────┐
+     │   glfw3    │             │             │   spdlog   │  (no internal deps)
+     │ (prebuilt, │             │             └────────────┘
+     │  Windows)  │             ├──────────────────┐
+     └─────┬──────┘             │                  │ headers
+           │ headers            │                  ▼
+           │              ┌─────▼──────┐    ┌──────────────┐
+           └─────────────►│   imgui    │    │ vk-bootstrap │  instance/device/queue/swapchain
+                          └────────────┘    └──────┬───────┘  creation — the part NVRHI does not do
+                                                   │
+                          ┌────────────┐           │
+                          │   nvrhi    │  NVRHI core: common utilities + validation layer
+                          └─────┬──────┘
+                                │ link
+                          ┌─────▼──────┐
+                          │  nvrhi_vk  │  NVRHI's Vulkan backend (needs the SDK's headers)
+                          └─────┬──────┘
+                                │ link       │ link
+     ┌────────────┐        ┌────▼────────────▼───────┐
+     │   box2d    ├───────►│          Core           │  Mupfel's engine (Core/Include + Core/Source)
+     │  (C17, no  │  link  │  links: nvrhi_vk, nvrhi, │  headers: nlohmann, glm, nvrhi,
+     │  int. deps)│        │  vk-bootstrap, spdlog,   │           vk-bootstrap, stb, vulkan,
+     └────────────┘        │  imgui, glfw3, vulkan,   │           glfw, spdlog, imgui, box2d
+                           │  box2d (+ dl on Linux)   │
+                           └────────────┬─────────────┘
+                                        │ link
+                           ┌────────────▼─────────────┐
+                           │           App            │  Game/editor (App/Source)
+                           │  links: Core             │  headers: spdlog, nlohmann
+                           └──────────────────────────┘
 ```
 
 `Tests` hangs off `Core` the same way `App` does — a `ConsoleApp` linking the engine, kept out of the
 diagram above along with its catch2 framework rather than folded into it.
 
 Header-only dependencies (no build project, just `includedirs`): **nlohmann/json**, **glm**,
-**stb_image**. `stb_image` is only ever included by `Ping`; `nlohmann` is used by both `Core` (entity
-serialization) and `App`; `glm` (math) is only used by `App` today. **catch2** is *not* header-only — see
+**stb_image**. `stb_image` used to be compiled inside `Ping`; with `Ping` gone, `Core` owns the single
+translation unit that defines `STB_IMAGE_IMPLEMENTATION`. `nlohmann` is used by both `Core` (entity
+serialization) and `App`; `glm` (math) is used by `Core`'s renderer. **catch2** is *not* header-only — see
 "Catch2" below for why it gets a project of its own despite shipping as two files.
 
 **Who links what:**
 
-| Project  | Links against                                   | Also sees headers of (no link) |
-|----------|--------------------------------------------------|---------------------------------|
-| `spdlog` | —                                                  | —                                |
-| `imgui`  | —                                                  | glfw                             |
-| `Logger` | —                                                  | spdlog                           |
-| `Ping`   | Logger                                             | spdlog, glfw, imgui, stb, vulkan |
-| `box2d`  | —                                                  | —                                |
-| `catch2` | —                                                  | —                                |
-| `Core`   | Ping, Logger, spdlog, imgui, glfw3, vulkan, box2d  | nlohmann                         |
-| `App`    | Core                                               | nlohmann, glm, ping, spdlog, vulkan |
-| `Tests`  | Core, catch2                                       | + Core's header set (anything reaching Application.h) |
+| Project        | Links against                                      | Also sees headers of (no link) |
+|----------------|----------------------------------------------------|---------------------------------|
+| `spdlog`       | —                                                  | —                                |
+| `imgui`        | —                                                  | glfw                             |
+| `nvrhi`        | —                                                  | —                                |
+| `nvrhi_vk`     | — (symbols resolved from `nvrhi` at final link)    | nvrhi, vulkan                    |
+| `vk-bootstrap` | — (dlopens the Vulkan loader at runtime)           | vulkan                           |
+| `box2d`        | —                                                  | —                                |
+| `catch2`       | —                                                  | —                                |
+| `Core`         | nvrhi_vk, nvrhi, vk-bootstrap, spdlog, imgui, glfw3, vulkan, box2d, `dl` (Linux) | nlohmann, glm, stb |
+| `App`          | Core                                               | spdlog, nlohmann                 |
+| `Tests`        | Core, catch2                                       | + Core's header set (anything reaching Application.h) |
 
 This table is the direct answer to "who includes which headers" — it's now also mechanically
 enforced: each project's `Build-*.lua` file only calls `includedirs`/`links` for what it actually
@@ -233,7 +237,120 @@ already defines for `Release`/`Dist`, so they're live in `Debug` only — the sa
 Only `Core` sees Box2D today (`includedirs` + `links`). If a *public* `Core` header ever exposes Box2D
 types (e.g. a `b2BodyId` on a physics component), `App` and `Tests` will need
 `DepPath("box2d", "include")` on their include paths too — exactly how `Tests` already carries the
-Ping/spdlog/Vulkan header paths for the types `Application.h` exposes.
+nvrhi/spdlog/Vulkan header paths for the types `Application.h` exposes.
+
+## NVRHI — ported from CMake rather than built by it
+
+[NVRHI](https://github.com/NVIDIA-RTX/NVRHI) (MIT) replaced `Ping`, Mupfel's own Vulkan wrapper. It
+ships a CMake build, and this repo does not use it: `Vendor/Build-Vendor.lua` defines `nvrhi` and
+`nvrhi_vk` as ordinary Premake static libs instead.
+
+That is worth justifying, because "shell out to CMake from the setup script" is the obvious
+alternative. It was rejected because the port turned out to be nearly free and the alternative is not:
+
+- **Upstream's CMake generates nothing.** No `configure_file`, no `file(GENERATE)`, no
+  `add_custom_command`, no generated headers. (This is exactly what makes Catch2 *not* portable this
+  way — see the next section.) The only generated artifacts are CMake package config files, which a
+  Premake build has no use for.
+- **Its source lists are flat**, one per target, with no per-file properties.
+- **Two compile definitions matter**, both Windows-only and both on `nvrhi_vk`:
+  `VK_USE_PLATFORM_WIN32_KHR` and `NOMINMAX`. Everything else (`NVRHI_WITH_AFTERMATH`,
+  `NVRHI_WITH_RTXMU`, `NVRHI_WITH_NVAPI`) is off and reaches the compiler as `=0`.
+
+Against that, invoking CMake would add a hard CMake dependency to the setup scripts, a second build
+system to keep in sync, and a manual mapping of our three configurations onto CMake's — `Dist` has no
+CMake equivalent and would have to be aliased to `Release` by hand.
+
+The target split mirrors upstream exactly (`nvrhi` = `src/common` + `src/validation`, `nvrhi_vk` =
+`src/vulkan`) so that adding the D3D12 backend later is a new project in this file rather than a
+reshuffle of an existing one. We build the Vulkan backend only.
+
+Four things about these projects are load-bearing:
+
+- **`cppdialect "C++17"`, overriding the workspace's C++23.** Same reasoning as `box2d` overriding
+  `language`: we don't fix third-party code, so a dependency bump must not be able to break the build
+  over a dialect we picked for our own sources. These are the only two projects that override
+  `ApplyDefaultProjectSettings()`'s language settings.
+- **`src/common/dxgi-format.cpp` is deliberately excluded.** Upstream compiles it into the D3D
+  backends only; it does not build without the DirectX headers, which we don't vendor.
+- **`src/validation/*.cpp` is compiled in.** Upstream gates it behind `NVRHI_WITH_VALIDATION` (default
+  ON) with *no* matching `#define` — the validation layer is selected at runtime by wrapping a device
+  in `nvrhi::validation::createValidationLayer()`, so compiling it costs nothing until it is used.
+- **`VK_USE_PLATFORM_WIN32_KHR` is repeated in `Core` and `Tests`.** Upstream marks it `PUBLIC`, and
+  it must stay that way here: it changes what `<vulkan/vulkan.h>` declares, so a TU that disagrees
+  with the one that compiled `nvrhi_vk` is looking at a different Vulkan API. `NOMINMAX` rides along
+  because that define is what drags in `windows.h`.
+
+### The `vulkan.hpp` dispatcher rule
+
+`src/vulkan/vulkan-backend.h` opens with
+
+```cpp
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+#include <vulkan/vulkan.hpp>
+```
+
+This is the same class of hazard as `GLM_FORCE_DEPTH_ZERO_TO_ONE` (see `ApplyDefaultProjectSettings()`
+in `Build.lua`): a macro that changes the meaning of a header, where two translation units disagreeing
+is an ODR violation the linker resolves silently. Two rules follow:
+
+1. Any engine TU that includes `<vulkan/vulkan.hpp>` must do so with
+   `VULKAN_HPP_DISPATCH_LOADER_DYNAMIC` set to `1`. `Core/Build-Core.lua` sets it project-wide, so no
+   `Core` TU can disagree with `nvrhi_vk` by forgetting a `#define`. This is the one half of the rule
+   the build system can enforce.
+2. **Exactly one** TU in the process may define the dispatcher storage
+   (`VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE`). In a **static** build that TU has to be
+   ours: NVRHI emits the storage only under `NVRHI_SHARED_LIBRARY_BUILD`
+   (`src/vulkan/vulkan-device.cpp:29`), which `Vendor/Build-Vendor.lua` correctly never defines on a
+   `StaticLib`. `Core/Source/Renderer/Renderer.cpp:19` is that TU.
+
+The same `#if` also skips NVRHI's own `VULKAN_HPP_DEFAULT_DISPATCHER.init()`, so `Core` owns
+initialisation as well: the three cumulative global/instance/device `init()` calls in
+`NVRHIContext::Init`, fed from the entry points vk-bootstrap already holds. Defining the storage
+without them links and then crashes on the first `vk::` call inside `createDevice`.
+
+Rule 1 is load-bearing for rule 2. With `VULKAN_HPP_DISPATCH_LOADER_DYNAMIC` unset,
+`VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE` expands to *nothing at all*, silently
+(`vulkan_hpp_macros.hpp:328`), and `VULKAN_HPP_DEFAULT_DISPATCHER` resolves to the static loader,
+which has no `init` member. `Reviews/NVRHI-Dispatcher.md` walks through both failure modes.
+
+Defining `NVRHI_SHARED_LIBRARY_BUILD` on `nvrhi_vk` would restore both halves in one line, and is
+wrong: `nvrhi.h:45` also keys `NVRHI_API` off it, flipping every public symbol to
+`__declspec(dllexport)` on a static library.
+
+NVRHI also does **not** define `VULKAN_HPP_NO_EXCEPTIONS`, so `vulkan.hpp` is compiled with exceptions
+enabled — provided by the workspace-wide `/EHsc` in `Build.lua`.
+
+### The SDK version floor
+
+`Build.lua` reads `VK_HEADER_VERSION` out of `$VULKAN_SDK/Include/vulkan/vulkan_core.h` and aborts
+generation if it is below `VulkanHeaderVersionFloor` (currently **357**, i.e. SDK 1.4.357). Two
+dependencies impose it and both fail late and illegibly without the check:
+
+- `vulkan-backend.h` has `#if (VK_HEADER_VERSION < 318) #error`, which only fires once MSBuild is
+  already compiling `nvrhi_vk`.
+- `vk-bootstrap` is generated against a specific header version — the tag in `Deps.vk_bootstrap`
+  names it — and references structs and enum values older headers don't declare, producing a wall of
+  "undeclared identifier" rather than one legible message.
+
+The floor is the higher of the two. **Keep it and the `vk_bootstrap` pin in `Dependencies.lua` moving
+together**; the NVRHI half only rises when upstream raises its own `#error`.
+
+## vk-bootstrap — the part NVRHI deliberately doesn't do
+
+NVRHI is a *rendering* hardware interface: resources, command lists, pipelines, and automatic
+resource-state tracking. It explicitly does not create instances, physical devices, logical devices,
+queues or swapchains, and has no window integration — `nvrhi::vulkan::createDevice` takes handles the
+application must already have.
+
+[vk-bootstrap](https://github.com/charles-lunarg/vk-bootstrap) (MIT) is the smallest thing that
+produces those handles: one translation unit, C++17, no compile definitions. It resolves Vulkan entry
+points by `dlopen`ing the loader at runtime rather than linking it, which has one build consequence —
+**`Core` links `dl` on Linux on its behalf**, since a static lib carries no link dependencies of its
+own. Windows needs no equivalent (`LoadLibrary` lives in `kernel32`, linked by default).
+
+`Core` still links the Vulkan import library separately: `glfwCreateWindowSurface` and the
+surface/present calls in our own device layer are ordinary prototypes resolved at link time.
 
 ## Catch2 — vendored as an amalgamation, not a source tree
 
@@ -268,7 +385,7 @@ version.
 
 ```lua
 group "Vendor"
-   include "Vendor/Build-Vendor.lua"   -- spdlog, imgui, Logger, Ping, box2d, catch2
+   include "Vendor/Build-Vendor.lua"   -- spdlog, imgui, nvrhi, nvrhi_vk, vk-bootstrap, box2d, catch2
 group ""
 
 for _, module in ipairs(SelectedModules()) do
@@ -305,3 +422,7 @@ a subset of these includes.
 Regenerated the solution (`premake5 vs2026`) and built all configurations end-to-end
 (`Vendor` → `Core` → `App`) with MSBuild: 0 errors, output binaries land in the same
 `Binaries/<system>-<arch>/<config>/<project>/` layout as before.
+
+For the NVRHI port specifically: solution generation succeeds, the SDK floor check was confirmed to
+fire on an SDK below it and to pass above it, and `nvrhi`, `nvrhi_vk` and `vk-bootstrap` build in
+**Debug, Release and Dist** with 0 warnings and 0 errors.

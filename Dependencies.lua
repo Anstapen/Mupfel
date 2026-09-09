@@ -7,6 +7,9 @@
 -- include/lib paths through DepPath() below instead of hardcoding directory names or version strings,
 -- so bumping a version only means editing the table below.
 
+local nvrhi_commit        = "cca66aeb084429c880d205e508f5276b6ac13c38" -- NVRHI main @ 2026-08-18; the repo publishes no tags
+local vk_bootstrap_version = "1.4.357" -- keep <= the Vulkan SDK floor asserted in Build.lua
+
 local imgui_commit = "6029ee3789a2b7898f6423ec0c88cc4e5425f5a9" -- imgui docking branch, pinned for docking support
 
 Deps = {
@@ -41,9 +44,25 @@ Deps = {
         relpath = "Vendor/Sources/glm-1.0.1",
         url     = "https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip",
     },
-    ping = {
-        relpath = "Vendor/Sources/vulkan_starter-main/Ping",
-        url     = "https://github.com/Anstapen/vulkan_starter/archive/refs/heads/main.zip",
+    -- NVRHI (NVIDIA Rendering Hardware Interface), MIT. Pinned to a commit rather than a tag because
+    -- the repository publishes none. Its own CMake build is not used at all -- Vendor/Build-Vendor.lua
+    -- reimplements the two targets we need as Premake static libs (see BUILD.md, "NVRHI -- ported from
+    -- CMake rather than built by it").
+    nvrhi = {
+        relpath = "Vendor/Sources/NVRHI-" .. nvrhi_commit,
+        url     = "https://github.com/NVIDIA-RTX/NVRHI/archive/" .. nvrhi_commit .. ".zip",
+    },
+    -- vk-bootstrap, MIT. NVRHI deliberately does not create instances, devices, queues or swapchains
+    -- -- that is the application's job -- and this is the smallest library that does all four. One
+    -- .cpp, no defines, and no link-time dependency on the Vulkan loader (it dlopens it at runtime,
+    -- which is why Core links `dl` on Linux).
+    --
+    -- The tag tracks the Vulkan header version the sources were generated against, so this pin and the
+    -- SDK floor asserted in Build.lua have to move together.
+    vk_bootstrap = {
+        relpath = "Vendor/Sources/vk-bootstrap-" .. vk_bootstrap_version,
+        url     = "https://github.com/charles-lunarg/vk-bootstrap/archive/refs/tags/v"
+                  .. vk_bootstrap_version .. ".zip",
     },
     box2d = {
         relpath = "Vendor/Sources/box2d-3.1.1",
@@ -127,7 +146,8 @@ function build_externals()
     print("Checking external dependencies...")
     fetch_dependency("nlohmann")
     fetch_dependency("glm")
-    fetch_dependency("ping")
+    fetch_dependency("nvrhi")
+    fetch_dependency("vk_bootstrap")
     fetch_dependency("spdlog")
     fetch_dependency("stb")
     fetch_dependency("imgui")
