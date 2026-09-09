@@ -161,9 +161,6 @@ private:
 	/** Logger object to display debug messages. */
 	Logger::SafeLoggerPtr logger;
 
-	/** An image manager to hold the images. */
-	ImageManager imageManager;
-
 	/** Vulkan data structures needed to initialize a NVRHI device. */
 	NVRHIContext context;
 
@@ -175,6 +172,9 @@ private:
 
 	/** The NVRHI device interface for logical vulkan devices. Used for signalling and waiting semaphores. */
 	nvrhi::RefCountPtr<nvrhi::vulkan::IDevice> rawVKDevice;
+
+	/** An image manager to hold the images. */
+	ImageManager imageManager;
 
 	/** Textures for the Swapchain. */
 	std::vector<nvrhi::TextureHandle> swapChainTextures;

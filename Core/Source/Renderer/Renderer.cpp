@@ -1,10 +1,11 @@
-/*****************************************************************/ /**
-																	 * \file   Renderer.cpp
-																	 * \brief  Implementation of Mupfel::Renderer.
-																	 *
-																	 * \author Anton Stapenhorst
-																	 * \date   September 2026
-																	 *********************************************************************/
+/*********************************************************************/
+/**
+ * \file   Renderer.cpp
+ * \brief  Implementation of Mupfel::Renderer.
+ *
+ * \author Anton Stapenhorst
+ * \date   September 2026
+ *********************************************************************/
 
 #include "Renderer.h"
 #include "Core/Application.h"
@@ -106,6 +107,13 @@ bool Renderer::Init(const Window& window)
 
 	/* All swapchain related data structures (semaphores, textures and framebuffers) are initialized. */
 	this->isSwapchainUsable = true;
+
+	/* Initialize the image manager. */
+	if (!imageManager.Init(this->nvrhiDevice))
+	{
+		Shutdown();
+		return false;
+	}
 
 	/* Create and push back all the SubRenderers. */
 	auto tr = std::make_shared<TriangleRenderer>();
@@ -242,8 +250,7 @@ void Renderer::End(const Window& window, double delta_time)
 	this->nvrhiDevice->runGarbageCollection();
 }
 
-ImageManager& Mupfel::Renderer::GetImageManager()
-{ return imageManager; }
+ImageManager& Mupfel::Renderer::GetImageManager() { return imageManager; }
 
 void Renderer::Shutdown()
 {
@@ -257,6 +264,9 @@ void Renderer::Shutdown()
 	uiRenderer.reset();
 	debugRenderer.reset();
 	geoRenderer.reset();
+
+	/* Shut down the image manager. */
+	imageManager.Shutdown();
 
 	/* Clear own NVRHI members. */
 	commandList = nullptr;

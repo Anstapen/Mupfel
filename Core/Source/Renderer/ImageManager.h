@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "nvrhi/nvrhi.h"
+
 namespace Mupfel
 {
 
@@ -29,6 +31,8 @@ class ImageManager
 	friend class IMRenderer;
 
 public:
+	bool Init(nvrhi::DeviceHandle device);
+	void Shutdown();
 	/**
 	 * Try to load the image given by \a path.
 	 *
@@ -38,23 +42,14 @@ public:
 	 */
 	[[nodiscard]] Expected<ImageHandle> Load(const std::string path);
 
-	[[nodiscard]] Expected<ImageHandle> LoadAnimated(
-		const std::string		  path,
-		const ImageSpecification& spec);
+	[[nodiscard]] Expected<ImageHandle> LoadAnimated(const std::string path, const ImageSpecification& spec);
 
-	[[nodiscard]] Expected<std::vector<ImageHandle>> LoadSpriteSheet(
-		const std::string		  path,
-		const ImageSpecification& spec);
+	[[nodiscard]] Expected<std::vector<ImageHandle>>
+	LoadSpriteSheet(const std::string path, const ImageSpecification& spec);
 
 	void Unload(const std::string path);
 
 	void Unload(ImageHandle image);
-
-public:
-	/**
-	 * The maximum number of images that can be opened concurrently.
-	 */
-	static constexpr uint32_t maxImageCount = 4096;
 
 private:
 	/**
@@ -63,6 +58,12 @@ private:
 	 * be able to reference images by the path.
 	 */
 	std::unordered_map<std::string, std::vector<ImageHandle>> imageHandleMap;
+
+	/** A default texture that is displayed when a given texture id does not refer to an existing texture. */
+	nvrhi::TextureHandle defaultTexture;
+
+	/** Command list to upload CPU images to the GPU. */
+	nvrhi::CommandListHandle uploadList;
 };
 
 } // namespace Mupfel
