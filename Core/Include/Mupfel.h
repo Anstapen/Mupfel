@@ -43,7 +43,7 @@
 /* Rendering and UI */
 #include "Core/UI.h"
 #include "Renderer/Camera.h"
-#include "Renderer/ImageManager.h"
+#include "Renderer/Image.h"
 
 
 /* Utilities */

@@ -21,6 +21,7 @@
 #include "Logger.h"
 #include "NVRHIContext.h"
 #include "SubRenderer.h"
+#include "ImageManager.h"
 
 namespace Mupfel
 {
@@ -72,6 +73,8 @@ public:
 	 * \param delta_time The time passed since the last frame.
 	 */
 	void End(const Window& window, double delta_time);
+
+	ImageManager& GetImageManager();
 
 private:
 	/**
@@ -157,6 +160,9 @@ private:
 
 	/** Logger object to display debug messages. */
 	Logger::SafeLoggerPtr logger;
+
+	/** An image manager to hold the images. */
+	ImageManager imageManager;
 
 	/** Vulkan data structures needed to initialize a NVRHI device. */
 	NVRHIContext context;

@@ -6,7 +6,7 @@
 #pragma once
 #include "Core/Application.h"
 #include "Core/Error.h"
-#include "Renderer/ImageManager.h"
+#include "Renderer/Image.h"
 #include <string>
 #include <vector>
 

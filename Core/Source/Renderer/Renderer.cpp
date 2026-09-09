@@ -242,6 +242,9 @@ void Renderer::End(const Window& window, double delta_time)
 	this->nvrhiDevice->runGarbageCollection();
 }
 
+ImageManager& Mupfel::Renderer::GetImageManager()
+{ return imageManager; }
+
 void Renderer::Shutdown()
 {
 	if (nvrhiDevice)

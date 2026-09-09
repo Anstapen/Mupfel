@@ -183,18 +183,18 @@ bool Mupfel::Application::HasPhysicsEvents(Entity e) { return Get().physics->Has
 
 Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
 {
-	return Get().image_manager.Load(path);
+	return Get().renderer->GetImageManager().Load(path);
 }
 
 Expected<ImageHandle> Mupfel::Application::LoadAnimatedImage(const std::string path, const ImageSpecification& spec)
 {
-	return Get().image_manager.LoadAnimated(path, spec);
+	return Get().renderer->GetImageManager().LoadAnimated(path, spec);
 }
 
 Expected<std::vector<ImageHandle>>
 Mupfel::Application::LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec)
 {
-	return Get().image_manager.LoadSpriteSheet(path, spec);
+	return Get().renderer->GetImageManager().LoadSpriteSheet(path, spec);
 }
 
 ThreadPool& Mupfel::Application::GetCurrentThreadPool() { return Get().thread_pool; }
@@ -373,5 +373,3 @@ void Application::DeInit()
 
 	logger->info("Wrote config to mupfel.ini.");
 }
-
-ImageManager& Mupfel::Application::GetCurrentImageManager() { return Get().image_manager; }

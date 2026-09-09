@@ -7,17 +7,20 @@
 #include "InputManager.h"
 #include "Layer.h"
 #include "Logger.h"
-#include "Renderer/ImageManager.h"
 #include "Scene.h"
 #include "ThreadPool.h"
 #include "Window.h"
 #include "PhysicsEvents.h"
+#include "Error.h"
+#include "Renderer/Image.h"
+
 #include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+#include <expected>
 
 namespace Mupfel
 {
@@ -231,8 +234,6 @@ private:
 	 */
 	void DeInit();
 
-	static ImageManager& GetCurrentImageManager();
-
 	/**
 	 * @brief Marks the beginning of a new frame for frame-time measurement.
 	 *
@@ -293,9 +294,6 @@ private:
 
 	/** Renders to the screen. */
 	std::unique_ptr<Renderer> renderer;
-
-	/** Image Manager. */
-	ImageManager image_manager;
 
 	/**
 	 * @brief Thread pool for multi-threaded jobs (e.g., physics, AI).

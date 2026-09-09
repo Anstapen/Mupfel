@@ -1,4 +1,5 @@
 #include "ECSRenderer.h"
+#include "ECSRenderer.h"
 #include "Core/Application.h"
 #include "ImageManager.h"
 #include "Quad.h"
@@ -51,8 +52,6 @@ struct LightParams
 	float	 _pad2 = 0.0f;
 };
 
-static const uint32_t default_entity_capacity = 100000;
-static const uint32_t default_light_capacity = 100;
 
 bool Mupfel::ECSRenderer::Init(
 	nvrhi::DeviceHandle			  device,
