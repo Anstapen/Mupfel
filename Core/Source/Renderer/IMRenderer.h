@@ -11,11 +11,20 @@ namespace Mupfel
 class IMRenderer : public SubRenderer
 {
 public:
-	bool Init(nvrhi::DeviceHandle device, const nvrhi::FramebufferInfo& frameBufferInfo, uint32_t framesInFlight) final;
-	void PreUser(nvrhi::DeviceHandle device, nvrhi::CommandListHandle current_command_list, const FrameContext& context)
+	bool Init(
+		nvrhi::DeviceHandle			  device,
+		ImageManager&				  img_manager,
+		const nvrhi::FramebufferInfo& frameBufferInfo,
+		uint32_t					  framesInFlight) final;
+	void PreUser(
+		nvrhi::DeviceHandle		 device,
+		ImageManager&			 img_manager,
+		nvrhi::CommandListHandle current_command_list,
+		const FrameContext&		 context)
 		final;
 	void PostUser(
 		nvrhi::DeviceHandle		 device,
+		ImageManager&			 img_manager,
 		nvrhi::CommandListHandle current_command_list,
 		const FrameContext&		 context) final;
 

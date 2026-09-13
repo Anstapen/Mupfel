@@ -10,7 +10,6 @@
 #include "Renderer.h"
 #include "Core/Application.h"
 #include "ECSRenderer.h"
-#include "TriangleRenderer.h"
 
 /* NVRHI and vk-bootstrap includes */
 #include "NVRHIContext.h"
@@ -116,12 +115,17 @@ bool Renderer::Init(const Window& window)
 	}
 
 	/* Create and push back all the SubRenderers. */
-	auto tr = std::make_shared<TriangleRenderer>();
-	subRenderers.push_back(tr);
+	subRenderers.push_back(std::make_shared<ECSRenderer>());
+	uiRenderer = std::make_shared<IMRenderer>();
+	subRenderers.push_back(uiRenderer);
+	geoRenderer = std::make_shared<GeometryRenderer>();
+	subRenderers.push_back(geoRenderer);
+	debugRenderer = std::make_shared<DebugRenderer>();
+	subRenderers.push_back(debugRenderer);
 
 	for (uint32_t i = 0; i < subRenderers.size(); i++)
 	{
-		if (!subRenderers[i]->Init(this->nvrhiDevice, this->frameBuffers[0]->getFramebufferInfo(), frames_in_flight))
+		if (!subRenderers[i]->Init(nvrhiDevice, imageManager, frameBuffers[0]->getFramebufferInfo(), frames_in_flight))
 		{
 			Shutdown();
 			return false;
@@ -194,7 +198,7 @@ void Renderer::Begin(const Window& window, double delta_time)
 
 	for (auto& sr : subRenderers)
 	{
-		sr->PreUser(nvrhiDevice, commandList, frame);
+		sr->PreUser(nvrhiDevice, imageManager, commandList, frame);
 	}
 }
 
@@ -217,7 +221,7 @@ void Renderer::End(const Window& window, double delta_time)
 
 		for (auto& sr : subRenderers)
 		{
-			sr->PostUser(nvrhiDevice, commandList, frame);
+			sr->PostUser(nvrhiDevice, imageManager, commandList, frame);
 		}
 
 		/* Present image to screen. */

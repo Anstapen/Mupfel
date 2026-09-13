@@ -22,32 +22,38 @@ static const uint32_t default_entity_capacity = 1000;
 
 bool Mupfel::IMRenderer::Init(
 	nvrhi::DeviceHandle			  device,
+	ImageManager&				  img_manager,
 	const nvrhi::FramebufferInfo& frameBufferInfo,
 	uint32_t					  framesInFlight)
 {
 	(void)device;
 	(void)frameBufferInfo;
 	(void)framesInFlight;
+	(void)img_manager;
 	logger = Logger::Create("Immediate Mode Renderer");
 	return true;
 }
 
 void Mupfel::IMRenderer::PreUser(
 	nvrhi::DeviceHandle		 device,
+	ImageManager&			 img_manager,
 	nvrhi::CommandListHandle current_command_list,
 	const FrameContext&		 context)
 {
 	(void)device;
+	(void)img_manager;
 	(void)current_command_list;
 	(void)context;
 }
 
 void Mupfel::IMRenderer::PostUser(
 	nvrhi::DeviceHandle		 device,
+	ImageManager&			 img_manager,
 	nvrhi::CommandListHandle current_command_list,
 	const FrameContext&		 context)
 {
 	(void)device;
+	(void)img_manager;
 	(void)current_command_list;
 	(void)context;
 }
@@ -60,7 +66,6 @@ uint32_t Mupfel::IMRenderer::Button(float x, float y, float width, float height,
 		return 0;
 	}
 	auto it = images.find(image_path);
-	assert(it->second.size() == 3);
 
 	ImageHandle image_h = it->second[0];
 
@@ -147,9 +152,9 @@ void Mupfel::IMRenderer::PushObject(
 	 * into an NDC centre plus an NDC extent. */
 	TextureInstance t{};
 	t.pos_x = ((x + width * 0.5f) / screen_w) * 2.0f - 1.0f;
-	t.pos_y = ((y + height * 0.5f) / screen_h) * 2.0f - 1.0f;
+	t.pos_y = 1.0f - ((y + height * 0.5f) / screen_h) * 2.0f;
 	t.width = (width / screen_w) * 2.0f;
-	t.height = -(height / screen_h) * 2.0f;
+	t.height = (height / screen_h) * 2.0f;
 	t.rotation = rotation;
 	t.index = index;
 	t.uvScale = uv_scale;

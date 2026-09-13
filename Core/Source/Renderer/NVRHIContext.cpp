@@ -240,6 +240,8 @@ bool Mupfel::NVRHIContext::PickPhysicalDevice()
 
 	VkPhysicalDeviceVulkan12Features required_12features{};
 	required_12features.timelineSemaphore = true;
+	required_12features.descriptorBindingPartiallyBound = true;
+	required_12features.shaderSampledImageArrayNonUniformIndexing = true;
 
 	VkPhysicalDeviceVulkan13Features required_13features{};
 	required_13features.synchronization2 = true;

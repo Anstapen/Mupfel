@@ -7,7 +7,9 @@ namespace Mupfel
 enum class Error
 {
 	NO_MEMORY,
-	FILE_NOT_FOUND
+	INVALID_PARAMETER,
+	FILE_NOT_FOUND,
+	FILE_WRONG_FORMAT
 };
 
 template <typename T> using Expected = std::expected<T, Error>;

@@ -50,6 +50,10 @@ Currently, there are no mandatory or optinal instance extensions.
 
 * timelineSemaphore (Vulkan 1.2)
 
+* descriptorBindingPartiallyBound (Vulkan 1.2)
+
+* shaderSampledImageArrayNonUniformIndexing (Vulkan 1.2)
+
 * synchronization2 (Vulkan 1.3)
 
 * dynamicRendering (Vulkan 1.3)
@@ -95,5 +99,3 @@ To notify each other, the two systems (presentation engine and GPU) can use sema
 ### Overview of the Renderer loop
 
 As stated above, the main renderer (Mupfel::Renderer) is responsible for synchronization and selection of the correct frame to render to. The subrenderers only issue draw commands and bind their resources.
-
-

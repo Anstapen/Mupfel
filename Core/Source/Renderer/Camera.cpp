@@ -26,11 +26,7 @@ ScreenPoint Camera::WorldToScreen(float world_x, float world_y, float world_z) c
 	/* Make sure w is one. */
 	const glm::vec3 ndc = glm::vec3(clip) / clip.w;
 
-	/*
-	 * Projection() already flipped Y, so +Y in NDC points down and maps straight onto the
-	 * top-left-origin pixel space the cursor and UI use. No second flip here.
-	 */
-	return {(ndc.x * 0.5f + 0.5f) * width, (ndc.y * 0.5f + 0.5f) * height};
+	return {(ndc.x * 0.5f + 0.5f) * width, (0.5f - ndc.y * 0.5f) * height};
 }
 
 std::optional<WorldPoint> Mupfel::Camera::ScreenToWorld(float screen_x, float screen_y, float plane_z) const
@@ -75,7 +71,7 @@ ScreenVector Camera::WorldToScreenVector(float world_dx, float world_dy, float w
 	const glm::vec4 clip = CameraMath::Projection(*this, width, height) * CameraMath::View(*this) *
 						   glm::vec4(world_dx, world_dy, world_dz, 0.0f);
 
-	return {clip.x * 0.5f * width, clip.y * 0.5f * height};
+	return {clip.x * 0.5f * width, -clip.y * 0.5f * height};
 }
 
 std::optional<WorldVector> Camera::ScreenToWorldVector(float screen_dx, float screen_dy) const

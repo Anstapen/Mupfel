@@ -37,9 +37,6 @@ inline glm::mat4 Projection(const Camera& cam, float width, float height)
 
 	glm::mat4 proj = glm::ortho(-half.x, half.x, -half.y, half.y, 0.1f, 500.0f);
 
-	/* The clip space of vulkan has y pointing down. */
-	proj[1][1] *= -1;
-
 	return proj;
 }
 

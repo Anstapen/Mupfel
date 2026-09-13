@@ -10,7 +10,7 @@ typedef uint32_t ImageHandle;
 inline constexpr ImageHandle INVALID_IMAGE = 0;
 
 /** Upper bound on concurrently resident images. */
-inline constexpr uint32_t MAX_IMAGE_COUNT = 8192;
+inline constexpr uint32_t MAX_IMAGE_COUNT = 4096;
 
 /**
  * This structure is used to describe an animated image.

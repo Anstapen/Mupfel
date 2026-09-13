@@ -5,6 +5,8 @@
 namespace Mupfel
 {
 
+class ImageManager;
+
 /**
  * This structure encapsulates frame information needed by the subrenderer.
  */
@@ -44,28 +46,35 @@ public:
 	 * internal GPU structures.
 	 * \return True if the subrenderer initialization was successful, false otherwise.
 	 */
-	virtual bool
-	Init(nvrhi::DeviceHandle device, const nvrhi::FramebufferInfo& frameBufferInfo, uint32_t framesInFlight) = 0;
+	virtual bool Init(
+		nvrhi::DeviceHandle			  device,
+		ImageManager&				  img_manager,
+		const nvrhi::FramebufferInfo& frameBufferInfo,
+		uint32_t					  framesInFlight) = 0;
 
 	/**
 	 * Do work before any user layers are rendered.
-	 * 
+	 *
 	 * \param device NVRHI device that is used to render.
 	 * \param current_command_list The command list to which the draw calls can be submitted.
 	 * \param context The frame context.
 	 */
-	virtual void
-	PreUser(nvrhi::DeviceHandle device, nvrhi::CommandListHandle current_command_list, const FrameContext& context) = 0;
+	virtual void PreUser(
+		nvrhi::DeviceHandle		 device,
+		ImageManager&			 img_manager,
+		nvrhi::CommandListHandle current_command_list,
+		const FrameContext&		 context) = 0;
 
 	/**
 	 * Do work after any user layers are rendered.
-	 * 
+	 *
 	 * \param device NVRHI device that is used to render.
 	 * \param current_command_list The command list to which the draw calls can be submitted.
 	 * \param context The frame context.
 	 */
 	virtual void PostUser(
 		nvrhi::DeviceHandle		 device,
+		ImageManager&			 img_manager,
 		nvrhi::CommandListHandle current_command_list,
 		const FrameContext&		 context) = 0;
 };

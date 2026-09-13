@@ -284,7 +284,7 @@ void Application::Run()
 			SwitchScene(queued_scene);
 			queued_scene = Scene::INVALID_HANDLE;
 		}
-#if 0
+
 		{
 			ProfilingSample prof("Current Scene - OnUpdate ");
 			scenes[current_scene]->OnUpdate(timestep);
@@ -311,12 +311,12 @@ void Application::Run()
 			/* Update the Collision System */
 			animationSystem->Update(timestep);
 		}
-#endif
+
 		{
 			ProfilingSample prof("Engine Renderer Begin");
 			renderer->Begin(Window::GetInstance(), timestep);
 		}
-#if 0
+
 		{
 			ProfilingSample prof("Current Scene - OnRender");
 			scenes[current_scene]->OnRender();
@@ -339,7 +339,7 @@ void Application::Run()
 				debug_layer->OnRender();
 			}
 		}
-#endif
+
 		{
 			ProfilingSample prof("Engine Renderer End");
 			renderer->End(Window::GetInstance(), timestep);

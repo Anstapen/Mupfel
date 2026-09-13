@@ -11,6 +11,14 @@ set FLAGS=-target spirv -profile spirv_1_3 -capability %CAPS% -emit-spirv-direct
 
 %SLANGC% default_fragment.slang -target spirv -profile spirv_1_3 -emit-spirv-directly -fvk-use-entrypoint-name -entry fragMain -o default_fragment.spv
 
+%SLANGC% ecs_fragment.slang -target spirv -profile spirv_1_3 -emit-spirv-directly -fvk-use-entrypoint-name -entry fragMain -source-embed-style u8 -source-embed-name ecsFragment -o ecs_fragment.h
+
+%SLANGC% ecs_fragment.slang -target spirv -profile spirv_1_3 -emit-spirv-directly -fvk-use-entrypoint-name -entry fragMain -o ecs_fragment.spv
+
+%SLANGC% ecs_vertex.slang -target spirv -profile spirv_1_3 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -source-embed-style u8 -source-embed-name ecsVertex -o ecs_vertex.h
+
+%SLANGC% ecs_vertex.slang -target spirv -profile spirv_1_3 -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -o ecs_vertex.spv
+
 %SLANGC% ecs.slang %FLAGS% -o ecs.spv
 %SLANGC% imgui.slang %FLAGS% -o imgui.spv
 %SLANGC% line.slang %FLAGS% -o line.spv
