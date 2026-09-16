@@ -184,11 +184,8 @@ dependency must not be able to break our build. `App` doesn't call it either —
 
 Premake's portable verbs are used rather than raw flags because the same scripts generate an MSVC solution
 *and* GCC makefiles, and the literal flags don't translate: `-Wall` on MSVC (`/Wall`) means every
-off-by-default warning including the ones the CRT headers trip. `warnings "High"` is the intended
-equivalent. The two are not identical sets — MSVC's `/W4` includes C4100 (unreferenced formal parameter)
-and C4456/C4458 (shadowing), which GCC/Clang put in `-Wextra` and `-Wshadow` respectively — so the Windows
-build is the stricter of the two. `disablewarnings { "4100" }` inside the helper is the escape hatch if
-that asymmetry ever becomes a nuisance.
+off-by-default warning including the ones the CRT headers trip. On GCC, `warnings "High"` is overridden
+entirely — see "Warning parity" below.
 
 **Vendored headers are the other half of this.** A third-party header included from one of our `.cpp`
 files warns as if we had written it, and `/WX` would then fail our build over ImGui's code. So both
@@ -203,6 +200,55 @@ That emits `-isystem` on GCC/Clang and `<ExternalIncludePath>` + `<ExternalWarni
 order is unchanged — both are searched *after* the normal include dirs, which is exactly where the vendored
 entries already sat — so this is warning policy only, not a resolution change. **When you add a vendored
 dependency to `Core` or `Tests`, put its path in `externalincludedirs`, not `includedirs`.**
+
+### Warning parity: MSVC `/W4` is the reference
+
+`-Wall` and `/W4` are different sets in both directions, and with warnings fatal each extra check on
+one side is a build that fails on that platform only. MSVC `/W4` (plus C5038, which `/W4` leaves off)
+is the reference, because Windows is where the code is written. GCC does not get `-Wall`: under
+`filter "toolset:gcc"` it gets `warnings "Default"` plus an explicit list of the GCC counterparts of
+`/W4` warnings. A GCC upgrade that adds checks to `-Wall` therefore changes nothing here.
+
+The mapping was established by compiling one probe file of ~75 constructs with MSVC (`/W4 /w15038`,
+`/Od` and `/O2`) and GCC 14.2 (`-O0` and `-O3`) and comparing what each reported:
+
+| GCC flag | MSVC `/W4` | GCC also reports (MSVC accepts) |
+|---|---|---|
+| `-Wreorder` | C5038 | |
+| `-Wunused-parameter` | C4100 | |
+| `-Wunused-variable` | C4101, C4189 | unused `static` variables at namespace scope |
+| `-Wunused-function` | C4505 | unused functions in an anonymous namespace |
+| `-Wunused-label` | C4102 | |
+| `-Wunused-value` | C4553 | |
+| `-Wuninitialized` | C4700 | |
+| `-Wempty-body` | C4390 | |
+| `-Wsign-compare` | C4018, C4389 | `int` vs `size_t`, e.g. `i < v.size()` |
+| `-Wformat` | C4477 | |
+| `-Wbool-compare` | C4806 | |
+| `-Wunknown-pragmas` | C4068 | |
+| `-Winfinite-recursion` | C4717 | |
+| `-Wdelete-non-virtual-dtor` | C5205 | deleting a *non-abstract* polymorphic class |
+| `-Wconversion` | C4244, C4267, C4305 | `long` → `int` (`long` is 64-bit on Linux, 32-bit on Windows) |
+| *(on by default)* | C4715, C4172, C4834, C4996 | |
+
+The right-hand column is what is left of GCC being stricter. None of those patterns appeared in the code
+when this was set up; each is the same class of problem as its MSVC counterpart, not a different check.
+
+Deliberately **not** enabled, although `/W4` has a counterpart, because GCC's version also covers code
+MSVC accepts:
+
+- `-Wparentheses` (C4706 assignment in condition, C4554 shift precedence) — also `a && b || c`.
+- `-Wshadow` (C4456–C4459) — also constructor parameters named after members (`Foo(int m) : m(m)`) and
+  lambda parameters. `-Wshadow=local` still reports the lambda case and loses C4458/C4459.
+- `-Wsign-conversion` (C4245) — also every implicit `int` → `unsigned` and every `v[i]` with an `int` `i`.
+- `-Wmaybe-uninitialized` (C4701) — its results depend on the optimizer, and it has long-standing false
+  positives on `std::optional`/`std::expected`. Disabled explicitly, because `-Wuninitialized` implies it.
+- `-Wformat-overflow` / `-Wformat-truncation` — implied by `-Wformat`, no MSVC counterpart. Disabled
+  explicitly.
+
+These stay caught on Windows, so the only cost is code that MSVC never compiles (`#ifndef _WIN32`
+branches). The list is scoped to `toolset:gcc` rather than `system:not windows` because clang rejects
+`-Wbool-compare` as unknown, which `-Werror` makes fatal; a clang build keeps plain `-Wall`.
 
 ## Box2D — the one project that isn't C++
 

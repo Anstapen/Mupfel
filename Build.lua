@@ -173,6 +173,10 @@ end
 --   fatalwarnings { "All" } -> -Werror (clang/gcc) | /WX (MSVC, i.e. <TreatWarningAsError>)
 --   externalwarnings "Off"  -> see below           | /external:W0
 --
+-- MSVC's /W4 is the reference level. GCC does not get -Wall: it gets the GCC counterparts of what /W4
+-- reports, and nothing else, so the Linux build cannot fail on code the Windows build accepts. The
+-- mapping, and the counterparts deliberately left out, are in BUILD.md ("Warning parity").
+--
 -- The other half of "ignore vendored warnings" is include *paths*: a third-party header included from
 -- one of our .cpp files warns as if we had written it, so -Werror would fail our build over spdlog's
 -- or ImGui's code. The three projects therefore list every vendored path under `externalincludedirs`
@@ -191,6 +195,35 @@ function ApplyStrictWarnings()
     -- Premake spells enablewarnings as -W<n> for clang/gcc, and -W5038 is not a valid flag there.
     filter "action:vs*"
         enablewarnings { "5038" }
+
+    -- warnings "Default" emits no -W flag, leaving GCC's always-on warnings (return type, returning a
+    -- local's address, [[nodiscard]], [[deprecated]] -- all of which /W4 reports too) plus this list.
+    -- The disabled ones come in implicitly: -Wformat implies the snprintf/sprintf buffer-size analyses,
+    -- which MSVC has no equivalent of, and -Wuninitialized implies -Wmaybe-uninitialized, whose
+    -- optimizer-dependent results produce GCC-only false positives (see BUILD.md). Scoped to gcc because
+    -- clang rejects some of these spellings (-Wbool-compare) as unknown, which -Werror makes fatal.
+    filter "toolset:gcc"
+        warnings "Default"
+        enablewarnings
+        {
+            "reorder",                 -- C5038
+            "unused-parameter",        -- C4100
+            "unused-variable",         -- C4101, C4189
+            "unused-function",         -- C4505
+            "unused-label",            -- C4102
+            "unused-value",            -- C4553
+            "uninitialized",           -- C4700
+            "empty-body",              -- C4390
+            "sign-compare",            -- C4018, C4389
+            "format",                  -- C4477
+            "bool-compare",            -- C4806
+            "unknown-pragmas",         -- C4068
+            "infinite-recursion",      -- C4717
+            "delete-non-virtual-dtor", -- C5205
+            "conversion",              -- C4244, C4267, C4305
+        }
+        disablewarnings { "format-overflow", "format-truncation", "maybe-uninitialized" }
+
     filter {}
 end
 
