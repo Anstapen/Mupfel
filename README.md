@@ -1,7 +1,6 @@
 # Mupfel Game Engine
 
-[![Windows](https://github.com/Anstapen/Mupfel/actions/workflows/windows.yml/badge.svg?branch=master)](https://github.com/Anstapen/Mupfel/actions/workflows/windows.yml)
-[![Linux](https://github.com/Anstapen/Mupfel/actions/workflows/linux.yml/badge.svg?branch=master)](https://github.com/Anstapen/Mupfel/actions/workflows/linux.yml)
+[![CI](https://github.com/Anstapen/Mupfel/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Anstapen/Mupfel/actions/workflows/ci.yml)
 
 This is the home of the Mupfel Game Engine.
 
