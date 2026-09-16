@@ -184,6 +184,14 @@ function ApplyStrictWarnings()
     warnings "High"
     externalwarnings "Off"
     fatalwarnings { "All" }
+
+    -- C5038 is MSVC's -Wreorder-ctor (member initializer list out of declaration order). Clang has it
+    -- in -Wall; MSVC keeps it off even at /W4, so without this only the Linux build catches it.
+    -- Emitted as /w15038, which /WX above turns into an error. Scoped to the VS action because
+    -- Premake spells enablewarnings as -W<n> for clang/gcc, and -W5038 is not a valid flag there.
+    filter "action:vs*"
+        enablewarnings { "5038" }
+    filter {}
 end
 
 -- Vendor is unconditional: every possible --modules selection contains Core (see Modules.lua), and

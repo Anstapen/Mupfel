@@ -68,7 +68,7 @@ public:
 	 * Create a new Entity Manager. It allocates memory for 100 entities on creation.
 	 *
 	 */
-	EntityManager() : freeList(), current_entities(0), next_entity_index(1)
+	EntityManager() : current_entities(0), next_entity_index(1)
 	{
 		freeList.reserve(100);
 		alive.reserve(100);

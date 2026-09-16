@@ -5,7 +5,7 @@
 using namespace Mupfel;
 
 PhysicsSimulation::PhysicsSimulation(Registry& in_reg, EventSystem& in_evt_system)
-	: reg(in_reg), evt_system(in_evt_system), time_multi(1.0f), single_step(false)
+	: time_multi(1.0f), single_step(false), reg(in_reg), evt_system(in_evt_system)
 {
 	collision_system = std::make_unique<CollisionSystem>(reg, evt_system);
 }

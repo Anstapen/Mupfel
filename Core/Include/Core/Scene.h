@@ -53,7 +53,7 @@ protected:
 	virtual void Deserialize(const std::string& path) { (void)path; };
 
 	Scene(SceneHandle in_handle, const SceneDefinition& def)
-		: handle(in_handle), camera(def.cam), gravity_x(def.gravity_x), gravity_y(def.gravity_y)
+		: camera(def.cam), gravity_x(def.gravity_x), gravity_y(def.gravity_y), handle(in_handle)
 	{
 		std::string name(def.name);
 		logger = Logger::Create(name);

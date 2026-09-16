@@ -1,12 +1,10 @@
 # Mupfel Game Engine
 
-[![CI](https://github.com/Anstapen/Mupfel/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Anstapen/Mupfel/actions/workflows/ci.yml)
+
 
 This is the home of the Mupfel Game Engine.
 
 More information to be added.
-
-
 
 ## License
 

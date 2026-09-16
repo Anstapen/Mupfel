@@ -1,0 +1,83 @@
+name: Linux
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VULKAN_SDK_VERSION: "1.4.357.0"
+  PREMAKE_VERSION: "5.0.0-beta8"
+
+jobs:
+  linux:
+    name: Ubuntu / ${{ matrix.config }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain and system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-19 libstdc++-14-dev libglfw3-dev
+
+      - name: Cache Vulkan SDK
+        id: vulkan-sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/VulkanSDK
+          key: vulkan-sdk-linux-${{ env.VULKAN_SDK_VERSION }}
+
+      - name: Install Vulkan SDK
+        if: steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          ver="$VULKAN_SDK_VERSION"
+          mkdir -p "$RUNNER_TEMP/VulkanSDK"
+          curl -fsSL "https://sdk.lunarg.com/sdk/download/$ver/linux/vulkansdk-linux-x86_64-$ver.tar.xz" \
+            | tar -xJ -C "$RUNNER_TEMP/VulkanSDK" "$ver/x86_64/include" "$ver/x86_64/lib/VulkanLoader"
+
+      - name: Verify Vulkan SDK and export VULKAN_SDK
+        run: |
+          root="$RUNNER_TEMP/VulkanSDK/$VULKAN_SDK_VERSION/x86_64"
+          for f in include/vulkan/vulkan_core.h lib/VulkanLoader/lib/libvulkan.so; do
+            if [ ! -e "$root/$f" ]; then
+              echo "Contents of $RUNNER_TEMP/VulkanSDK:"
+              find "$RUNNER_TEMP/VulkanSDK" -maxdepth 4
+              echo "::error::Vulkan SDK install incomplete at $root: missing $f"
+              exit 1
+            fi
+          done
+          echo "Vulkan SDK OK at $root"
+          echo "VULKAN_SDK=$root" >> "$GITHUB_ENV"
+
+      - name: Generate makefiles
+        run: Vendor/Binaries/Premake/Linux/premake5 --cc=clang --file=Build.lua gmake
+
+      - name: Build
+        env:
+          CC: clang-19
+          CXX: clang++-19
+          CONFIG: ${{ matrix.config }}
+        run: make config="${CONFIG,,}" -j"$(nproc)"
+
+      - name: Run tests
+        env:
+          LD_LIBRARY_PATH: ${{ env.VULKAN_SDK }}/lib/VulkanLoader/lib
+        run: ./Binaries/linux-x86_64/${{ matrix.config }}/Tests/Tests

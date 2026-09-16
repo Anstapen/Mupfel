@@ -3,7 +3,7 @@
 
 using namespace Mupfel;
 
-InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : event_system(evt_system), current_mode(in_mode)
+InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : current_mode(in_mode), event_system(evt_system)
 {
 	/* First, reset all mappings */
 	std::function<void(EventSystem&)> default_emitter = nullptr;

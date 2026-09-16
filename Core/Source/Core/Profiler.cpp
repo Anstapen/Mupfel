@@ -1,7 +1,7 @@
 #include "Profiler.h"
 #include "Application.h"
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 using namespace Mupfel;
 
@@ -17,12 +17,14 @@ thread_local uint32_t scope = 0;
  */
 static uint32_t sample_id = 0;
 
-ProfilingSample::ProfilingSample(std::string_view in_name) : name(in_name), active(true), depth(0), end_time(0.0f), id(0)
+ProfilingSample::ProfilingSample(std::string_view in_name)
+	: name(in_name), id(0), end_time(0.0f), active(true), depth(0)
 {
 	start_time = Application::GetTime();
 	id = Profiler::GetId();
 	depth = scope;
-	scope++;;
+	scope++;
+	;
 }
 
 ProfilingSample::~ProfilingSample()
@@ -43,48 +45,42 @@ ProfilingSample::~ProfilingSample()
 	{
 		Profiler::Get().AddSample(std::move(*this));
 	}
-	
 }
 
-Mupfel::ProfilingSample::ProfilingSample(ProfilingSample&& other) noexcept :
-	name(other.name),
-	start_time(other.start_time),
-	end_time(other.end_time),
-	active(other.active),
-	depth(other.depth),
-	id(other.id)
+Mupfel::ProfilingSample::ProfilingSample(ProfilingSample&& other) noexcept
+	: name(other.name), id(other.id), start_time(other.start_time), end_time(other.end_time), active(other.active),
+	  depth(other.depth)
+
 {
 	other.active = false;
 }
 
 ProfilingSample& Mupfel::ProfilingSample::operator=(ProfilingSample&& other) noexcept
 {
-	if (this != &other) {
+	if (this != &other)
+	{
 		name = other.name;
 		end_time = other.end_time;
 		start_time = other.start_time;
 		active = other.active;
 		depth = other.depth;
 		id = other.id;
-		other.active = false; 
+		other.active = false;
 	}
 	return *this;
 }
 
-Mupfel::ProfilingSample::ProfilingSample(const ProfilingSample& other) noexcept :
-	name(other.name),
-	start_time(other.start_time),
-	end_time(other.end_time),
-	active(false),
-	depth(other.depth),
-	id(other.id)
-{
+Mupfel::ProfilingSample::ProfilingSample(const ProfilingSample& other) noexcept
+	: name(other.name), id(other.id), start_time(other.start_time), end_time(other.end_time), active(false),
+	  depth(other.depth)
 
+{
 }
 
 ProfilingSample& Mupfel::ProfilingSample::operator=(const ProfilingSample& other) noexcept
 {
-	if (this != &other) {
+	if (this != &other)
+	{
 		name = other.name;
 		start_time = other.start_time;
 		end_time = other.end_time;
@@ -101,7 +97,8 @@ Profiler& Profiler::Get()
 	return *inst;
 }
 
-void Profiler::Clear() {
+void Profiler::Clear()
+{
 	std::scoped_lock lock(Get().mutex);
 	Get().is_clearing = true;
 	Get().samples.clear();
@@ -109,20 +106,14 @@ void Profiler::Clear() {
 	sample_id = 0;
 }
 
-bool Mupfel::Profiler::IsClearing()
-{
-	return Get().is_clearing;
-}
+bool Mupfel::Profiler::IsClearing() { return Get().is_clearing; }
 
-const std::vector<ProfilingSample>& Mupfel::Profiler::GetCurrentSamples()
-{
-	return Get().samples;
-}
+const std::vector<ProfilingSample>& Mupfel::Profiler::GetCurrentSamples() { return Get().samples; }
 
 uint32_t Mupfel::Profiler::GetId()
 {
 	std::scoped_lock lock(Get().mutex);
-	uint32_t new_id = sample_id;
+	uint32_t		 new_id = sample_id;
 	sample_id++;
 	return new_id;
 }

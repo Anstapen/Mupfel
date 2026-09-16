@@ -20,8 +20,8 @@ struct Animation
 		float	 elapsed_time = 0.0f,
 		bool	 in_repeating = true,
 		bool	 auto_start = false)
-		: firstFrame(in_first_frame), frameCount(in_frame_count), fps(in_fps), elapsed(elapsed_time),
-		  repeating(in_repeating), finished(!auto_start)
+		: firstFrame(in_first_frame), frameCount(in_frame_count), fps(in_fps), repeating(in_repeating),
+		  elapsed(elapsed_time), finished(!auto_start)
 	{
 	}
 
