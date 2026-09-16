@@ -199,8 +199,14 @@ project "box2d"
     -- Box2D relies on strict IEEE 754 evaluation order for cross-platform determinism, which FMA
     -- contraction breaks (https://box2d.org/posts/2024/08/determinism/). MSVC's default /fp:precise
     -- already disables contraction; GCC/Clang default to -ffp-contract=fast and need this opt-out.
+    --
+    -- gnu17 rather than C17 there, matching upstream's C_EXTENSIONS YES. Strict -std=c17 defines
+    -- __STRICT_ANSI__, which makes glibc hide everything POSIX -- and src/timer.c's Linux branch calls
+    -- clock_gettime(CLOCK_MONOTONIC) and sched_yield(). Linux-only because Premake's MSVC generator
+    -- knows only stdc11/stdc17/stdclatest: gnu17 there would emit no LanguageStandard_C at all.
     filter "system:not windows"
         buildoptions { "-ffp-contract=off" }
+        cdialect "gnu17"
 
     -- Box2D is the one project that stays optimized in Debug: an unoptimized solver/broadphase makes
     -- the game too slow to debug, and this is third-party code nobody steps through anyway. Build.lua

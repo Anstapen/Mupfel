@@ -228,6 +228,10 @@ Three consequences worth knowing:
   Box2D depends on strict IEEE 754 evaluation order for [cross-platform determinism](https://box2d.org/posts/2024/08/determinism/),
   which FMA contraction breaks. MSVC's default `/fp:precise` already disables it, so the flag is guarded
   by `filter "system:not windows"`.
+- **The dialect is `gnu17` on GCC/Clang, not `C17`**, matching upstream's `C_EXTENSIONS YES`. Strict
+  `-std=c17` defines `__STRICT_ANSI__`, so glibc hides POSIX declarations and `src/timer.c` fails on
+  `CLOCK_MONOTONIC`. The override sits under `filter "system:not windows"` because Premake's MSVC
+  generator has no mapping for `gnu17` and would drop `<LanguageStandard_C>` entirely.
 
 Upstream's CMake options are mirrored at their defaults: SIMD **on** (SSE2, which is baseline on x64) and
 `BOX2D_AVX2` **off**, so the binaries stay portable — define `BOX2D_AVX2` and add `/arch:AVX2` in the
