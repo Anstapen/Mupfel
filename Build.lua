@@ -33,6 +33,14 @@ if vulkan_windows_case then
             .. " (looked for vulkan-1.lib and vulkan.lib). Is the Vulkan SDK install complete?")
    end
 else
+   -- The LunarG Linux tarball keeps the loader in its own prefix: 1.4.357 ships libvulkan.so only
+   -- under lib/VulkanLoader/lib (which is also what its setup-env.sh puts on LD_LIBRARY_PATH), and
+   -- nothing under lib/ itself. Without this probe -lvulkan misses the SDK entirely and either fails
+   -- or silently links whatever older loader the distro has in /usr/lib. Plain lib/ stays as the
+   -- fallback for older SDKs and for distro-packaged ones (VULKAN_SDK=/usr).
+   if os.isfile(VulkanLibDir .. "/VulkanLoader/lib/libvulkan.so") then
+      VulkanLibDir = VulkanLibDir .. "/VulkanLoader/lib"
+   end
    VulkanLibName = "vulkan"
 end
 
