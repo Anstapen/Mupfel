@@ -183,7 +183,7 @@ dependency must not be able to break our build. `App` doesn't call it either —
 `App/Build-App.lua` if the game code should be held to the same bar.
 
 Premake's portable verbs are used rather than raw flags because the same scripts generate an MSVC solution
-*and* clang makefiles, and the literal flags don't translate: `-Wall` on MSVC (`/Wall`) means every
+*and* GCC makefiles, and the literal flags don't translate: `-Wall` on MSVC (`/Wall`) means every
 off-by-default warning including the ones the CRT headers trip. `warnings "High"` is the intended
 equivalent. The two are not identical sets — MSVC's `/W4` includes C4100 (unreferenced formal parameter)
 and C4456/C4458 (shadowing), which GCC/Clang put in `-Wextra` and `-Wshadow` respectively — so the Windows

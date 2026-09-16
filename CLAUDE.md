@@ -32,8 +32,10 @@ single source of truth for where each vendored dependency's source lives and how
   `premake5.exe --file=Build.lua vs2026`), then build with MSBuild or open the generated `.slnx` in
   Visual Studio. This requires the vendored `premake5.exe` (beta8+, under
   `Vendor/Binaries/Premake/Windows/`) — older Premake builds don't have the `vs2026` action.
-- Linux: run `Scripts/Setup-Linux.sh` (generates gmake2 project files via
-  `premake5 --cc=clang --file=Build.lua gmake2`), then `make`.
+- Linux: run `Scripts/Setup-Linux.sh` (generates GCC makefiles via
+  `premake5 --cc=gcc --file=Build.lua gmake`), then `make`. GCC 14+ is required (`std::ranges::to`);
+  on distros whose default `g++` is older (Ubuntu 24.04), build with `make CC=gcc-14 CXX=g++-14`.
+  Premake beta8 renamed the `gmake2` action to `gmake`.
 
 Both scripts must be run from inside `Scripts/` (they `pushd ..` to reach the repo root first).
 

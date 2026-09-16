@@ -36,7 +36,7 @@ jobs:
       - name: Install toolchain and system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-19 libstdc++-14-dev libglfw3-dev
+          sudo apt-get install -y --no-install-recommends g++-14 libglfw3-dev
 
       - name: Cache Vulkan SDK
         id: vulkan-sdk-cache
@@ -68,12 +68,12 @@ jobs:
           echo "VULKAN_SDK=$root" >> "$GITHUB_ENV"
 
       - name: Generate makefiles
-        run: Vendor/Binaries/Premake/Linux/premake5 --cc=clang --file=Build.lua gmake
+        run: Vendor/Binaries/Premake/Linux/premake5 --cc=gcc --file=Build.lua gmake
 
       - name: Build
         env:
-          CC: clang-19
-          CXX: clang++-19
+          CC: gcc-14
+          CXX: g++-14
           CONFIG: ${{ matrix.config }}
         run: make config="${CONFIG,,}" -j"$(nproc)"
 
