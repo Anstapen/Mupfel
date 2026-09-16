@@ -62,7 +62,9 @@ void Mupfel::Window::scroll_callback(GLFWwindow* window, double xoffset, double 
 void Window::cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	(void)window;
-	Application::GetCurrentInputManager().UpdateCursor(xpos, ypos);
+	int32_t w, h;
+	glfwGetWindowSize(window, &w, &h);
+	Application::GetCurrentInputManager().UpdateCursor(xpos, static_cast<double>(h) - ypos);
 }
 
 void Mupfel::Window::WaitEvents() const { glfwWaitEvents(); }

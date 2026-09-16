@@ -48,6 +48,8 @@ Currently, there are no mandatory or optinal instance extensions.
 
 ##### Required
 
+* shaderDrawParameters (Vulkan 1.1)
+
 * timelineSemaphore (Vulkan 1.2)
 
 * descriptorBindingPartiallyBound (Vulkan 1.2)

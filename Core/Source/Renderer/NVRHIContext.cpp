@@ -5,8 +5,7 @@
 
 using namespace Mupfel;
 
-Mupfel::NVRHIContext::~NVRHIContext()
-{ Shutdown(); }
+Mupfel::NVRHIContext::~NVRHIContext() { Shutdown(); }
 
 bool NVRHIContext::Init(GLFWwindow* window, uint32_t width, uint32_t height, uint32_t inFramesInFlight)
 {
@@ -64,7 +63,7 @@ bool Mupfel::NVRHIContext::CreateSwapchain(uint32_t width, uint32_t height, uint
 	/* Build a new swapchain. */
 	vkb::SwapchainBuilder swapchain_builder{this->device};
 	swapchain_builder.set_desired_min_image_count(vkb::SwapchainBuilder::DOUBLE_BUFFERING);
-	swapchain_builder.set_desired_format({VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR});
+	swapchain_builder.set_desired_format({VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR});
 	swapchain_builder.set_desired_extent(width, height);
 	swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 	swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_SAMPLED_BIT);
@@ -205,7 +204,8 @@ bool Mupfel::NVRHIContext::CreateInstanceAndSurface(GLFWwindow* window)
 	{
 		if (system_info.validation_layers_available)
 		{
-			instance_builder.enable_validation_layers().use_default_debug_messenger();
+			instance_builder.enable_validation_layers().use_default_debug_messenger().set_debug_messenger_type(
+				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
 		}
 	}
 
@@ -238,6 +238,9 @@ bool Mupfel::NVRHIContext::PickPhysicalDevice()
 	vkb::PhysicalDeviceSelector phys_device_selector(this->instance);
 	phys_device_selector.set_surface(this->surface);
 
+	VkPhysicalDeviceVulkan11Features required_11features{};
+	required_11features.shaderDrawParameters = true;
+
 	VkPhysicalDeviceVulkan12Features required_12features{};
 	required_12features.timelineSemaphore = true;
 	required_12features.descriptorBindingPartiallyBound = true;
@@ -247,6 +250,7 @@ bool Mupfel::NVRHIContext::PickPhysicalDevice()
 	required_13features.synchronization2 = true;
 	required_13features.dynamicRendering = true;
 
+	phys_device_selector.set_required_features_11(required_11features);
 	phys_device_selector.set_required_features_12(required_12features);
 	phys_device_selector.set_required_features_13(required_13features);
 

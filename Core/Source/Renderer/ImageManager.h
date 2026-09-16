@@ -51,6 +51,9 @@ public:
 	 *
 	 * \param path The filesystem path to the image.
 	 * \return ImageHandle or error code.
+	 * \retval Error::FILE_ALREADY_LOADED A spritesheet with the same name is already loaded.
+	 * \retval Error::NO_MEMORY Not enough memory to upload the image.
+	 * \retval Error::FILE_NOT_FOUND The image could not be found.
 	 */
 	[[nodiscard]] Expected<ImageHandle> Load(const std::string& path);
 
@@ -62,6 +65,11 @@ public:
 	 * \param path The filesystem path to the image.
 	 * \param spec How the image should be interpreted.
 	 * \return ImageHandle or error code.
+	 * \retval Error::FILE_ALREADY_LOADED A spritesheet with the same name is already loaded.
+	 * \retval Error::NO_MEMORY Not enough memory to upload the image.
+	 * \retval Error::FILE_NOT_FOUND The image could not be found.
+	 * \retval Error::INVALID_PARAMETER If spec.colums or spec.rows is zero.
+	 * \retval Error::FILE_WRONG_FORMAT If the image dimensions are incompatible with \a spec.
 	 */
 	[[nodiscard]] Expected<ImageHandle> LoadAnimated(const std::string& path, const ImageSpecification& spec);
 
@@ -74,6 +82,11 @@ public:
 	 * \param path The filesystem path to the image.
 	 * \param spec How the image should be interpreted.
 	 * \return The ImageHandles for all the spritesheet images or error code.
+	 * \retval Error::FILE_ALREADY_LOADED An animated image with the same name is already loaded.
+	 * \retval Error::NO_MEMORY Not enough memory to upload the image.
+	 * \retval Error::FILE_NOT_FOUND The image could not be found.
+	 * \retval Error::INVALID_PARAMETER If spec.colums or spec.rows is zero.
+	 * \retval Error::FILE_WRONG_FORMAT If the image dimensions are incompatible with \a spec.
 	 */
 	[[nodiscard]] Expected<std::vector<ImageHandle>>
 	LoadSpriteSheet(const std::string& path, const ImageSpecification& spec);
@@ -84,13 +97,6 @@ public:
 	 * \param path The filesystem path to the image.
 	 */
 	void Unload(const std::string& path);
-
-	/**
-	 * Unload an image using the ImageHandle.
-	 *
-	 * \param image The handle to the image.
-	 */
-	void Unload(ImageHandle image);
 
 	/**
 	 * Retrieve a texture handle from an image handle.
@@ -126,6 +132,22 @@ private:
 		uint32_t						  subWidth = 0;
 		uint32_t						  subHeight = 0;
 		std::vector<std::vector<uint8_t>> subImages;
+	};
+
+	enum class ImageType
+	{
+		NONE,
+		ANIMATED,
+		SPRITESHEET
+	};
+
+	/**
+	 * Information about an image which was already loaded.
+	 */
+	struct ImageInfo
+	{
+		ImageType				 type;
+		std::vector<ImageHandle> handles;
 	};
 
 	/**
@@ -164,13 +186,20 @@ private:
 	 */
 	ImageHandle AllocateSlot();
 
+	/**
+	 * Unload an image using the ImageHandle.
+	 *
+	 * \param image The handle to the image.
+	 */
+	void Unload(ImageHandle image);
+
 private:
 	/**
 	 * This map contains a path -> ImageHandle association.
 	 * Not used by the engine itself but useful for the user to
 	 * be able to reference images by the path.
 	 */
-	std::unordered_map<std::string, std::vector<ImageHandle>> imageHandleMap;
+	std::unordered_map<std::string, ImageInfo> imageHandleMap;
 
 	/** This vector contains the ImageHandle -> nvrhi::TextureHandle association. */
 	std::vector<nvrhi::TextureHandle> textureHandles;

@@ -1,22 +1,8 @@
-#include "quad.slang"
 
 static const uint SHAPE_NONE   = 0;
 static const uint SHAPE_RECT   = 1;
 static const uint SHAPE_LINE   = 2;
 static const uint SHAPE_CIRCLE = 3;
-
-struct GeometryInstance {
-    float2 pos1;
-    float2 axis_u;
-    float4 color;
-    float2 axis_v;
-    float2 inner_edge;
-    uint   shape;
-    float  _pad0;
-    float2 _pad1;
-};
-[[vk::binding(0, 0)]]
-StructuredBuffer<GeometryInstance> geo_instances;
 
 struct VSOutput
 {
@@ -26,21 +12,6 @@ struct VSOutput
     nointerpolation uint shape;
     nointerpolation float2 inner_edge;
 };
-
-[shader("vertex")]
-VSOutput vertMain(QuadVSInput input) {
-    VSOutput output;
-    GeometryInstance t = geo_instances[input.instanceIndex];
-
-    float2 offset = input.inPos.x * t.axis_u + input.inPos.y * t.axis_v;
-
-    output.pos        = float4(t.pos1 + offset, 0.0, 1.0);
-    output.shape_pos  = input.inPos * 2.0;
-    output.color      = t.color;
-    output.inner_edge = t.inner_edge;
-    output.shape      = t.shape;
-    return output;
-}
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_TARGET {
@@ -52,7 +23,7 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
 
     uint shape = vertIn.shape;
 
-    if(shape == 1) // Rectangle
+    if(shape == SHAPE_RECT)
     {
         // Discard all pixels 
         if (all(abs(vertIn.shape_pos) < vertIn.inner_edge))
@@ -63,12 +34,12 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
         return vertIn.color;
     }
 
-    if(shape == 2) // Line
+    if(shape == SHAPE_LINE)
     {
         return vertIn.color;
     }
 
-    if(shape == 3) // Circle
+    if(shape == SHAPE_CIRCLE)
     {
         float sqrt_length = dot(vertIn.shape_pos, vertIn.shape_pos);
 

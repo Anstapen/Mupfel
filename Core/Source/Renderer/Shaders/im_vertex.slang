@@ -9,7 +9,8 @@ struct TextureInstance {
     float  uvScale;
 	float  _pad1;
 };
-[[vk::binding(0, 1)]]
+
+[[vk::binding(2, 0)]]
 StructuredBuffer<TextureInstance> texture_instances;
 
 struct VSOutput
@@ -29,21 +30,4 @@ VSOutput vertMain(QuadVSInput input) {
     output.fragTexCoord = input.inTexCoord * t.uvScale;
     output.textureIndex = t.textureIndex;
     return output;
-}
-
-static const uint kMaxTextures = 4096;
-[[vk::binding(0, 0)]]
-Sampler2DArray textures[kMaxTextures];
-
-[shader("fragment")]
-float4 fragMain(VSOutput vertIn) : SV_TARGET {
-
-    float4 tex_color = textures[NonUniformResourceIndex(vertIn.textureIndex)].Sample(float3(vertIn.fragTexCoord, 0));
-
-    if(tex_color.w < 0.1f)
-    {
-        discard;
-    }
-
-    return tex_color;
 }

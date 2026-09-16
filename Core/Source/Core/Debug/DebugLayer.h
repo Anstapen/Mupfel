@@ -23,11 +23,6 @@ namespace Mupfel {
 		void DrawCircleSensor(Transform& t, Sensor& s);
 		void DrawBoxSensor(Transform& t, Sensor& s);
 		void DrawCapsuleSensor(Transform& t, Sensor& s);
-		void UpdateMVP();
-		glm::vec2 ToPixels(glm::vec3 world_pos);
-	private:
-		glm::mat4 view{};
-		glm::mat4 proj{};
 	};
 }
 

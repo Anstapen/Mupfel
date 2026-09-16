@@ -1,7 +1,4 @@
-struct VSInput {
-    float2 inPos;
-    float2 inTexCoord;
-};
+#include "quad.slang"
 
 struct UniformBuffer {
     float4x4 view;
@@ -22,7 +19,7 @@ struct TextureInstance {
     uint   frame;
     float  _pad2;
 };
-[[vk::binding(0, 2)]]
+[[vk::binding(3, 0)]]
 StructuredBuffer<TextureInstance> texture_instances;
 
 struct VSOutput
@@ -31,14 +28,25 @@ struct VSOutput
     float2 fragTexCoord;
     nointerpolation uint textureIndex : TEXCOORD1;
     nointerpolation uint frame        : TEXCOORD2;
+    nointerpolation uint emitsLight;
+    float3 worldPos;
+    float3 worldNormal;
 };
 
 [shader("vertex")]
-VSOutput vertMain(VSInput input) {
+VSOutput vertMain(QuadVSInput input) {
     VSOutput output;
-    output.pos = mul(ubo.proj, mul(ubo.view, float4(input.inPos, 0.0, 1.0)));
+
+    TextureInstance t = texture_instances[input.instanceIndex];
+
+    float2 offset   = ExpandQuad(input.inPos, t.scale, t.rotation);
+    float3 worldPos = t.pos + float3(offset, 0.0);
+    output.worldPos = worldPos;
+    output.worldNormal = float3(0.0, 0.0, 1.0);
+    output.pos          = mul(ubo.proj, mul(ubo.view, float4(worldPos, 1.0)));
     output.fragTexCoord = input.inTexCoord;
-    output.textureIndex = 1;
-    output.frame = 0;
+    output.textureIndex = t.textureIndex;
+    output.frame = t.frame;
+    output.emitsLight = t.emitsLight;
     return output;
 }

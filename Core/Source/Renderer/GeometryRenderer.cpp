@@ -3,23 +3,10 @@
 #include "Quad.h"
 #include <cstdint>
 
-using namespace Mupfel;
+#include "Shaders/geo_fragment.h"
+#include "Shaders/geo_vertex.h"
 
-struct GeometryInstance
-{
-	/** NDC centre of the quad. */
-	glm::vec2 pos1;
-	/** Full extent along the quad's local +x, in NDC. Any rotation is baked in. */
-	glm::vec2 axis_u;
-	glm::vec4 color;
-	/** Full extent along the quad's local +y, in NDC. */
-	glm::vec2 axis_v;
-	/** Inner outline boundary in local units; {0, 0} means filled. */
-	glm::vec2 inner_edge;
-	uint32_t  shape;
-	float	  _pad0;
-	glm::vec2 _pad1;
-};
+using namespace Mupfel;
 
 bool Mupfel::GeometryRenderer::Init(
 	nvrhi::DeviceHandle			  device,
@@ -27,11 +14,84 @@ bool Mupfel::GeometryRenderer::Init(
 	const nvrhi::FramebufferInfo& frameBufferInfo,
 	uint32_t					  framesInFlight)
 {
-	(void)device;
 	(void)img_manager;
-	(void)frameBufferInfo;
 	(void)framesInFlight;
 	logger = Logger::Create("Geometry Renderer");
+
+	nvrhi::ShaderHandle vertexShader = device->createShader(
+		nvrhi::ShaderDesc().setShaderType(nvrhi::ShaderType::Vertex).setEntryName("vertMain"), geoVertex,
+		geoVertex_sizeInBytes);
+
+	nvrhi::VertexAttributeDesc attributes[] = {
+		nvrhi::VertexAttributeDesc()
+			.setName("POSITION")
+			.setFormat(nvrhi::Format::RG32_FLOAT)
+			.setOffset(offsetof(Quad, pos))
+			.setElementStride(sizeof(Quad)),
+		nvrhi::VertexAttributeDesc()
+			.setName("TEXCOORD")
+			.setFormat(nvrhi::Format::RG32_FLOAT)
+			.setOffset(offsetof(Quad, texCoord))
+			.setElementStride(sizeof(Quad))};
+
+	nvrhi::InputLayoutHandle inputLayout =
+		device->createInputLayout(attributes, uint32_t(std::size(attributes)), vertexShader);
+
+	nvrhi::ShaderHandle fragmentShader = device->createShader(
+		nvrhi::ShaderDesc().setShaderType(nvrhi::ShaderType::Pixel).setEntryName("fragMain"), geoFragment,
+		geoFragment_sizeInBytes);
+
+	auto layoutDesc = nvrhi::BindingLayoutDesc()
+						  .setVisibility(nvrhi::ShaderType::All)
+						  .setBindingOffsets(
+							  nvrhi::VulkanBindingOffsets()
+								  .setShaderResourceOffset(0)
+								  .setSamplerOffset(0)
+								  .setConstantBufferOffset(0)
+								  .setUnorderedAccessViewOffset(0))
+						  .addItem(nvrhi::BindingLayoutItem::StructuredBuffer_SRV(0));
+
+	bindingLayout = device->createBindingLayout(layoutDesc);
+
+	auto pipelineDesc =
+		nvrhi::GraphicsPipelineDesc()
+			.setInputLayout(inputLayout)
+			.addBindingLayout(bindingLayout)
+			.setVertexShader(vertexShader)
+			.setPixelShader(fragmentShader)
+			.setRenderState(
+				nvrhi::RenderState()
+					.setDepthStencilState(nvrhi::DepthStencilState().disableDepthTest().disableDepthWrite())
+					.setRasterState(nvrhi::RasterState().setCullMode(nvrhi::RasterCullMode::None)));
+
+	this->pipeline = device->createGraphicsPipeline(pipelineDesc, frameBufferInfo);
+
+	if (!this->pipeline)
+	{
+		return false;
+	}
+
+	auto vertexBufferDesc = nvrhi::BufferDesc()
+								.setByteSize(quadVertices.size() * sizeof(Quad))
+								.setIsVertexBuffer(true)
+								.enableAutomaticStateTracking(nvrhi::ResourceStates::VertexBuffer)
+								.setDebugName("Vertex Buffer");
+	this->vertexBuffer = device->createBuffer(vertexBufferDesc);
+
+	auto indexBufferDesc = nvrhi::BufferDesc()
+							   .setByteSize(quadIndices.size() * sizeof(uint16_t))
+							   .setIsIndexBuffer(true)
+							   .enableAutomaticStateTracking(nvrhi::ResourceStates::IndexBuffer)
+							   .setDebugName("Quad Index Buffer");
+	this->indexBuffer = device->createBuffer(indexBufferDesc);
+
+	/* Upload the buffer to the GPU. */
+	nvrhi::CommandListHandle uploadList = device->createCommandList();
+	uploadList->open();
+	uploadList->writeBuffer(vertexBuffer, quadVertices.data(), quadVertices.size() * sizeof(Quad));
+	uploadList->writeBuffer(indexBuffer, quadIndices.data(), quadIndices.size() * sizeof(uint16_t));
+	uploadList->close();
+	device->executeCommandList(uploadList);
 
 	return true;
 }
@@ -46,6 +106,8 @@ void Mupfel::GeometryRenderer::PreUser(
 	(void)img_manager;
 	(void)current_command_list;
 	(void)context;
+
+	geometryBuffer.Clear();
 }
 
 void Mupfel::GeometryRenderer::PostUser(
@@ -54,10 +116,42 @@ void Mupfel::GeometryRenderer::PostUser(
 	nvrhi::CommandListHandle current_command_list,
 	const FrameContext&		 context)
 {
-	(void)device;
 	(void)img_manager;
-	(void)current_command_list;
-	(void)context;
+
+	if (geometryBuffer.Empty())
+	{
+		return;
+	}
+
+	uint32_t drawableItems =
+		static_cast<uint32_t>(std::min<uint64_t>(geometryBuffer.Size(), std::numeric_limits<uint32_t>::max()));
+
+	DualBufferStatus status = geometryBuffer.FlushToGPU(device, current_command_list);
+
+	if (status == DualBufferStatus::BUFFER_ALLOCATION_FAILED)
+	{
+		return;
+	}
+
+	if (status == DualBufferStatus::BUFFER_RESIZED)
+	{
+		RebuildDescriptorSet(device);
+	}
+
+	nvrhi::GraphicsState state =
+		nvrhi::GraphicsState()
+			.setPipeline(pipeline)
+			.setFramebuffer(context.frameBuffer)
+			.setViewport(
+				nvrhi::ViewportState().addViewportAndScissorRect(
+					nvrhi::Viewport(float(context.width), float(context.height))))
+			.addBindingSet(bindingSet)
+			.addVertexBuffer(nvrhi::VertexBufferBinding().setBuffer(vertexBuffer).setSlot(0).setOffset(0))
+			.setIndexBuffer(
+				nvrhi::IndexBufferBinding().setBuffer(indexBuffer).setFormat(nvrhi::Format::R16_UINT).setOffset(0));
+
+	current_command_list->setGraphicsState(state);
+	current_command_list->drawIndexed(nvrhi::DrawArguments().setVertexCount(6).setInstanceCount(drawableItems));
 }
 
 void Mupfel::GeometryRenderer::Rectangle(glm::vec2 pos, float width, float height, glm::vec4 color, uint32_t thickness)
@@ -79,8 +173,6 @@ void Mupfel::GeometryRenderer::Line(glm::vec2 start, glm::vec2 end, glm::vec4 co
 	const glm::vec2 delta = end - start;
 	const float		length = glm::length(delta);
 
-	/* A degenerate line has no direction to orient the quad by, and normalising it
-	 * would write NaNs into the instance buffer. */
 	if (length < 1e-6f)
 	{
 		return;
@@ -100,6 +192,11 @@ void Mupfel::GeometryRenderer::PushObject(
 	Shape	  shape,
 	float	  thickness)
 {
+	if (Application::IsWindowMinimized())
+	{
+		return;
+	}
+
 	const float screen_w = static_cast<float>(Application::GetCurrentRenderWidth());
 	const float screen_h = static_cast<float>(Application::GetCurrentRenderHeight());
 
@@ -108,9 +205,6 @@ void Mupfel::GeometryRenderer::PushObject(
 		return;
 	}
 
-	/* Callers work in pixels and bake any rotation into the axis vectors, so the
-	 * pixel -> NDC conversion happens per component here, *after* rotating. Converting
-	 * first and rotating in NDC would shear the shape by the window's aspect ratio. */
 	GeometryInstance g{};
 	g.pos1.x = (center.x / screen_w) * 2.0f - 1.0f;
 	g.pos1.y = (center.y / screen_h) * 2.0f - 1.0f;
@@ -121,8 +215,6 @@ void Mupfel::GeometryRenderer::PushObject(
 	g.color = color;
 	g.shape = static_cast<uint32_t>(shape);
 
-	/* Outline thickness is in pixels; the shader's local frame spans [-1, 1], so one
-	 * local unit is half the quad's pixel extent along that axis. */
 	g.inner_edge = glm::vec2(0.0f);
 	if (thickness > 0.0f)
 	{
@@ -135,5 +227,13 @@ void Mupfel::GeometryRenderer::PushObject(
 		}
 	}
 
-	/* TODO ensure capacity and push object into GPU buffer. */
+	geometryBuffer.PushBack(g);
+}
+
+void Mupfel::GeometryRenderer::RebuildDescriptorSet(nvrhi::DeviceHandle device)
+{
+	nvrhi::BindingSetDesc bindingSetDesc = nvrhi::BindingSetDesc().addItem(
+		nvrhi::BindingSetItem::StructuredBuffer_SRV(0, geometryBuffer.GetGPUBufferHandle()));
+
+	bindingSet = device->createBindingSet(bindingSetDesc, bindingLayout);
 }

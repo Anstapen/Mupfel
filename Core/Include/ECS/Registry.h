@@ -22,7 +22,6 @@ namespace Mupfel
 template <typename FirstComponent, typename... Components> class View;
 class CollisionSystem;
 class Application;
-class MovementSystem;
 
 /**
  * A Registry holds a complete ECS context. It provides methods to create / destroy
@@ -33,8 +32,6 @@ class Registry
 {
 	template <typename FirstComponent, typename... Components> friend class View;
 	friend class CollisionSystem;
-	friend class MovementSystem;
-	friend class Renderer;
 
 public:
 	/** Helper type for a unique ptr for component arrays. */

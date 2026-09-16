@@ -115,6 +115,8 @@ public:
 	 */
 	static float GetLastFrameTime();
 
+	static void SetTargetFPS(uint32_t target_fps);
+
 	/**
 	 * @brief Returns the current width of the render surface in pixels.
 	 */
@@ -326,6 +328,11 @@ private:
 
 	/** @brief Duration of the most recently completed frame (in seconds). */
 	double last_frame_time = 0.0f;
+
+	/** The target frames per second. */
+	uint32_t targetFPS = 144;
+
+	double next_frame_deadline = 0.0;
 
 	/** @brief A frame counter (mostly for debugging purposes) */
 	uint64_t frame_count = 0;

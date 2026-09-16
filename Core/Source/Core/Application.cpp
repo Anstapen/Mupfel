@@ -1,4 +1,12 @@
 #include "Application.h"
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <timeapi.h>
+#include <windows.h>
+#pragma comment(lib, "winmm.lib")
+#endif
+
 #include "Debug/DebugLayer.h"
 #include "DefaultScene.h"
 #include "ECS/Registry.h"
@@ -115,6 +123,10 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 
 	frame_count = 0;
 
+#ifdef _WIN32
+	timeBeginPeriod(1);
+#endif
+
 	return true;
 }
 
@@ -126,25 +138,47 @@ void Mupfel::Application::StartFrameTime() { Get().start_frame_time = GetTime();
 
 void Mupfel::Application::EndFrameTime()
 {
-	double current_time = GetTime();
-	double frame_time = current_time - Get().start_frame_time;
+	auto& app = Get();
 
-#if 0
-	double wait_time = (1.0f / 500.0f) - frame_time;
-
-	if (wait_time > 0.0f)
+	if (app.targetFPS > 0)
 	{
-		WaitTime((float)wait_time);
-		current_time = GetTime();
-		frame_time = (float)(current_time - Get().start_frame_time);
+		const double desired_frame_time = 1.0 / static_cast<double>(app.targetFPS);
+		app.next_frame_deadline += desired_frame_time;
+
+		double now = GetTime();
+
+		if (now > app.next_frame_deadline)
+		{
+			/* We are behind the target FPS, do not sleep. */
+			app.next_frame_deadline = now;
+		}
+		else
+		{
+			constexpr double spin_margin = 0.002;
+			const double	 remaining = app.next_frame_deadline - now;
+
+			/* We only wait for a percentage of the total waiting time, to minimize overshooting. */
+			if (remaining > spin_margin)
+			{
+				WaitTime(remaining - spin_margin);
+			}
+
+			/* Precise wait for the rest. */
+			while (GetTime() < app.next_frame_deadline)
+			{
+				std::this_thread::yield();
+			}
+		}
 	}
-#endif
-	Get().last_frame_time = frame_time;
+
+	app.last_frame_time = GetTime() - app.start_frame_time;
 }
 
 void Mupfel::Application::WaitTime(double time) { std::this_thread::sleep_for(std::chrono::duration<double>(time)); }
 
 float Mupfel::Application::GetLastFrameTime() { return static_cast<float>(Get().last_frame_time); }
+
+void Mupfel::Application::SetTargetFPS(uint32_t target_fps) { Get().targetFPS = target_fps; }
 
 int Mupfel::Application::GetCurrentRenderWidth()
 {
@@ -321,7 +355,7 @@ void Application::Run()
 			ProfilingSample prof("Current Scene - OnRender");
 			scenes[current_scene]->OnRender();
 		}
-		
+
 		{
 			ProfilingSample prof("Layer Rendering");
 			for (const std::unique_ptr<Layer>& layer : layerStack)
@@ -329,7 +363,7 @@ void Application::Run()
 				layer->OnRender();
 			}
 		}
-		
+
 		{
 			ProfilingSample prof("DebugLayer");
 			if (debugModeEnabled)
@@ -362,6 +396,9 @@ void Application::Run()
 
 void Application::DeInit()
 {
+#ifdef _WIN32
+	timeEndPeriod(1);
+#endif
 	physics->DeInit();
 	renderer->Shutdown();
 	animationSystem->Shutdown();

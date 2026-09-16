@@ -26,7 +26,7 @@ ScreenPoint Camera::WorldToScreen(float world_x, float world_y, float world_z) c
 	/* Make sure w is one. */
 	const glm::vec3 ndc = glm::vec3(clip) / clip.w;
 
-	return {(ndc.x * 0.5f + 0.5f) * width, (0.5f - ndc.y * 0.5f) * height};
+	return {(ndc.x * 0.5f + 0.5f) * width, (ndc.y * 0.5f + 0.5f) * height};
 }
 
 std::optional<WorldPoint> Mupfel::Camera::ScreenToWorld(float screen_x, float screen_y, float plane_z) const
@@ -51,7 +51,7 @@ std::optional<WorldPoint> Mupfel::Camera::ScreenToWorld(float screen_x, float sc
 	const glm::vec3 up = glm::cross(right, forward);
 	const glm::vec2 half = CameraMath::HalfExtents(*this, width, height);
 	const float		offset_right = ((screen_x / width) * 2.0f - 1.0f) * half.x;
-	const float		offset_up = (1.0f - (screen_y / height) * 2.0f) * half.y;
+	const float		offset_up = ((screen_y / height) * 2.0f - 1.0f) * half.y;
 	const glm::vec3 origin = glm::vec3(target_x, target_y, target_z) + right * offset_right + up * offset_up;
 	const glm::vec3 hit = origin + forward * ((plane_z - origin.z) / forward.z);
 
@@ -71,7 +71,7 @@ ScreenVector Camera::WorldToScreenVector(float world_dx, float world_dy, float w
 	const glm::vec4 clip = CameraMath::Projection(*this, width, height) * CameraMath::View(*this) *
 						   glm::vec4(world_dx, world_dy, world_dz, 0.0f);
 
-	return {clip.x * 0.5f * width, -clip.y * 0.5f * height};
+	return {clip.x * 0.5f * width, clip.y * 0.5f * height};
 }
 
 std::optional<WorldVector> Camera::ScreenToWorldVector(float screen_dx, float screen_dy) const
@@ -97,7 +97,7 @@ std::optional<WorldVector> Camera::ScreenToWorldVector(float screen_dx, float sc
 	const glm::vec2 half = CameraMath::HalfExtents(*this, width, height);
 
 	const glm::vec3 offset =
-		right * ((screen_dx / width) * 2.0f * half.x) - up * ((screen_dy / height) * 2.0f * half.y);
+		right * ((screen_dx / width) * 2.0f * half.x) + up * ((screen_dy / height) * 2.0f * half.y);
 
 	return WorldVector{
 		offset.x - forward.x * (offset.z / forward.z), offset.y - forward.y * (offset.z / forward.z), 0.0f};

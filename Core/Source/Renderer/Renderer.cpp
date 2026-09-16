@@ -187,6 +187,7 @@ void Renderer::Begin(const Window& window, double delta_time)
 	commandList->open();
 
 	nvrhi::utils::ClearColorAttachment(commandList, frameBuffers[imageIndex], 0, nvrhi::Color(0.1f, 0.1f, 0.12f, 1.0f));
+	nvrhi::utils::ClearDepthStencilAttachment(commandList, frameBuffers[imageIndex], 1.0f, 0);
 
 	FrameContext frame{
 		.frameBuffer = frameBuffers[imageIndex],
@@ -276,6 +277,7 @@ void Renderer::Shutdown()
 	commandList = nullptr;
 	frameBuffers.clear();
 	swapChainTextures.clear();
+	depthTexture = nullptr;
 
 	if (nvrhiDevice)
 	{
@@ -319,6 +321,22 @@ bool Renderer::CreateSwapChainTexturesAndFramebuffers()
 		return false;
 	}
 
+	auto depthDesc = nvrhi::TextureDesc()
+						 .setDimension(nvrhi::TextureDimension::Texture2D)
+						 .setFormat(nvrhi::Format::D32)
+						 .setWidth(context.swapchain.extent.width)
+						 .setHeight(context.swapchain.extent.height)
+						 .setIsRenderTarget(true)
+						 .enableAutomaticStateTracking(nvrhi::ResourceStates::DepthWrite)
+						 .setDebugName("Depth Buffer");
+	depthTexture = nvrhiDevice->createTexture(depthDesc);
+
+	if (!depthTexture)
+	{
+		logger->critical("Unable to create depth buffer!");
+		return false;
+	}
+
 	const auto& images = images_ret.value();
 	swapChainTextures.reserve(images.size());
 
@@ -335,7 +353,7 @@ bool Renderer::CreateSwapChainTexturesAndFramebuffers()
 		swapChainTextures.push_back(
 			nvrhiDevice->createHandleForNativeTexture(nvrhi::ObjectTypes::VK_Image, nvrhi::Object(image), textureDesc));
 
-		auto framebufferDesc = nvrhi::FramebufferDesc().addColorAttachment(swapChainTextures.back());
+		auto framebufferDesc = nvrhi::FramebufferDesc().addColorAttachment(swapChainTextures.back()).setDepthAttachment(depthTexture);
 		frameBuffers.push_back(nvrhiDevice->createFramebuffer(framebufferDesc));
 	}
 
@@ -405,6 +423,7 @@ bool Renderer::RecreateSwapchain(const Window& window)
 
 	frameBuffers.clear();
 	swapChainTextures.clear();
+	depthTexture = nullptr;
 	nvrhiDevice->runGarbageCollection();
 
 	/* Attempt to rebuild the vulkan swapchain. */

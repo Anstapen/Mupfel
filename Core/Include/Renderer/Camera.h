@@ -4,7 +4,7 @@
 namespace Mupfel
 {
 
-/** A pixel on the render surface. Origin is the top-left corner, +Y points down. */
+/** A pixel on the render surface. Origin is the top-left corner, +Y points up. */
 struct ScreenPoint
 {
 	float x = 0.0f;
@@ -19,7 +19,7 @@ struct WorldPoint
 	float z = 0.0f;
 };
 
-/** A displacement in pixels on the render surface. +Y points down. */
+/** A displacement in pixels on the render surface. +Y points up. */
 struct ScreenVector
 {
 	float x = 0.0f;

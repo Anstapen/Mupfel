@@ -74,6 +74,11 @@ public:
 	 */
 	void End(const Window& window, double delta_time);
 
+	/**
+	 * Retrieve the current image manager to (un-)load images.
+	 * 
+	 * \return The current image manager.
+	 */
 	ImageManager& GetImageManager();
 
 private:
@@ -179,6 +184,9 @@ private:
 	/** Textures for the Swapchain. */
 	std::vector<nvrhi::TextureHandle> swapChainTextures;
 
+	/** The texture for the depth buffer. */
+	nvrhi::TextureHandle depthTexture;
+
 	/** Framebuffers for the Swapchain. */
 	std::vector<nvrhi::FramebufferHandle> frameBuffers;
 
@@ -191,7 +199,8 @@ private:
 	/** Array of all SubRenderers. These are invoked in the order they are pushed. */
 	std::vector<std::shared_ptr<SubRenderer>> subRenderers;
 
-	/** Functionality of these renderers can be directly invoked by the user,
+	/**
+	 * Functionality of these renderers can be directly invoked by the user,
 	 * so we need to explicitly hold references to them.
 	 */
 	std::shared_ptr<IMRenderer>		  uiRenderer;

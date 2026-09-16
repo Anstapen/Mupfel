@@ -52,7 +52,8 @@ bool ImageManager::Init(nvrhi::DeviceHandle in_device)
 	uploadList->close();
 	device->executeCommandList(uploadList);
 
-	imageHandleMap["DefaultImage"] = std::vector<ImageHandle>(1, static_cast<ImageHandle>(textureHandles.size()));
+	imageHandleMap["DefaultImage"] = {
+		ImageType::ANIMATED, std::vector<ImageHandle>(1, static_cast<ImageHandle>(textureHandles.size()))};
 	textureHandles.push_back(defaultTexture);
 
 	return true;
@@ -65,6 +66,7 @@ void Mupfel::ImageManager::Shutdown()
 	textureHandles.clear();
 	freeHandles.clear();
 	imageHandleMap.clear();
+	device = nullptr;
 	imageManagerGeneration++;
 }
 
@@ -72,10 +74,18 @@ Expected<ImageHandle> Mupfel::ImageManager::Load(const std::string& path) { retu
 
 Expected<ImageHandle> Mupfel::ImageManager::LoadAnimated(const std::string& path, const ImageSpecification& spec)
 {
-	if (imageHandleMap.contains(path) && (imageHandleMap[path].size() > 0))
+	auto it = imageHandleMap.find(path);
+	if (it != imageHandleMap.end() && it->second.handles.size() > 0)
 	{
-		/* Image is already loaded. */
-		return imageHandleMap[path][0];
+		/* There currently is an image loaded for that path name. */
+		if (it->second.type == ImageType::ANIMATED)
+		{
+			return it->second.handles[0];
+		}
+		else
+		{
+			return std::unexpected<Mupfel::Error>(Mupfel::Error::FILE_ALREADY_LOADED);
+		}
 	}
 
 	auto sheet_or_error = DecodeSheet(path, spec);
@@ -95,9 +105,14 @@ Expected<ImageHandle> Mupfel::ImageManager::LoadAnimated(const std::string& path
 	}
 
 	ImageHandle img_handle = AllocateSlot();
+
+	if (img_handle == INVALID_IMAGE)
+	{
+		return std::unexpected<Mupfel::Error>(Mupfel::Error::NO_MEMORY);
+	}
 	textureHandles[img_handle] = handle;
 
-	imageHandleMap[path] = std::vector<ImageHandle>(1, img_handle);
+	imageHandleMap[path] = {ImageType::ANIMATED, std::vector<ImageHandle>(1, img_handle)};
 
 	imageManagerGeneration++;
 
@@ -107,10 +122,18 @@ Expected<ImageHandle> Mupfel::ImageManager::LoadAnimated(const std::string& path
 Expected<std::vector<ImageHandle>>
 Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecification& spec)
 {
-	if (imageHandleMap.contains(path) && (imageHandleMap[path].size() > 0))
+	auto it = imageHandleMap.find(path);
+	if (it != imageHandleMap.end() && it->second.handles.size() > 0)
 	{
-		/* Image is already loaded. */
-		return imageHandleMap[path];
+		/* There currently is an image loaded for that path name. */
+		if (it->second.type == ImageType::SPRITESHEET)
+		{
+			return it->second.handles;
+		}
+		else
+		{
+			return std::unexpected<Mupfel::Error>(Mupfel::Error::FILE_ALREADY_LOADED);
+		}
 	}
 
 	auto sheet_or_error = DecodeSheet(path, spec);
@@ -131,14 +154,31 @@ Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecif
 
 	std::vector<ImageHandle> img_handles;
 
+	/* Allocate the images. */
 	for (auto& handle : handles)
 	{
 		ImageHandle img_handle = AllocateSlot();
+		if (img_handle == INVALID_IMAGE)
+		{
+			break;
+		}
 		textureHandles[img_handle] = handle;
 		img_handles.push_back(img_handle);
 	}
 
-	imageHandleMap[path] = img_handles;
+	/* If the sizes differ, we do not have enough free slots. */
+	if (img_handles.size() != handles.size())
+	{
+		/* Free all allocated handles. */
+		for (auto& handle : img_handles)
+		{
+			Unload(handle);
+		}
+
+		return std::unexpected<Mupfel::Error>(Mupfel::Error::NO_MEMORY);
+	}
+
+	imageHandleMap[path] = {ImageType::SPRITESHEET, img_handles};
 
 	imageManagerGeneration++;
 
@@ -152,7 +192,7 @@ void Mupfel::ImageManager::Unload(const std::string& path)
 		return;
 	}
 
-	for (auto image : imageHandleMap[path])
+	for (auto image : imageHandleMap[path].handles)
 	{
 		Unload(image);
 	}
@@ -162,7 +202,7 @@ void Mupfel::ImageManager::Unload(const std::string& path)
 
 void Mupfel::ImageManager::Unload(ImageHandle image)
 {
-	if (image == INVALID_IMAGE || image >= textureHandles.size() || !textureHandles[image])
+	if (image == INVALID_IMAGE || image >= textureHandles.size())
 	{
 		return;
 	}
@@ -336,8 +376,7 @@ ImageHandle Mupfel::ImageManager::AllocateSlot()
 
 	if (textureHandles.size() >= Mupfel::MAX_IMAGE_COUNT)
 	{
-		/* For now, just overwrite the last image */
-		return static_cast<ImageHandle>(textureHandles.size() - 1);
+		return INVALID_IMAGE;
 	}
 
 	textureHandles.push_back(nullptr);
