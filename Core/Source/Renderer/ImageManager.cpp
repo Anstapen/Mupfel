@@ -19,16 +19,16 @@ static constexpr unsigned char defaultImage[] = {
 
 bool ImageManager::Init(nvrhi::DeviceHandle in_device)
 {
-	device = in_device;
-	nvrhi::TextureDesc desc = nvrhi::TextureDesc()
-								  .setDimension(nvrhi::TextureDimension::Texture2DArray)
-								  .setWidth(defaultImageWidth)
-								  .setHeight(defaultImageHeight)
-								  .setArraySize(1)
-								  .setFormat(nvrhi::Format::SRGBA8_UNORM)
-								  .setKeepInitialState(true)
-								  .setInitialState(nvrhi::ResourceStates::ShaderResource)
-								  .setDebugName("DefaultImage");
+	device = std::move(in_device);
+	const nvrhi::TextureDesc desc = nvrhi::TextureDesc()
+										.setDimension(nvrhi::TextureDimension::Texture2DArray)
+										.setWidth(defaultImageWidth)
+										.setHeight(defaultImageHeight)
+										.setArraySize(1)
+										.setFormat(nvrhi::Format::SRGBA8_UNORM)
+										.setKeepInitialState(true)
+										.setInitialState(nvrhi::ResourceStates::ShaderResource)
+										.setDebugName("DefaultImage");
 
 	uploadList = device->createCommandList(nvrhi::CommandListParameters().setEnableImmediateExecution(false));
 	if (!uploadList)
@@ -70,12 +70,16 @@ void Mupfel::ImageManager::Shutdown()
 	imageManagerGeneration++;
 }
 
-Expected<ImageHandle> Mupfel::ImageManager::Load(const std::string& path) { return LoadAnimated(path, {1, 1}); }
+Expected<ImageHandle> Mupfel::ImageManager::Load(const std::string& path, ResourceManager* mngr)
+{
+	return LoadAnimated(path, {1, 1}, mngr);
+}
 
-Expected<ImageHandle> Mupfel::ImageManager::LoadAnimated(const std::string& path, const ImageSpecification& spec)
+Expected<ImageHandle>
+Mupfel::ImageManager::LoadAnimated(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
 {
 	auto it = imageHandleMap.find(path);
-	if (it != imageHandleMap.end() && it->second.handles.size() > 0)
+	if (it != imageHandleMap.end() && !it->second.handles.empty())
 	{
 		/* There currently is an image loaded for that path name. */
 		if (it->second.type == ImageType::ANIMATED)
@@ -88,14 +92,14 @@ Expected<ImageHandle> Mupfel::ImageManager::LoadAnimated(const std::string& path
 		}
 	}
 
-	auto sheet_or_error = DecodeSheet(path, spec);
+	auto sheet_or_error = DecodeSheet(path, spec, mngr);
 
 	if (!sheet_or_error)
 	{
 		return std::unexpected<Mupfel::Error>(sheet_or_error.error());
 	}
 
-	assert(sheet_or_error.value().subImages.size() > 0);
+	assert(!sheet_or_error.value().subImages.empty());
 
 	nvrhi::TextureHandle handle = CreateTextureAndUpload(sheet_or_error.value());
 
@@ -120,10 +124,10 @@ Expected<ImageHandle> Mupfel::ImageManager::LoadAnimated(const std::string& path
 }
 
 Expected<std::vector<ImageHandle>>
-Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecification& spec)
+Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
 {
 	auto it = imageHandleMap.find(path);
-	if (it != imageHandleMap.end() && it->second.handles.size() > 0)
+	if (it != imageHandleMap.end() && !it->second.handles.empty())
 	{
 		/* There currently is an image loaded for that path name. */
 		if (it->second.type == ImageType::SPRITESHEET)
@@ -136,18 +140,18 @@ Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecif
 		}
 	}
 
-	auto sheet_or_error = DecodeSheet(path, spec);
+	auto sheet_or_error = DecodeSheet(path, spec, mngr);
 
 	if (!sheet_or_error)
 	{
 		return std::unexpected<Mupfel::Error>(sheet_or_error.error());
 	}
 
-	assert(sheet_or_error.value().subImages.size() > 0);
+	assert(!sheet_or_error.value().subImages.empty());
 
 	std::vector<nvrhi::TextureHandle> handles = CreateTexturesAndUpload(sheet_or_error.value());
 
-	if (handles.size() == 0)
+	if (handles.empty())
 	{
 		return std::unexpected<Mupfel::Error>(Mupfel::Error::NO_MEMORY);
 	}
@@ -217,7 +221,7 @@ void Mupfel::ImageManager::Unload(ImageHandle image)
 nvrhi::TextureHandle Mupfel::ImageManager::GetTextureHandle(ImageHandle handle)
 {
 	/* We can assume that the default texture lives at textures[0]. */
-	assert(textureHandles.size() > 0);
+	assert(!textureHandles.empty());
 	if (handle >= textureHandles.size() || textureHandles[handle] == nullptr)
 	{
 		return textureHandles[0];
@@ -227,15 +231,34 @@ nvrhi::TextureHandle Mupfel::ImageManager::GetTextureHandle(ImageHandle handle)
 }
 
 Expected<ImageManager::DecodedSheet>
-Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecification& spec)
+Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
 {
 	if (spec.columns == 0 || spec.rows == 0)
 	{
 		return std::unexpected<Mupfel::Error>(Mupfel::Error::INVALID_PARAMETER);
 	}
 
-	int		 texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	stbi_uc* pixels = nullptr;
+	int		 texWidth = 0;
+	int texHeight = 0;
+	int texChannels = 0;
+
+	/* If a resource manager is given, use that one. */
+	if (mngr)
+	{
+		std::shared_ptr<std::vector<uint8_t>> raw_data = mngr->GetFile(path);
+
+		if (raw_data)
+		{
+			pixels = stbi_load_from_memory(
+				raw_data->data(), static_cast<int>(raw_data->size()), &texWidth, &texHeight, &texChannels,
+				STBI_rgb_alpha);
+		}
+	}
+	else
+	{
+		pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	}
 
 	if (!pixels)
 	{

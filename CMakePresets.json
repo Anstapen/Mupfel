@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 4, "minor": 0, "patch": 0 },
+
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/Build/${presetName}",
+      "cacheVariables": {
+        "MUPFEL_MODULES": "all"
+      }
+    },
+    {
+      "name": "windows",
+      "displayName": "Windows (Visual Studio 2026)",
+      "description": "Generates a Visual Studio solution under Build/windows. The multi-config generator carries both Debug and Release in one tree.",
+      "inherits": "base",
+      "generator": "Visual Studio 18 2026",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "windows-ninja",
+      "displayName": "Windows (Ninja Multi-Config)",
+      "description": "Generates ninja build files.",
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      }
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux (Ninja Multi-Config)",
+      "description": "GCC 14 or newer is required (std::ranges::to). On distros whose default g++ is older, configure with CC=gcc-14 CXX=g++-14.",
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+    },
+    {
+      "name": "ci-windows",
+      "displayName": "Windows CI (Visual Studio 2022)",
+      "description": "What the GitHub Windows runner uses: its image ships VS 2022, not VS 2026, so it cannot use the `windows` preset's generator.",
+      "inherits": "base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": { "value": "x64", "strategy": "set" }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "windows-debug",         "configurePreset": "windows",       "configuration": "Debug" },
+    { "name": "windows-release",       "configurePreset": "windows",       "configuration": "Release" },
+
+    { "name": "windows-ninja-debug",   "configurePreset": "windows-ninja", "configuration": "Debug" },
+    { "name": "windows-ninja-release", "configurePreset": "windows-ninja", "configuration": "Release" },
+
+    { "name": "linux-debug",           "configurePreset": "linux",         "configuration": "Debug" },
+    { "name": "linux-release",         "configurePreset": "linux",         "configuration": "Release" },
+
+    { "name": "ci-windows-debug",      "configurePreset": "ci-windows",    "configuration": "Debug" },
+    { "name": "ci-windows-release",    "configurePreset": "ci-windows",    "configuration": "Release" }
+  ],
+
+  "testPresets": [
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "windows-ninja-debug",
+      "configurePreset": "windows-ninja",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

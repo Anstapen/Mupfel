@@ -13,6 +13,7 @@
 #include "PhysicsEvents.h"
 #include "Error.h"
 #include "Renderer/Image.h"
+#include "ResourceManager.h"
 
 #include <array>
 #include <cstdint>
@@ -30,7 +31,6 @@ class DebugLayer;
 class PhysicsSimulation;
 class AnimationSystem;
 class Renderer;
-class ECSRenderer;
 class DebugRenderer;
 class IMRenderer;
 class GeometryRenderer;
@@ -67,7 +67,6 @@ struct ApplicationSpecification
 class Application
 {
 	friend class DebugLayer;
-	friend class ECSRenderer;
 	friend class DebugRenderer;
 	friend class IMRenderer;
 	friend class GeometryRenderer;
@@ -115,6 +114,10 @@ public:
 	 */
 	static float GetLastFrameTime();
 
+	/**
+	 * Set the target FPS of the application.
+	 * @param target_fps The target FPS.
+	 */
 	static void SetTargetFPS(uint32_t target_fps);
 
 	/**
@@ -162,7 +165,7 @@ public:
 	 * \param path Path to image.
 	 * \return Image Handle or error code.
 	 */
-	[[nodiscard]] static Expected<ImageHandle> LoadBasicImage(const std::string path);
+	[[nodiscard]] static Expected<ImageHandle> LoadBasicImage(const std::string &path, ResourceManager *mngr = nullptr);
 
 	/**
 	 * Load an image with animations.
@@ -172,7 +175,7 @@ public:
 	 * \return Image Handle or error code.
 	 */
 	[[nodiscard]] static Expected<ImageHandle>
-	LoadAnimatedImage(const std::string path, const ImageSpecification& spec);
+	LoadAnimatedImage(const std::string &path, const ImageSpecification& spec, ResourceManager *mngr = nullptr);
 
 	/**
 	 * Load multiple images from a spritesheet.
@@ -182,7 +185,7 @@ public:
 	 * \return Image Handles or error code.
 	 */
 	[[nodiscard]] static Expected<std::vector<ImageHandle>>
-	LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec);
+	LoadSpriteSheetImages(const std::string &path, const ImageSpecification& spec, ResourceManager *mngr = nullptr);
 
 	template <typename T> static std::optional<T> GetConfigEntry(const std::string key);
 
@@ -211,9 +214,9 @@ public:
 		layerStack.back().get()->OnInit();
 	}
 
-	template <typename T>
+	template <typename T, typename... Args>
 		requires SceneType<T>
-	[[nodiscard]] static SceneHandle CreateScene(const SceneDefinition& def);
+	[[nodiscard]] static SceneHandle CreateScene(Args&&... args);
 
 	static void QueueSceneSwitch(SceneHandle handle);
 
@@ -348,9 +351,9 @@ template <typename T> inline void Application::SetConfigEntry(const std::string 
 	Get().configManager.Set<T>(key, value);
 }
 
-template <typename T>
+template <typename T, typename... Args>
 	requires SceneType<T>
-inline SceneHandle Application::CreateScene(const SceneDefinition &def)
+inline SceneHandle Application::CreateScene(Args&&... args)
 {
 	auto& app = Get();
 	/* Check if there is space for another scene. */
@@ -360,7 +363,7 @@ inline SceneHandle Application::CreateScene(const SceneDefinition &def)
 	}
 	uint32_t handle = app.next_free_handle;
 
-	app.scenes[handle] = std::move(std::make_unique<T>(handle, def));
+	app.scenes[handle] = std::move(std::make_unique<T>(handle, std::forward<Args>(args)...));
 
 	app.next_free_handle++;
 

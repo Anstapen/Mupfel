@@ -15,7 +15,7 @@ concurrency:
 
 env:
   VULKAN_SDK_VERSION: "1.4.357.0"
-  PREMAKE_VERSION: "5.0.0-beta8"
+  CMAKE_VERSION: "4.4.3"
 
 jobs:
   windows:
@@ -72,13 +72,20 @@ jobs:
           Write-Host "Vulkan SDK OK at $root"
           "VULKAN_SDK=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Generate solution
-        run: Vendor\Binaries\Premake\Windows\premake5.exe --file=Build.lua vs2022
+      # The runner image ships CMake, but not necessarily the 4.x the build requires.
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: ${{ env.CMAKE_VERSION }}
 
-      - uses: microsoft/setup-msbuild@v2
+      # ci-windows rather than the `windows` preset: the runner has VS 2022, not VS 2026.
+      - name: Configure
+        run: cmake --preset ci-windows
 
       - name: Build
-        run: msbuild Mupfel.sln -p:Configuration=${{ matrix.config }} -p:Platform=x64 -m
+        run: cmake --build --preset ci-windows-${{ env.CONFIG_LOWER }} -- -m
+        env:
+          CONFIG_LOWER: ${{ matrix.config == 'Debug' && 'debug' || 'release' }}
 
       - name: Run tests
         run: .\Binaries\windows-x86_64\${{ matrix.config }}\Tests\Tests.exe

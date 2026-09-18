@@ -2,6 +2,7 @@
 .vs/
 Binaries/
 Vendor/Sources/
+Build/
 
 # Files
 *.vcxproj
@@ -10,7 +11,6 @@ Vendor/Sources/
 *.sln
 *.slnx
 *.log
-Makefile
 
 # Exclude
 !Vendor/Binaries
@@ -38,8 +38,7 @@ Core/resource.h
 
 *.drawio
 
-*.ninja
+.idea/
 
-.ninja_deps
-
-.ninja_log
+cmake-build-*/
+*.pack

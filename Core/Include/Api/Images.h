@@ -17,9 +17,13 @@ namespace Mupfel::Images
  * Loads a single, unanimated image.
  *
  * \param path Path to the image, relative to the working directory.
+ * \param mngr An optional resource manager to load the data from.
  * \return The image handle, or an error.
  */
-[[nodiscard]] inline Expected<ImageHandle> Load(const std::string& path) { return Application::LoadBasicImage(path); }
+[[nodiscard]] inline Expected<ImageHandle> Load(const std::string& path, Mupfel::ResourceManager* mngr = nullptr)
+{
+	return Application::LoadBasicImage(path, mngr);
+}
 
 /**
  * Loads an animated image, cut into spec.rows x spec.columns frames in row-major order.
@@ -27,11 +31,13 @@ namespace Mupfel::Images
  *
  * \param path Path to the image.
  * \param spec The frame grid to interpret the image with.
+ * \param mngr An optional resource manager to load the data from.
  * \return The image handle, or an error.
  */
-[[nodiscard]] inline Expected<ImageHandle> LoadAnimated(const std::string& path, const ImageSpecification& spec)
+[[nodiscard]] inline Expected<ImageHandle>
+LoadAnimated(const std::string& path, const ImageSpecification& spec, Mupfel::ResourceManager* mngr = nullptr)
 {
-	return Application::LoadAnimatedImage(path, spec);
+	return Application::LoadAnimatedImage(path, spec, mngr);
 }
 
 /**
@@ -40,12 +46,13 @@ namespace Mupfel::Images
  *
  * \param path Path to the spritesheet.
  * \param spec The frame grid to cut the sheet with.
+ * \param mngr An optional resource manager to load the data from.
  * \return One handle per frame, or an error.
  */
 [[nodiscard]] inline Expected<std::vector<ImageHandle>>
-LoadSpriteSheet(const std::string& path, const ImageSpecification& spec)
+LoadSpriteSheet(const std::string& path, const ImageSpecification& spec, Mupfel::ResourceManager* mngr = nullptr)
 {
-	return Application::LoadSpriteSheetImages(path, spec);
+	return Application::LoadSpriteSheetImages(path, spec, mngr);
 }
 
 } // namespace Mupfel::Images

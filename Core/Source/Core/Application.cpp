@@ -2,9 +2,8 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#include <timeapi.h>
 #include <windows.h>
-#pragma comment(lib, "winmm.lib")
+#include <timeapi.h>
 #endif
 
 #include "Debug/DebugLayer.h"
@@ -113,7 +112,9 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	}
 
 	/* Add Scene 0 */
-	SceneHandle first_handle = CreateScene<DefaultScene>({"DefaultScene"});
+	SceneDefinition def;
+	def.name = "DefaultScene";
+	SceneHandle first_handle = CreateScene<DefaultScene>(def);
 
 	/* prevent unused variable warning in release builds */
 	(void)first_handle;
@@ -215,20 +216,23 @@ void Mupfel::Application::SetMovement(Entity e, float vel_x, float vel_y, float 
 
 bool Mupfel::Application::HasPhysicsEvents(Entity e) { return Get().physics->HasPhysicsEvents(e); }
 
-Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string path)
+Expected<ImageHandle> Mupfel::Application::LoadBasicImage(const std::string& path, ResourceManager* mngr)
 {
-	return Get().renderer->GetImageManager().Load(path);
+	return Get().renderer->GetImageManager().Load(path, mngr);
 }
 
-Expected<ImageHandle> Mupfel::Application::LoadAnimatedImage(const std::string path, const ImageSpecification& spec)
+Expected<ImageHandle>
+Mupfel::Application::LoadAnimatedImage(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
 {
-	return Get().renderer->GetImageManager().LoadAnimated(path, spec);
+	return Get().renderer->GetImageManager().LoadAnimated(path, spec, mngr);
 }
 
-Expected<std::vector<ImageHandle>>
-Mupfel::Application::LoadSpriteSheetImages(const std::string path, const ImageSpecification& spec)
+Expected<std::vector<ImageHandle>> Mupfel::Application::LoadSpriteSheetImages(
+	const std::string&		  path,
+	const ImageSpecification& spec,
+	ResourceManager*		  mngr)
 {
-	return Get().renderer->GetImageManager().LoadSpriteSheet(path, spec);
+	return Get().renderer->GetImageManager().LoadSpriteSheet(path, spec, mngr);
 }
 
 ThreadPool& Mupfel::Application::GetCurrentThreadPool() { return Get().thread_pool; }

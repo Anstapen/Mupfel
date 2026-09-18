@@ -15,7 +15,7 @@ concurrency:
 
 env:
   VULKAN_SDK_VERSION: "1.4.357.0"
-  PREMAKE_VERSION: "5.0.0-beta8"
+  CMAKE_VERSION: "4.4.3"
 
 jobs:
   linux:
@@ -67,15 +67,23 @@ jobs:
           echo "Vulkan SDK OK at $root"
           echo "VULKAN_SDK=$root" >> "$GITHUB_ENV"
 
-      - name: Generate makefiles
-        run: Vendor/Binaries/Premake/Linux/premake5 --cc=gcc --file=Build.lua gmake
+      # Brings ninja along with it, which the Ninja Multi-Config generator needs and the runner
+      # image does not ship.
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: ${{ env.CMAKE_VERSION }}
 
-      - name: Build
+      - name: Configure
         env:
           CC: gcc-14
           CXX: g++-14
+        run: cmake --preset linux
+
+      - name: Build
+        env:
           CONFIG: ${{ matrix.config }}
-        run: make config="${CONFIG,,}" -j"$(nproc)"
+        run: cmake --build --preset "linux-${CONFIG,,}" -j"$(nproc)"
 
       - name: Run tests
         env:

@@ -23,11 +23,11 @@ namespace Mupfel::Scenes
  * \param camera The scene's starting camera.
  * \return The new scene's handle, or Scene::INVALID_HANDLE if Scene::MAX_SCENES is exhausted.
  */
-template <typename T>
+template <typename T, typename... Args>
 	requires SceneType<T>
-[[nodiscard]] inline SceneHandle Create(const SceneDefinition &def)
+[[nodiscard]] inline SceneHandle Create(Args&&... args)
 {
-	return Application::CreateScene<T>(def);
+	return Application::CreateScene<T>(std::forward<Args>(args)...);
 }
 
 /**

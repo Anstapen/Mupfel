@@ -1,6 +1,6 @@
+#include "../../../Core/Include/Core/ResourceManager.h"
 #include "catch_amalgamated.hpp"
 #include <filesystem>
-#include "Resource/ResourceManager.h"
 
 TEST_CASE("Basic Resource Manager Test")
 {

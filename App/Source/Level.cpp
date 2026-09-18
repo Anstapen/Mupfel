@@ -1,7 +1,7 @@
 #include "Level.h"
-#include "Imager.h"
 #include "GameObjects/Chest.h"
 #include "GameObjects/Spike.h"
+#include "Imager.h"
 #include "SceneSwitches.h"
 #include "Types.h"
 #include <vector>
@@ -11,14 +11,18 @@ using namespace Mupfel;
 void Level::OnInit()
 {
 
-	Imager::Load("Map", "Images/dungeon.png");
+	if (!mngr)
+	{
+		logger->warn("No resource pack was loaded...");
+	}
+	Imager::Load("Map", "Images/dungeon.png", mngr.get());
 
-	Imager::LoadAnimated("NormalChest", "Images/normal_chest.png", {.rows = 1, .columns = 5});
-	Imager::LoadAnimated("FilledChest", "Images/filled_chest.png", {.rows = 1, .columns = 5});
-	Imager::LoadAnimated("MonsterChest", "Images/monster_chest.png", {.rows = 1, .columns = 5});
-	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3});
-	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3});
-	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7});
+	Imager::LoadAnimated("NormalChest", "Images/normal_chest.png", {.rows = 1, .columns = 5}, mngr.get());
+	Imager::LoadAnimated("FilledChest", "Images/filled_chest.png", {.rows = 1, .columns = 5}, mngr.get());
+	Imager::LoadAnimated("MonsterChest", "Images/monster_chest.png", {.rows = 1, .columns = 5}, mngr.get());
+	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3}, mngr.get());
+	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3}, mngr.get());
+	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7}, mngr.get());
 
 	{
 		Entity e = Entities::Create();
@@ -47,7 +51,7 @@ void Level::OnInit()
 	interactables.push_back(std::make_unique<Chest>("NormalChest", -6.0f, 0.0f));
 	interactables.push_back(std::make_unique<Chest>("NormalChest", -5.0f, 1.0f));
 	interactables.push_back(std::make_unique<Chest>("NormalChest", -6.0f, 1.0f));
-	
+
 	/* Two gargs */
 	{
 		Entity	  e = Entities::Create();
@@ -79,18 +83,18 @@ void Level::OnInit()
 
 	std::vector<std::pair<float, float>> spike_positions;
 
-	spike_positions.push_back({-4.0f, 0.0f});
-	spike_positions.push_back({-4.0f, -1.0f});
-	spike_positions.push_back({-4.0f, 1.0f});
-	spike_positions.push_back({-4.0f, 2.0f});
-	spike_positions.push_back({-5.0f, -1.0f});
-	spike_positions.push_back({-5.0f, 2.0f});
-	spike_positions.push_back({-6.0f, -1.0f});
-	spike_positions.push_back({-6.0f, 2.0f});
-	spike_positions.push_back({-7.0f, 0.0f});
-	spike_positions.push_back({-7.0f, -1.0f});
-	spike_positions.push_back({-7.0f, 1.0f});
-	spike_positions.push_back({-7.0f, 2.0f});
+	spike_positions.emplace_back(-4.0f, 0.0f);
+	spike_positions.emplace_back(-4.0f, -1.0f);
+	spike_positions.emplace_back(-4.0f, 1.0f);
+	spike_positions.emplace_back(-4.0f, 2.0f);
+	spike_positions.emplace_back(-5.0f, -1.0f);
+	spike_positions.emplace_back(-5.0f, 2.0f);
+	spike_positions.emplace_back(-6.0f, -1.0f);
+	spike_positions.emplace_back(-6.0f, 2.0f);
+	spike_positions.emplace_back(-7.0f, 0.0f);
+	spike_positions.emplace_back(-7.0f, -1.0f);
+	spike_positions.emplace_back(-7.0f, 1.0f);
+	spike_positions.emplace_back(-7.0f, 2.0f);
 
 	for (auto& [x, y] : spike_positions)
 	{
@@ -100,13 +104,15 @@ void Level::OnInit()
 	player.Init();
 }
 
-void Level::OnUpdate(double timestep) { 
+void Level::OnUpdate(double timestep)
+{
 	UpdateUserInputs();
 	for (auto& i : interactables)
 	{
 		i->CheckEvents();
 	}
-	player.UpdateMovement(timestep); }
+	player.UpdateMovement(timestep);
+}
 
 void Level::OnRender()
 {
@@ -120,10 +126,11 @@ void Level::OnRender()
 
 void Level::UpdateUserInputs()
 {
-	static bool movable_camera = false;
-	static ScreenPoint				 last_cursor_on_screen = {Input::CursorX(), Input::CursorY()};
-	static float					 last_camera_x = camera.target_x;
-	static float					 last_camera_y = camera.target_y;
+	static bool		   movable_camera = false;
+	static ScreenPoint last_cursor_on_screen = {
+		static_cast<float>(Input::CursorX()), static_cast<float>(Input::CursorY())};
+	static float last_camera_x = camera.target_x;
+	static float last_camera_y = camera.target_y;
 	/* First, check mouse movement */
 	for (auto& event : Events::Get<UserInputEvent>())
 	{
@@ -139,7 +146,7 @@ void Level::UpdateUserInputs()
 		{
 			movable_camera = false;
 			/* Mouse button has been pressed this frame */
-			ScreenPoint screen_cursor = {Input::CursorX(), Input::CursorY()};
+			ScreenPoint screen_cursor = {static_cast<float>(Input::CursorX()), static_cast<float>(Input::CursorY())};
 
 			ScreenVector diff = {screen_cursor.x - last_cursor_on_screen.x, screen_cursor.y - last_cursor_on_screen.y};
 
@@ -155,7 +162,7 @@ void Level::UpdateUserInputs()
 		if (event.input == UserInput::SCROLLWHEEL_UP)
 		{
 			if (camera.distance > 1.0f)
-			camera.distance -= 1.0f;
+				camera.distance -= 1.0f;
 		}
 
 		if (event.input == UserInput::SCROLLWHEEL_DOWN)
@@ -164,12 +171,11 @@ void Level::UpdateUserInputs()
 		}
 	}
 
-
 	/* Update the camera if needed. */
 	if (movable_camera)
 	{
 
-		ScreenPoint screen_cursor = {Input::CursorX(), Input::CursorY()};
+		ScreenPoint screen_cursor = {static_cast<float>(Input::CursorX()), static_cast<float>(Input::CursorY())};
 
 		ScreenVector diff = {screen_cursor.x - last_cursor_on_screen.x, screen_cursor.y - last_cursor_on_screen.y};
 
@@ -180,7 +186,5 @@ void Level::UpdateUserInputs()
 			camera.target_x = last_camera_x - world_diff.value().x;
 			camera.target_y = last_camera_y - world_diff.value().y;
 		}
-
 	}
-
 }

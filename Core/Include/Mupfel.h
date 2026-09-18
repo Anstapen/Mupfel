@@ -49,3 +49,6 @@
 /* Utilities */
 #include "Core/Error.h"
 #include "Core/Profiler.h"
+
+/* Resource Management */
+#include "Core/ResourceManager.h"

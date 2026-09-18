@@ -12,6 +12,7 @@
 #pragma once
 #include "Core/Error.h"
 #include "Renderer/Image.h"
+#include "ResourceManager.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -55,7 +56,7 @@ public:
 	 * \retval Error::NO_MEMORY Not enough memory to upload the image.
 	 * \retval Error::FILE_NOT_FOUND The image could not be found.
 	 */
-	[[nodiscard]] Expected<ImageHandle> Load(const std::string& path);
+	[[nodiscard]] Expected<ImageHandle> Load(const std::string& path, ResourceManager* mngr = nullptr);
 
 	/**
 	 * Load an animated image into GPU memory.
@@ -71,7 +72,8 @@ public:
 	 * \retval Error::INVALID_PARAMETER If spec.colums or spec.rows is zero.
 	 * \retval Error::FILE_WRONG_FORMAT If the image dimensions are incompatible with \a spec.
 	 */
-	[[nodiscard]] Expected<ImageHandle> LoadAnimated(const std::string& path, const ImageSpecification& spec);
+	[[nodiscard]] Expected<ImageHandle>
+	LoadAnimated(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr = nullptr);
 
 	/**
 	 * Load a spritesheet into GPU memory.
@@ -89,7 +91,7 @@ public:
 	 * \retval Error::FILE_WRONG_FORMAT If the image dimensions are incompatible with \a spec.
 	 */
 	[[nodiscard]] Expected<std::vector<ImageHandle>>
-	LoadSpriteSheet(const std::string& path, const ImageSpecification& spec);
+	LoadSpriteSheet(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr = nullptr);
 
 	/**
 	 * Unload an image using the filesystem path.
@@ -157,7 +159,8 @@ private:
 	 * \param spec How the image should be interpreted.
 	 * \return The decoded sheet with subimages or an error.
 	 */
-	Expected<DecodedSheet> DecodeSheet(const std::string& path, const ImageSpecification& spec);
+	static Expected<DecodedSheet>
+	DecodeSheet(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr);
 
 	/**
 	 * Create a layered texture from image data.
