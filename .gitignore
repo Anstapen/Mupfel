@@ -37,3 +37,9 @@ Core/RCa20428
 Core/resource.h
 
 *.drawio
+
+*.ninja
+
+.ninja_deps
+
+.ninja_log

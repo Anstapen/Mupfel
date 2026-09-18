@@ -35,5 +35,10 @@ project "App"
 
     links { "Core" }
 
+    -- Ninja's Core.lib doesn't carry its own dependencies; see ApplyCoreLinkDependencies().
+    if _ACTION == "ninja" then
+        ApplyCoreLinkDependencies()
+    end
+
     filter "system:windows"
         defines { "WINDOWS" }

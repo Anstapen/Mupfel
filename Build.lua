@@ -129,6 +129,15 @@ function ApplyDefaultProjectSettings()
     filter "system:windows"
         systemversion "latest"
 
+    -- Premake's msc toolset only turns `externalincludedirs` into /external:I when the toolset carries a
+    -- version >= msc-v142; otherwise it falls back to plain /I. The vs* actions always know their
+    -- version, but the ninja action defaults to a bare "msc", so every vendored header lands on a plain
+    -- /I, gets compiled under ApplyStrictWarnings()'s /W4 /WX, and our build fails over spdlog's code
+    -- (e.g. C4459 in pattern_formatter-inl.h). v145 is the VS 2026 toolset the solution uses. --cc=...
+    -- still overrides this, since Premake gives the command-line option precedence over the script.
+    filter { "action:ninja", "system:windows" }
+        toolset "msc-v145"
+
     -- optimize "Off" is stated rather than left to Premake's default: Debug is for stepping through
     -- code that still matches the source, so nothing here may be reordered or inlined away.
     --   optimize "Off"   -> -O0 (clang/gcc) | /Od (MSVC, i.e. <Optimization>Disabled)

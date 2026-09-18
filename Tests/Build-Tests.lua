@@ -55,6 +55,11 @@ project "Tests"
 
     links { "Core", "catch2" }
 
+    -- Ninja's Core.lib doesn't carry its own dependencies; see ApplyCoreLinkDependencies().
+    if _ACTION == "ninja" then
+        ApplyCoreLinkDependencies()
+    end
+
     -- Same platform split on GLFW as Core; see Core/Build-Core.lua for why. VK_USE_PLATFORM_WIN32_KHR
     -- is repeated for the same reason it is repeated in Core: every TU that reaches <vulkan/vulkan.h>
     -- must agree with the one that compiled nvrhi_vk, and Tests reaches it through Core/Source.

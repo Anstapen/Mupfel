@@ -35,6 +35,61 @@
 -- basenames are unique, so the flattened search is unambiguous; a future pass that path-qualifies
 -- those includes ("Renderer/SubRenderer.h") lets the subdirectory entries be dropped again.
 
+-- Everything Core.lib needs at link time. Core applies it to itself; under the ninja action, every
+-- project that links Core applies it too, because that is the one generator where Core.lib does not
+-- carry these on its own:
+--   vs*    MSBuild's librarian merges <ProjectReference> libs and <Lib><AdditionalDependencies> into
+--          Core.lib, so consumers need only `links { "Core" }`.
+--   ninja  Premake's ar rule archives Core's own objects and ignores its links, and executables get
+--          no transitive links, so App/Tests fail with unresolved nvrhi/ImGui/vk-bootstrap/Vulkan symbols.
+-- Ends with `filter {}`, so call it where no filter is active.
+function ApplyCoreLinkDependencies()
+    libdirs
+    {
+        VulkanLibDir,
+    }
+
+    -- nvrhi_vk before nvrhi is deliberate for the GNU linker, which resolves left to right in one
+    -- pass: the backend pulls symbols out of the core (state tracking, format info, the validation
+    -- wrapper), never the other way round. MSVC does not care, but the same list feeds both.
+    --
+    -- vk-bootstrap needs no Vulkan import library of its own (it dlopens the loader), but Core still
+    -- links VulkanLibName: glfwCreateWindowSurface and the surface/present calls in our own device
+    -- layer are ordinary prototypes resolved at link time.
+    links
+    {
+        "nvrhi_vk",
+        "nvrhi",
+        "vk-bootstrap",
+        "spdlog",
+        "imgui",
+        VulkanLibName,
+        "box2d",
+    }
+
+    -- GLFW is the one dependency that is not vendored the same way on both platforms, so it cannot be
+    -- linked unconditionally: Windows uses the prebuilt binary fetched as Deps.glfw, Linux links the
+    -- system libglfw.so from libglfw3-dev -- which is -lglfw, not -lglfw3.
+    filter "system:windows"
+        libdirs { DepPath("glfw", "lib-vc2022") }
+        links   { "glfw3" }
+
+    -- glfw3.lib's Win32 backend imports from gdi32 (CreateDIBSection, SwapBuffers, ...). MSBuild links
+    -- it through its default CoreLibraryDependencies, but ninja's bare `cl ... /link` gets no such
+    -- defaults.
+    filter { "system:windows", "action:ninja" }
+        links   { "gdi32" }
+
+    -- dl is vk-bootstrap's: it does not link the Vulkan loader, it dlopen()s libvulkan.so.1 and
+    -- resolves entry points through dlsym. Static libs carry no link dependencies of their own, so
+    -- the requirement lands on Core. Windows needs no equivalent -- LoadLibrary lives in kernel32,
+    -- which MSVC links by default.
+    filter "system:not windows"
+        links   { "glfw", "dl" }
+
+    filter {}
+end
+
 project "Core"
     kind "StaticLib"
     ApplyDefaultProjectSettings()
@@ -73,29 +128,6 @@ project "Core"
         DepPath("box2d", "include"),
     }
 
-    libdirs
-    {
-        VulkanLibDir,
-    }
-
-    -- nvrhi_vk before nvrhi is deliberate for the GNU linker, which resolves left to right in one
-    -- pass: the backend pulls symbols out of the core (state tracking, format info, the validation
-    -- wrapper), never the other way round. MSVC does not care, but the same list feeds both.
-    --
-    -- vk-bootstrap needs no Vulkan import library of its own (it dlopens the loader), but Core still
-    -- links VulkanLibName: glfwCreateWindowSurface and the surface/present calls in our own device
-    -- layer are ordinary prototypes resolved at link time.
-    links
-    {
-        "nvrhi_vk",
-        "nvrhi",
-        "vk-bootstrap",
-        "spdlog",
-        "imgui",
-        VulkanLibName,
-        "box2d",
-    }
-
     -- NVRHI's src/vulkan/vulkan-backend.h does its own `#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`
     -- before including <vulkan/vulkan.hpp>, and every Core TU that reaches vulkan.hpp has to agree with
     -- it. The macro decides what VULKAN_HPP_DEFAULT_DISPATCHER expands to (the dynamic loader vs. the
@@ -117,18 +149,6 @@ project "Core"
     filter "system:windows"
         defines { "VK_USE_PLATFORM_WIN32_KHR", "NOMINMAX" }
 
-    -- GLFW is the one dependency that is not vendored the same way on both platforms, so it cannot be
-    -- linked unconditionally: Windows uses the prebuilt binary fetched as Deps.glfw, Linux links the
-    -- system libglfw.so from libglfw3-dev -- which is -lglfw, not -lglfw3.
-    filter "system:windows"
-        libdirs { DepPath("glfw", "lib-vc2022") }
-        links   { "glfw3" }
-
-    -- dl is vk-bootstrap's: it does not link the Vulkan loader, it dlopen()s libvulkan.so.1 and
-    -- resolves entry points through dlsym. Static libs carry no link dependencies of their own, so
-    -- the requirement lands on Core. Windows needs no equivalent -- LoadLibrary lives in kernel32,
-    -- which MSVC links by default.
-    filter "system:not windows"
-        links   { "glfw", "dl" }
-
     filter {}
+
+    ApplyCoreLinkDependencies()

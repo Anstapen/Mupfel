@@ -3,6 +3,7 @@
 #include <vector>
 #include <mutex>
 #include <cstdint>
+#include <atomic>
 
 namespace Mupfel {
 

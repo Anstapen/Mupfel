@@ -1,6 +1,6 @@
 #include "catch_amalgamated.hpp"
 #include <filesystem>
-#include "Core/ResourceManager.h"
+#include "Resource/ResourceManager.h"
 
 TEST_CASE("Basic Resource Manager Test")
 {
@@ -8,7 +8,7 @@ TEST_CASE("Basic Resource Manager Test")
 	Mupfel::ResourceManager resource_manager;
 	if (!std::filesystem::exists("test.res"))
 	{
-		resource_manager.Save("test.res", "");
+		resource_manager.Store("test.res", "");
 	}
 	else
 	{
