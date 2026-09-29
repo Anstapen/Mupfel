@@ -27,13 +27,13 @@ public:
 	std::string_view wanted_animation{};
 };
 
-Player::Player(Mupfel::Registry& registry) : e(registry.CreateEntity()) {}
+Player::Player(Mupfel::Registry& registry, std::shared_ptr<Mupfel::ResourceManager> in_mngr) : e(registry.CreateEntity()), mngr(std::move(in_mngr)) {}
 
 void Player::Init()
 {
 	logger = Logger::Create("Player");
 
-	Imager::LoadAnimated("PlayerNaked", "Images/spritesheet.png", {.rows = 1, .columns = 8});
+	Imager::LoadAnimated("PlayerNaked", "Images/spritesheet.png", {.rows = 1, .columns = 8}, mngr.get());
 
 	animations["idle_front"] = {0, 8, 8.0f, 0.0f, true, true};
 	animations["idle_back"] = {0, 8, 8.0f, 0.0f, true, true};

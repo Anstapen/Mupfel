@@ -37,19 +37,19 @@ std::shared_ptr<std::vector<uint8_t>> ResourceManager::GetFile(const std::string
 	auto it = resourceMap.find(file);
 	if (it == resourceMap.end())
 	{
-		return std::shared_ptr<std::vector<uint8_t>>();
+		return {};
 	}
 
 	if (it->second.size == 0)
 	{
-		return std::shared_ptr<std::vector<uint8_t>>();
+		return {};
 	}
 
 	raw_file.seekg(it->second.offset);
 
-	uint64_t end = it->second.offset + it->second.size;
+	const uint64_t end = it->second.offset + it->second.size;
 
-	std::vector<uint8_t>* file_mem = new std::vector<uint8_t>();
+	auto* file_mem = new std::vector<uint8_t>();
 	int					  c;
 
 	while (!raw_file.eof())
@@ -188,7 +188,7 @@ void ResourceManager::scramble(std::vector<uint8_t>& stream, uint64_t key)
 {
 	const unsigned char* enc = reinterpret_cast<unsigned char*>(&key);
 
-	for (int i = 0; i < stream.size(); i++)
+	for (uint32_t i = 0; i < stream.size(); i++)
 	{
 		stream[i] ^= enc[i % 8];
 	}

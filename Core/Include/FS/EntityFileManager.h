@@ -13,8 +13,8 @@ namespace Mupfel {
 	public:
 		typedef void (*ComponentLoader)(Entity e, nlohmann::json source);
 	public:
-		virtual Handle Load(std::filesystem::path file) override;
-		virtual void Store(const Handle& handle) override;
+		Handle Load(std::filesystem::path file) final;
+		void Store(const Handle& handle) final;
 		virtual bool RegisterComponentLoader(std::string loader_name, ComponentLoader loader);
 	private:
 		static void LoadTransform(Entity e, nlohmann::json source);

@@ -1,11 +1,5 @@
 # cmake/MupfelSettings.cmake
-#
-# The shared per-target configuration every target calls into, so toolchain/output settings live in
-# exactly one place instead of being copy-pasted per CMakeLists.txt. The Premake build spelled these
-# as ApplyDefaultProjectSettings() and ApplyStrictWarnings() in Build.lua.
 
-# Matches Premake's "%{cfg.system}-%{cfg.architecture}" so output paths (and therefore the CI scripts
-# that run Binaries/windows-x86_64/<config>/Tests/Tests.exe) are unchanged by the migration.
 if(WIN32)
     set(MUPFEL_SYSTEM "windows")
 elseif(APPLE)
@@ -17,10 +11,6 @@ endif()
 set(MUPFEL_OUTPUT_DIR "${MUPFEL_ROOT}/Binaries/${MUPFEL_SYSTEM}-x86_64")
 
 # Applied to every target (vendor, engine, app).
-#
-# Unlike the Premake original this does not set the language standard: that is a per-target decision
-# here (box2d is C17, the NVRHI/vk-bootstrap targets are C++17, ours are C++23), and CMake has no
-# equivalent of Premake's "call the shared function, then override the dialect after it".
 function(mupfel_apply_default_settings target)
     # $<CONFIG> is spelled explicitly so multi-config generators don't append the configuration a
     # second time. Static libs land beside executables, exactly where Premake's targetdir put them.
@@ -61,7 +51,6 @@ function(mupfel_apply_default_settings target)
         # box2d is. Premake needed an explicit removebuildoptions{} for that; the COMPILE_LANGUAGE
         # genex makes it automatic.
         target_compile_options(${target} PRIVATE
-            /Zc:preprocessor
             /execution-charset:utf-8
             $<$<COMPILE_LANGUAGE:CXX>:/EHsc>
             $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>)

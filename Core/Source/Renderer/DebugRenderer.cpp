@@ -15,8 +15,8 @@ bool Mupfel::DebugRenderer::Init(
 	(void)framesInFlight;
 	logger = Logger::Create("Debug Renderer");
 
-	ImGuiContext* imgui_context = ImGui::CreateContext();
-	ImGui::SetCurrentContext(imgui_context);
+	imguiContext = ImGui::CreateContext();
+	ImGui::SetCurrentContext(imguiContext);
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;

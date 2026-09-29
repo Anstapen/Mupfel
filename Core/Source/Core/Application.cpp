@@ -16,7 +16,6 @@
 #include "Renderer/Renderer.h"
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 
 #include "GLFW/glfw3.h"
 
@@ -61,7 +60,7 @@ Application::Application()
 {
 }
 
-Application::~Application() {}
+Application::~Application() = default;
 
 bool Application::Init(const ApplicationSpecification& in_spec)
 {
@@ -114,7 +113,7 @@ bool Application::Init(const ApplicationSpecification& in_spec)
 	/* Add Scene 0 */
 	SceneDefinition def;
 	def.name = "DefaultScene";
-	SceneHandle first_handle = CreateScene<DefaultScene>(def);
+	const SceneHandle first_handle = CreateScene<DefaultScene>(def);
 
 	/* prevent unused variable warning in release builds */
 	(void)first_handle;

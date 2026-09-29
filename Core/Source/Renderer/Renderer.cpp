@@ -234,12 +234,16 @@ void Renderer::End(const Window& window, double delta_time)
 		commandList->close();
 		this->nvrhiDevice->executeCommandList(commandList);
 
-		VkPresentInfoKHR info{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-		info.waitSemaphoreCount = 1;
-		info.pWaitSemaphores = &presentSem;
-		info.swapchainCount = 1;
-		info.pSwapchains = &context.swapchain.swapchain;
-		info.pImageIndices = &imageIndex;
+		const VkPresentInfoKHR info{
+			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &presentSem,
+			.swapchainCount = 1,
+			.pSwapchains = &context.swapchain.swapchain,
+			.pImageIndices = &imageIndex,
+			.pResults = nullptr
+		};
 
 		VkResult res = vkQueuePresentKHR(context.present_q, &info);
 

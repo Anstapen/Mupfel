@@ -6,8 +6,7 @@ using namespace Mupfel;
 InputManager::InputManager(EventSystem& evt_system, Mode in_mode) : current_mode(in_mode), event_system(evt_system)
 {
 	/* First, reset all mappings */
-	std::function<void(EventSystem&)> default_emitter = nullptr;
-	std::array<Binding, 3> default_bindings = {default_emitter, default_emitter, default_emitter};
+	const std::array<Binding, 3> default_bindings{};
 	keyboard_map.fill(default_bindings);
 	mouse_map.fill(default_bindings);
 	gamepad_map.fill(default_bindings);

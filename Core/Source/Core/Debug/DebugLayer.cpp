@@ -73,14 +73,12 @@ void Mupfel::DebugLayer::DrawPerformanceMetrics()
 		std::ranges::stable_sort(local, {}, &ProfilingSample::id);
 
 		std::string t;
-		uint32_t	offset = 200;
 		for (const auto& s : local)
 		{
 			std::string indent(s.depth * 2, ' ');
 			double		elapsed_ms = (s.end_time - s.start_time) * 1000.0f;
 			t = std::vformat("{}{}: {:.0f}ms", std::make_format_args(indent, s.name, elapsed_ms));
 			ImGui::Text("%s", t.c_str());
-			offset += 20;
 		}
 	}
 }
@@ -189,9 +187,6 @@ void Mupfel::DebugLayer::DrawCapsuleCollider(Transform& t, Collider& c)
 	const ScreenPoint centre2_pixels =
 		cam.WorldToScreen(centre.x + c.data.capsule.center2_x, centre.y + c.data.capsule.center2_y, centre.z);
 
-	const ScreenPoint bottom_left =
-		cam.WorldToScreen(centre.x + c.data.capsule.center2_x, centre.y + c.data.capsule.center2_y, centre.z);
-
 	glm::vec4 red = {1.0f, 0.0f, 0.0f, 1.0f};
 
 	Application::Get().renderer->geoRenderer->Circle({centre1_pixels.x, centre1_pixels.y}, radius, red, 2);
@@ -253,9 +248,6 @@ void Mupfel::DebugLayer::DrawCapsuleSensor(Transform& t, Sensor& s)
 	const ScreenPoint centre1_pixels =
 		cam.WorldToScreen(centre.x + s.data.capsule.center1_x, centre.y + s.data.capsule.center1_y, centre.z);
 	const ScreenPoint centre2_pixels =
-		cam.WorldToScreen(centre.x + s.data.capsule.center2_x, centre.y + s.data.capsule.center2_y, centre.z);
-
-	const ScreenPoint bottom_left =
 		cam.WorldToScreen(centre.x + s.data.capsule.center2_x, centre.y + s.data.capsule.center2_y, centre.z);
 
 	Application::Get().renderer->geoRenderer->Circle({centre1_pixels.x, centre1_pixels.y}, radius, light_blue, 2);

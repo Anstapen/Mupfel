@@ -8,8 +8,9 @@ namespace Mupfel
 	class FileManager
 	{
 	public:
+		virtual ~FileManager() = default;
+
 		class Handle {
-			uint64_t id;
 			std::filesystem::path file;
 		};
 	public:

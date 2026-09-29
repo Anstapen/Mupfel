@@ -3,5 +3,6 @@
 class Interactable
 {
 public:
+	virtual ~Interactable() = default;
 	virtual void CheckEvents() = 0;
 };

@@ -86,10 +86,10 @@ public:
 
 	/**
 	 * @brief Initializes the engine subsystems and creates the main window.
-	 * @param spec The specification used for initialization.
+	 * @param in_spec The specification used for initialization.
 	 * @return True if initialization succeeded.
 	 */
-	bool Init(const ApplicationSpecification& spec);
+	bool Init(const ApplicationSpecification& in_spec);
 
 	/**
 	 * @brief Starts the main application loop.

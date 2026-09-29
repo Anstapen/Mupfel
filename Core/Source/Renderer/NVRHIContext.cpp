@@ -119,11 +119,11 @@ bool Mupfel::NVRHIContext::CreateSemaphores(uint32_t image_count)
 	bool semaphoreCreationFailed = false;
 
 	/* Use a lambda for now to not duplicate code as much. */
-	auto create_sems = [this, &semaphoreCreationFailed](std::vector<VkSemaphore>& sems, uint32_t count) -> bool
+	auto create_sems = [this](std::vector<VkSemaphore>& sems, uint32_t count) -> bool
 	{
 		for (uint32_t i = 0; i < count; i++)
 		{
-			VkSemaphoreCreateInfo info{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+			VkSemaphoreCreateInfo info{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
 			VkSemaphore			  sem = VK_NULL_HANDLE;
 
 			if (vkCreateSemaphore(this->device.device, &info, nullptr, &sem) != VK_SUCCESS)

@@ -37,6 +37,7 @@ struct FrameContext
 class SubRenderer
 {
 public:
+	virtual ~SubRenderer() = default;
 	/**
 	 * Initialize the subrenderer.
 	 *

@@ -70,13 +70,13 @@ void Mupfel::ImageManager::Shutdown()
 	imageManagerGeneration++;
 }
 
-Expected<ImageHandle> Mupfel::ImageManager::Load(const std::string& path, ResourceManager* mngr)
+Expected<ImageHandle> Mupfel::ImageManager::Load(const std::string& path, ResourceManager *mngr)
 {
 	return LoadAnimated(path, {1, 1}, mngr);
 }
 
 Expected<ImageHandle>
-Mupfel::ImageManager::LoadAnimated(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
+Mupfel::ImageManager::LoadAnimated(const std::string& path, const ImageSpecification& spec, ResourceManager *mngr)
 {
 	auto it = imageHandleMap.find(path);
 	if (it != imageHandleMap.end() && !it->second.handles.empty())
@@ -124,7 +124,7 @@ Mupfel::ImageManager::LoadAnimated(const std::string& path, const ImageSpecifica
 }
 
 Expected<std::vector<ImageHandle>>
-Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
+Mupfel::ImageManager::LoadSpriteSheet(const std::string& path, const ImageSpecification& spec, ResourceManager *mngr)
 {
 	auto it = imageHandleMap.find(path);
 	if (it != imageHandleMap.end() && !it->second.handles.empty())
@@ -231,7 +231,7 @@ nvrhi::TextureHandle Mupfel::ImageManager::GetTextureHandle(ImageHandle handle)
 }
 
 Expected<ImageManager::DecodedSheet>
-Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecification& spec, ResourceManager* mngr)
+Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecification& spec, ResourceManager *mngr)
 {
 	if (spec.columns == 0 || spec.rows == 0)
 	{
