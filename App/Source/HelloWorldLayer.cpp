@@ -18,18 +18,22 @@ void HelloWorldLayer::OnInit()
 	if (!mngr->Load("Resources/resource.pack"))
 	{
 		logger->warn("Unable to load resource file!");
+	} else
+	{
+		/* set it as the global resource manager. */
+		Application::SetGlobalResourceManager(mngr);
 	}
 
 	/* Create a Scene */
 	SceneDefinition def;
 	def.name = "MainMenu";
-	mainMenu = Scenes::Create<MainMenu>(def, mngr);
+	mainMenu = Scenes::Create<MainMenu>(def);
 	def.name = "Dungeon";
-	level = Scenes::Create<Level>(def, mngr);
+	level = Scenes::Create<Level>(def);
 	def.name = "GravityTest";
 	def.gravity_x = 0.0f;
 	def.gravity_y = -10.0f;
-	gravityTest = Scenes::Create<GravityTest>(def, mngr);
+	gravityTest = Scenes::Create<GravityTest>(def);
 
 	/* We are starting with the gravityTest. */
 	Scenes::Switch(level);

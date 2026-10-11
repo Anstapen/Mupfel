@@ -10,19 +10,14 @@ using namespace Mupfel;
 
 void Level::OnInit()
 {
+	Imager::Load("Map", "Images/dungeon.png");
 
-	if (!resourceManager)
-	{
-		logger->warn("No resource pack was loaded...");
-	}
-	Imager::Load("Map", "Images/dungeon.png", resourceManager.get());
-
-	Imager::LoadAnimated("NormalChest", "Images/normal_chest.png", {.rows = 1, .columns = 5}, resourceManager.get());
-	Imager::LoadAnimated("FilledChest", "Images/filled_chest.png", {.rows = 1, .columns = 5}, resourceManager.get());
-	Imager::LoadAnimated("MonsterChest", "Images/monster_chest.png", {.rows = 1, .columns = 5}, resourceManager.get());
-	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3}, resourceManager.get());
-	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3}, resourceManager.get());
-	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7}, resourceManager.get());
+	Imager::LoadAnimated("NormalChest", "Images/normal_chest.png", {.rows = 1, .columns = 5});
+	Imager::LoadAnimated("FilledChest", "Images/filled_chest.png", {.rows = 1, .columns = 5});
+	Imager::LoadAnimated("MonsterChest", "Images/monster_chest.png", {.rows = 1, .columns = 5});
+	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3});
+	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3});
+	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7});
 
 	{
 		Entity e = Entities::Create();
@@ -117,7 +112,7 @@ void Level::OnUpdate(double timestep)
 void Level::OnRender()
 {
 	/* Draw a Button */
-	if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png", resourceManager.get()) == 3)
+	if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png") == 3)
 	{
 		logger->info("Switching to the Main Menu...");
 		Events::Post<SwitchToMainMenuEvent>({});

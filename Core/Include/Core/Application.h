@@ -163,6 +163,7 @@ public:
 	 * Load a simple image.
 	 *
 	 * \param path Path to image.
+	 * \param mngr An optional resource manager to load the image from.
 	 * \return Image Handle or error code.
 	 */
 	[[nodiscard]] static Expected<ImageHandle> LoadBasicImage(const std::string &path, ResourceManager *mngr = nullptr);
@@ -172,6 +173,7 @@ public:
 	 *
 	 * \param path Path to image.
 	 * \param spec image specification.
+	 * \param mngr An optional resource manager to load the image from.
 	 * \return Image Handle or error code.
 	 */
 	[[nodiscard]] static Expected<ImageHandle>
@@ -182,14 +184,27 @@ public:
 	 *
 	 * \param path Path to spritesheet.
 	 * \param spec image specification.
+	 * \param mngr An optional resource manager to load the image from.
 	 * \return Image Handles or error code.
 	 */
 	[[nodiscard]] static Expected<std::vector<ImageHandle>>
 	LoadSpriteSheetImages(const std::string &path, const ImageSpecification& spec, ResourceManager *mngr = nullptr);
 
-	template <typename T> static std::optional<T> GetConfigEntry(const std::string key);
+	template <typename T> static std::optional<T> GetConfigEntry(const std::string &key);
 
-	template <typename T> static void SetConfigEntry(const std::string key, T value);
+	template <typename T> static void SetConfigEntry(const std::string &key, T value);
+
+	/**
+	 * Retrieve the global resource manager.
+	 * @return The resource manager, or nullptr, if none was set.
+	 */
+	static std::shared_ptr<ResourceManager> GetGlobalResourceManager();
+
+	/**
+	 * Set the global resource manager.
+	 * @param mngr
+	 */
+	static void SetGlobalResourceManager(std::shared_ptr<ResourceManager> mngr);
 
 	/**
 	 * @brief Provides access to the global Thread Pool.
@@ -211,7 +226,7 @@ public:
 	void PushLayer()
 	{
 		layerStack.push_back(std::make_unique<TLayer>());
-		layerStack.back().get()->OnInit();
+		layerStack.back()->OnInit();
 	}
 
 	template <typename T, typename... Args>
@@ -275,6 +290,9 @@ private:
 	ApplicationSpecification spec;
 
 	ConfigManager configManager;
+
+	/** A global resource manager. */
+	std::shared_ptr<ResourceManager> resourceManager = nullptr;
 
 	/** @brief Reference to the Window singleton. */
 	Window& window;
@@ -341,12 +359,12 @@ private:
 	uint64_t frame_count = 0;
 };
 
-template <typename T> inline std::optional<T> Application::GetConfigEntry(const std::string key)
+template <typename T> inline std::optional<T> Application::GetConfigEntry(const std::string &key)
 {
 	return Get().configManager.Get<T>(key);
 }
 
-template <typename T> inline void Application::SetConfigEntry(const std::string key, T value)
+template <typename T> inline void Application::SetConfigEntry(const std::string &key, T value)
 {
 	Get().configManager.Set<T>(key, value);
 }

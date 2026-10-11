@@ -7,8 +7,8 @@
 class Level : public Mupfel::Scene
 {
 public:
-	Level(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition &def, const std::shared_ptr<Mupfel::ResourceManager>& in_mngr)
-		: Mupfel::Scene(in_handle, def, in_mngr), player(Mupfel::Application::GetCurrentRegistry(), in_mngr)
+	Level(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition &def)
+		: Mupfel::Scene(in_handle, def), player(Mupfel::Application::GetCurrentRegistry())
 	{
 	}
 

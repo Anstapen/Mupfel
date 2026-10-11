@@ -37,7 +37,7 @@ void GravityTest::OnInit()
     Entities::AddComponent<Body>(side_left, {});
 
     /* Add some balls */
-    Imager::Load("Ball", "Images/ball_blue.png", resourceManager.get());
+    Imager::Load("Ball", "Images/ball_blue.png");
 }
 
 void GravityTest::OnUpdate(double timestep)
@@ -77,7 +77,7 @@ void GravityTest::OnUpdate(double timestep)
 void GravityTest::OnRender()
 {
     /* Draw a Button */
-    if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png", resourceManager.get()) == 3)
+    if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png") == 3)
     {
         logger->info("Switching to the Main Menu...");
         Events::Post<SwitchToMainMenuEvent>({});

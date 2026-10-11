@@ -70,7 +70,7 @@ namespace Mupfel
          * \retval Error::FILE_ALREADY_LOADED A spritesheet with the same name is already loaded.
          * \retval Error::NO_MEMORY Not enough memory to upload the image.
          * \retval Error::FILE_NOT_FOUND The image could not be found.
-         * \retval Error::INVALID_PARAMETER If spec.colums or spec.rows is zero.
+         * \retval Error::INVALID_PARAMETER If spec.columns or spec.rows is zero.
          * \retval Error::FILE_WRONG_FORMAT If the image dimensions are incompatible with \a spec.
          */
         [[nodiscard]] Expected<ImageHandle>
@@ -89,7 +89,7 @@ namespace Mupfel
          * \retval Error::FILE_ALREADY_LOADED An animated image with the same name is already loaded.
          * \retval Error::NO_MEMORY Not enough memory to upload the image.
          * \retval Error::FILE_NOT_FOUND The image could not be found.
-         * \retval Error::INVALID_PARAMETER If spec.colums or spec.rows is zero.
+         * \retval Error::INVALID_PARAMETER If spec.columns or spec.rows is zero.
          * \retval Error::FILE_WRONG_FORMAT If the image dimensions are incompatible with \a spec.
          */
         [[nodiscard]] Expected<std::vector<ImageHandle>>
@@ -169,7 +169,6 @@ namespace Mupfel
         /**
          * Create a layered texture from image data.
          *
-         * \param device The device that is used to create the handles.
          * \param sheet The decoded image.
          * \return The texture handle.
          */
@@ -178,7 +177,6 @@ namespace Mupfel
         /**
          * Create texture handles from spritesheet.
          *
-         * \param device The device that is used to create the handles.
          * \param sheet The decoded sprite sheet.
          * \return An array of texture handles.
          */

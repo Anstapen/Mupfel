@@ -8,7 +8,7 @@
 class Player
 {
 public:
-    Player(Mupfel::Registry& registry, std::shared_ptr<Mupfel::ResourceManager> in_mngr);
+    Player(Mupfel::Registry& registry);
 
 public:
     void Init();
@@ -23,7 +23,6 @@ private:
     Mupfel::Logger::SafeLoggerPtr logger;
     Mupfel::Entity e;
     std::unordered_map<std::string, Mupfel::Animation> animations;
-    std::shared_ptr<Mupfel::ResourceManager> mngr;
     /** Key into `animations` of the sequence currently playing; empty until the first selection. */
     std::string current_anim;
     float velocity_x = 0.0f;

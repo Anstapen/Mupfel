@@ -59,9 +59,8 @@ namespace Mupfel
 
         virtual void Deserialize(const std::string& path) { (void)path; };
 
-        Scene(const SceneHandle in_handle, const SceneDefinition& def,
-              std::shared_ptr<ResourceManager> in_mngr = nullptr)
-            : camera(def.cam), resourceManager(std::move(in_mngr)), gravity_x(def.gravity_x), gravity_y(def.gravity_y),
+        Scene(const SceneHandle in_handle, const SceneDefinition& def)
+            : camera(def.cam), gravity_x(def.gravity_x), gravity_y(def.gravity_y),
               handle(in_handle)
         {
             const std::string name(def.name);
@@ -71,7 +70,6 @@ namespace Mupfel
     protected:
         Logger::SafeLoggerPtr logger;
         Camera camera;
-        std::shared_ptr<ResourceManager> resourceManager;
         float gravity_x;
         float gravity_y;
 

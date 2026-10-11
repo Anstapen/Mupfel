@@ -3,6 +3,7 @@
 #include <optional>
 
 #define STB_IMAGE_IMPLEMENTATION
+#include "Application.h"
 #include "stb_image.h"
 
 using namespace Mupfel;
@@ -243,10 +244,25 @@ Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecificat
 	int texHeight = 0;
 	int texChannels = 0;
 
-	/* If a resource manager is given, use that one. */
+	/*
+	 * We have several options regarding resource loading:
+	 * 1. Use the given resource manager, if provided.
+	 * 2. Use the global application resource manager, if set.
+	 * 3. Search the image on disk and load it.
+	 */
 	if (mngr)
 	{
-		std::shared_ptr<std::vector<uint8_t>> raw_data = mngr->GetFile(path);
+		const std::shared_ptr<std::vector<uint8_t>> raw_data = mngr->GetFile(path);
+
+		if (raw_data)
+		{
+			pixels = stbi_load_from_memory(
+				raw_data->data(), static_cast<int>(raw_data->size()), &texWidth, &texHeight, &texChannels,
+				STBI_rgb_alpha);
+		}
+	} else if (Application::GetGlobalResourceManager())
+	{
+		const std::shared_ptr<std::vector<uint8_t>> raw_data = Application::GetGlobalResourceManager()->GetFile(path);
 
 		if (raw_data)
 		{
@@ -272,17 +288,17 @@ Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecificat
 	}
 
 	std::vector<std::vector<uint8_t>> subImages;
-	uint8_t*						  pixel_ptr = pixels;
-	uint32_t						  subImageWidth = texWidth / spec.columns;
-	uint32_t						  subImageHeight = texHeight / spec.rows;
-	uint32_t						  subImageSize = subImageWidth * subImageHeight * 4;
+	const uint8_t*						  pixel_ptr = pixels;
+	const uint32_t						  subImageWidth = texWidth / spec.columns;
+	const uint32_t						  subImageHeight = texHeight / spec.rows;
+	const uint32_t						  subImageSize = subImageWidth * subImageHeight * 4;
 
 	/* copy the image data into ub buffers. */
 	for (uint32_t row = 0; row < spec.rows; row++)
 	{
 		for (uint32_t column = 0; column < spec.columns; column++)
 		{
-			uint64_t			 starting_offset = (static_cast<uint64_t>(row) * subImageHeight * texWidth +
+			const uint64_t			 starting_offset = (static_cast<uint64_t>(row) * subImageHeight * texWidth +
 													static_cast<uint64_t>(column) * subImageWidth) *
 												   4;
 			std::vector<uint8_t> subImage;
@@ -292,7 +308,7 @@ Mupfel::ImageManager::DecodeSheet(const std::string& path, const ImageSpecificat
 			{
 				for (uint32_t k = 0; k < subImageWidth; k++)
 				{
-					uint64_t offset = starting_offset + (static_cast<uint64_t>(i) * texWidth + k) * 4;
+					const uint64_t offset = starting_offset + (static_cast<uint64_t>(i) * texWidth + k) * 4;
 					for (uint32_t l = 0; l < 4; l++)
 					{
 

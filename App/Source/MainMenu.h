@@ -4,8 +4,8 @@
 class MainMenu : public Mupfel::Scene
 {
 public:
-	MainMenu(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition &def, std::shared_ptr<Mupfel::ResourceManager> in_mngr)
-		: Mupfel::Scene(in_handle, def, std::move(in_mngr))
+	MainMenu(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition &def)
+		: Mupfel::Scene(in_handle, def)
 	{
 	}
 

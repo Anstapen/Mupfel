@@ -16,6 +16,7 @@
 #include "Renderer/Renderer.h"
 #include <algorithm>
 #include <chrono>
+#include <utility>
 
 #include "GLFW/glfw3.h"
 
@@ -232,6 +233,16 @@ Expected<std::vector<ImageHandle>> Mupfel::Application::LoadSpriteSheetImages(
 	ResourceManager*		  mngr)
 {
 	return Get().renderer->GetImageManager().LoadSpriteSheet(path, spec, mngr);
+}
+
+std::shared_ptr<ResourceManager> Application::GetGlobalResourceManager()
+{
+	return Get().resourceManager;
+}
+
+void Application::SetGlobalResourceManager(std::shared_ptr<ResourceManager> mngr)
+{
+	Get().resourceManager = std::move(mngr);
 }
 
 ThreadPool& Mupfel::Application::GetCurrentThreadPool() { return Get().thread_pool; }
