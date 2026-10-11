@@ -75,8 +75,8 @@ jobs:
       # The runner image ships CMake, but not necessarily the 4.x the build requires.
       - name: Install CMake
         uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: ${{ env.CMAKE_VERSION }}
+      #  with:
+      #    cmakeVersion: ${{ env.CMAKE_VERSION }}
 
       # ci-windows rather than the `windows` preset: the runner has VS 2022, not VS 2026.
       - name: Configure

@@ -71,8 +71,8 @@ jobs:
       # image does not ship.
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: ${{ env.CMAKE_VERSION }}
+      #  with:
+      #    cmakeVersion: ${{ env.CMAKE_VERSION }}
 
       - name: Configure
         env:
