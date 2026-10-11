@@ -80,7 +80,7 @@ jobs:
 
       # ci-windows rather than the `windows` preset: the runner has VS 2022, not VS 2026.
       - name: Configure
-        run: cmake --preset ci-windows
+        run: cmake --preset windows
 
       - name: Build
         run: cmake --build --preset ci-windows-${{ env.CONFIG_LOWER }} -- -m

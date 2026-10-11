@@ -39,14 +39,6 @@
       "inherits": "base",
       "generator": "Ninja Multi-Config",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
-    },
-    {
-      "name": "ci-windows",
-      "displayName": "Windows CI (Visual Studio 2022)",
-      "description": "What the GitHub Windows runner uses: its image ships VS 2022, not VS 2026, so it cannot use the `windows` preset's generator.",
-      "inherits": "base",
-      "generator": "Visual Studio 17 2022",
-      "architecture": { "value": "x64", "strategy": "set" }
     }
   ],
 
