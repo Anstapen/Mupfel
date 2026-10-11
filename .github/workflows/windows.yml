@@ -83,7 +83,7 @@ jobs:
         run: cmake --preset windows
 
       - name: Build
-        run: cmake --build --preset ci-windows-${{ env.CONFIG_LOWER }} -- -m
+        run: cmake --build --preset windows-${{ env.CONFIG_LOWER }} -- -m
         env:
           CONFIG_LOWER: ${{ matrix.config == 'Debug' && 'debug' || 'release' }}
 
