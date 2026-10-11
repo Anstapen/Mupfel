@@ -50,10 +50,7 @@
     { "name": "windows-ninja-release", "configurePreset": "windows-ninja", "configuration": "Release" },
 
     { "name": "linux-debug",           "configurePreset": "linux",         "configuration": "Debug" },
-    { "name": "linux-release",         "configurePreset": "linux",         "configuration": "Release" },
-
-    { "name": "ci-windows-debug",      "configurePreset": "ci-windows",    "configuration": "Debug" },
-    { "name": "ci-windows-release",    "configurePreset": "ci-windows",    "configuration": "Release" }
+    { "name": "linux-release",         "configurePreset": "linux",         "configuration": "Release" }
   ],
 
   "testPresets": [
