@@ -1,9 +1,9 @@
 #pragma once
 #include <filesystem>
-#include <cstdint>
 
 namespace Mupfel
 {
+	class ResourceManager;
 
 	class FileManager
 	{
@@ -14,7 +14,7 @@ namespace Mupfel
 			std::filesystem::path file;
 		};
 	public:
-		virtual Handle Load(std::filesystem::path file) = 0;
+		virtual Handle Load(const std::filesystem::path &file, ResourceManager * mngr) = 0;
 		virtual void Store(const Handle &handle) = 0;
 	};
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "json_fwd.hpp"
 
 namespace Mupfel
 {
@@ -32,7 +33,9 @@ struct Animation
 		finished = false;
 	}
 
-	inline bool IsFinished() const { return finished; }
+	[[nodiscard]] inline bool IsFinished() const { return finished; }
+
+	void BuildFromJSON(const nlohmann::json &source);
 
 	uint32_t firstFrame = 0;
 	uint32_t frameCount = 1;

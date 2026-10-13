@@ -261,7 +261,7 @@ template <typename T> inline void Registry::AddComponent(Entity e, T component)
 	storage.Insert(e, std::move(component));
 
 	/* Update the Entity Signature */
-	uint32_t id = static_cast<uint32_t>(ComponentIndex::Index<T>());
+	auto id = static_cast<uint32_t>(ComponentIndex::Index<T>());
 	signatures[e.Index()].set(id);
 
 	/* Send a ComponentAdded Event */

@@ -1,111 +1,27 @@
 #include "Level.h"
-#include "GameObjects/Chest.h"
-#include "GameObjects/Spike.h"
 #include "Imager.h"
+#include "Components/ProximityAnimator.h"
 #include "SceneSwitches.h"
-#include "Types.h"
 #include <vector>
 
 using namespace Mupfel;
 
 void Level::OnInit()
 {
-	Imager::Load("Map", "Images/dungeon.png");
-
-	Imager::LoadAnimated("NormalChest", "Images/normal_chest.png", {.rows = 1, .columns = 5});
-	Imager::LoadAnimated("FilledChest", "Images/filled_chest.png", {.rows = 1, .columns = 5});
-	Imager::LoadAnimated("MonsterChest", "Images/monster_chest.png", {.rows = 1, .columns = 5});
-	Imager::LoadAnimated("GargLava", "Images/garg_lava.png", {.rows = 1, .columns = 3});
-	Imager::LoadAnimated("GargWater", "Images/garg_water.png", {.rows = 1, .columns = 3});
-	Imager::LoadAnimated("Spikes", "Images/spikes.png", {.rows = 1, .columns = 7});
-
+	auto load_proximity_animator = [] (Entity e, const nlohmann::json &source)
 	{
-		Entity e = Entities::Create();
-		Entities::AddComponent<Transform>(e, {});
-		Entities::AddComponent<Texture>(e, {Imager::Get("Map"), 31.0f, 13.0f});
-	}
-
-	/* A simple Light */
-	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_z = 1.0f;
-
-		Entities::AddComponent<Transform>(e, g);
-
-		Light l;
-		l.ambientStrength = 0.1f;
-		l.r = 1.0f;
-		l.g = 1.0f;
-		l.b = 1.0f;
-
-		Entities::AddComponent<Light>(e, l);
-	}
-
-	interactables.push_back(std::make_unique<Chest>("NormalChest", -5.0f, 0.0f));
-	interactables.push_back(std::make_unique<Chest>("NormalChest", -6.0f, 0.0f));
-	interactables.push_back(std::make_unique<Chest>("NormalChest", -5.0f, 1.0f));
-	interactables.push_back(std::make_unique<Chest>("NormalChest", -6.0f, 1.0f));
-
-	/* Two gargs */
-	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_x = -6.0f;
-		g.pos_y = 5.0f;
-		g.pos_z = 0.08f;
-
-		Entities::AddComponent<Transform>(e, g);
-		Entities::AddComponent<Texture>(e, {Imager::Get("GargLava"), 1.0f, 3.0f});
-
-		Entities::AddComponent<Animation>(e, {0, 3, 2.0f, 0.0f, true, true});
-	}
-
-	{
-		Entity	  e = Entities::Create();
-		Transform g;
-		g.pos_x = -5.0f;
-		g.pos_y = 5.0f;
-		g.pos_z = 0.08f;
-
-		Entities::AddComponent<Transform>(e, g);
-		Entities::AddComponent<Texture>(e, {Imager::Get("GargWater"), 1.0f, 3.0f});
-
-		Entities::AddComponent<Animation>(e, {0, 3, 2.0f, 0.0f, true, true});
-	}
-
-	/* A bunch of spikes */
-
-	std::vector<std::pair<float, float>> spike_positions;
-
-	spike_positions.emplace_back(-4.0f, 0.0f);
-	spike_positions.emplace_back(-4.0f, -1.0f);
-	spike_positions.emplace_back(-4.0f, 1.0f);
-	spike_positions.emplace_back(-4.0f, 2.0f);
-	spike_positions.emplace_back(-5.0f, -1.0f);
-	spike_positions.emplace_back(-5.0f, 2.0f);
-	spike_positions.emplace_back(-6.0f, -1.0f);
-	spike_positions.emplace_back(-6.0f, 2.0f);
-	spike_positions.emplace_back(-7.0f, 0.0f);
-	spike_positions.emplace_back(-7.0f, -1.0f);
-	spike_positions.emplace_back(-7.0f, 1.0f);
-	spike_positions.emplace_back(-7.0f, 2.0f);
-
-	for (auto& [x, y] : spike_positions)
-	{
-		interactables.push_back(std::make_unique<Spike>("Spikes", x, y));
-	}
-
+		ProximityAnimator a;
+		a.BuildFromJSON(source);
+		Entities::AddComponent<ProximityAnimator>(e, a);
+	};
+	e_mngr.RegisterComponentLoader("ProximityAnimation", load_proximity_animator);
+	e_mngr.Load("Entities/entities.json", nullptr);
 	player.Init();
 }
 
 void Level::OnUpdate(double timestep)
 {
 	UpdateUserInputs();
-	for (auto& i : interactables)
-	{
-		i->CheckEvents();
-	}
 	player.UpdateMovement(timestep);
 }
 
@@ -141,9 +57,9 @@ void Level::UpdateUserInputs()
 		{
 			movable_camera = false;
 			/* Mouse button has been pressed this frame */
-			ScreenPoint screen_cursor = {static_cast<float>(Input::CursorX()), static_cast<float>(Input::CursorY())};
+			const ScreenPoint screen_cursor = {static_cast<float>(Input::CursorX()), static_cast<float>(Input::CursorY())};
 
-			ScreenVector diff = {screen_cursor.x - last_cursor_on_screen.x, screen_cursor.y - last_cursor_on_screen.y};
+			const ScreenVector diff = {screen_cursor.x - last_cursor_on_screen.x, screen_cursor.y - last_cursor_on_screen.y};
 
 			auto world_diff = camera.ScreenToWorldVector(diff.x, diff.y);
 

@@ -1,8 +1,7 @@
 #pragma once
 #include "Mupfel.h"
 #include "Player.h"
-#include <memory>
-#include "GameObjects/Interactable.h"
+#include "FS/EntityFileManager.h"
 
 class Level : public Mupfel::Scene
 {
@@ -21,5 +20,5 @@ private:
 
 private:
 	Player player;
-	std::vector<std::unique_ptr<Interactable>> interactables;
+	Mupfel::EntityFileManager e_mngr;
 };

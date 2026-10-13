@@ -3,6 +3,7 @@
 #include "Level.h"
 #include "MainMenu.h"
 #include "GravityTest.h"
+#include "Systems/ProximityAnimationSystem.h"
 
 using namespace Mupfel;
 
@@ -24,6 +25,7 @@ void HelloWorldLayer::OnInit()
 		Application::SetGlobalResourceManager(mngr);
 	}
 
+
 	/* Create a Scene */
 	SceneDefinition def;
 	def.name = "MainMenu";
@@ -35,7 +37,6 @@ void HelloWorldLayer::OnInit()
 	def.gravity_y = -10.0f;
 	gravityTest = Scenes::Create<GravityTest>(def);
 
-	/* We are starting with the gravityTest. */
 	Scenes::Switch(level);
 
 }
@@ -55,6 +56,8 @@ void HelloWorldLayer::OnUpdate(double timestep)
 	{
 		Scenes::Switch(gravityTest);
 	}
+
+	ProximityAnimationSystem::Update(timestep);
 }
 
 void HelloWorldLayer::OnRender() {}

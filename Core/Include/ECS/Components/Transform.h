@@ -1,16 +1,15 @@
 #pragma once
+#include "json_fwd.hpp"
 
-namespace Mupfel {
+namespace Mupfel
+{
+    struct Transform
+    {
+        float pos_x = 0.0f;
+        float pos_y = 0.0f;
+        float pos_z = 0.0f;
+        float rotation = 0.0f;
 
-	struct Transform
-	{
-		float pos_x = 0.0f;
-		float pos_y = 0.0f;
-		float pos_z = 0.0f;
-		float rotation = 0.0f;
-	};
-
+        void BuildFromJSON(const nlohmann::json& source);
+    };
 }
-
-
-

@@ -44,9 +44,9 @@ void GravityTest::OnUpdate(double timestep)
 {
     static double spawn_timer = 0.0f;
     static uint32_t total_balls = 0;
-    static constexpr uint32_t max_balls = 5000;
+    static constexpr uint32_t max_balls = 4000;
     static std::uniform_real_distribution<float> dist_position(-9.0f, 9.0f);
-    static std::uniform_real_distribution<float> dist_collider_size(0.1f, 0.2f);
+    static std::uniform_real_distribution<float> dist_collider_size(0.05f, 0.1f);
 
     spawn_timer += timestep;
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "json_fwd.hpp"
 
 namespace Mupfel
 {
@@ -22,5 +23,7 @@ struct Body
 	bool	 fixed_rotation = true;
 	bool	 is_bullet = false;
 	bool	 allow_sleep = true;
+
+	void BuildFromJSON(const nlohmann::json &source);
 };
 } // namespace Mupfel

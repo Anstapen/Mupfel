@@ -62,8 +62,8 @@ mupfel_declare_dep(stb
 
 mupfel_declare_dep(nlohmann
     RELPATH     "Vendor/Sources/nlohmann"
-    URL         "https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp"
-    SINGLE_FILE "json.hpp")
+    SINGLE_FILES "https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp"
+        "https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json_fwd.hpp")
 
 # Header-only, and vendored rather than taken from the Vulkan SDK: the LunarG *Windows* installer
 # happens to ship a copy under its own Include/, which is what Core used to resolve <glm/glm.hpp>

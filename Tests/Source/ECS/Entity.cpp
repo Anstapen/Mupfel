@@ -38,26 +38,3 @@ TEST_CASE("Basic Entity System Tests", "[entity_basic]")
 		REQUIRE(first_entity_index == second_entity_index);
 	}
 }
-
-#if 0
-TEST_CASE("Entity Limit Tests", "[entity_limit]")
-{
-	Mupfel::EntityManager entity_manager;
-
-	SECTION("Creating all entities")
-	{
-		for (uint32_t i = 0; i < std::numeric_limits<uint32_t>::max() - 1; i++)
-		{
-			entity_manager.CreateEntity();
-		}
-
-		/* One last entity should be possible. */
-		REQUIRE(entity_manager.CreateEntity().Index() == std::numeric_limits<uint32_t>::max());
-
-		/* The internal entity counter overflows. */
-		REQUIRE(entity_manager.CreateEntity().Index() == 0);
-	}
-
-	/* TODO: create some random deletetion tests. */
-}
-#endif
