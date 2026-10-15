@@ -5,6 +5,7 @@
 #include <random>
 #include <algorithm>
 #include <concepts>
+#include <iterator>
 
 namespace Mupfel
 {
@@ -80,7 +81,7 @@ namespace Mupfel
     inline IntegerType PRNG::DiscreteInt(std::initializer_list<double> weights)
     {
         assert(std::ranges::all_of(weights, [](double w) { return w >= 0.0; }));
-        assert(std::ranges::any_of(weights, [](double w) { return w > 0.0; }) || weights.empty());
+        assert(std::ranges::any_of(weights, [](double w) { return w > 0.0; }) || std::empty(weights));
         std::discrete_distribution<IntegerType> dist(weights);
         return dist(engine);
     }
