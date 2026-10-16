@@ -1,20 +1,21 @@
 #pragma once
 #include "Core/Event.h"
+#include <cstdint>
 
-class SwitchToMainMenuEvent : public Mupfel::Event
+enum class AppScene : uint8_t
 {
-public:
-	SwitchToMainMenuEvent() {};
+    INVALID,
+    MAIN_MENU,
+    DUNGEON_LEVEL,
+    SPACE_INVADERS,
+    GRAV_TEST
 };
 
-class SwitchToLevelEvent : public Mupfel::Event
+class SwitchSceneEvent : public Mupfel::Event
 {
 public:
-	SwitchToLevelEvent() {};
-};
-
-class SwitchToGravityTestEvent : public Mupfel::Event
-{
-public:
-	SwitchToGravityTestEvent() {};
+    explicit SwitchSceneEvent(AppScene in_scene = AppScene::INVALID) : new_scene(in_scene)
+    {
+    };
+    AppScene new_scene;
 };

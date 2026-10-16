@@ -42,3 +42,6 @@ Core/resource.h
 
 cmake-build-*/
 *.pack
+
+# Resource Data
+App/Resources/

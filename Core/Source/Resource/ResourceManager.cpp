@@ -26,8 +26,7 @@ bool ResourceManager::SaveFile(const std::string& file)
 		return false;
 	}
 
-	std::string key = file;
-	resourceMap.try_emplace(key, ResourceManager::Resource());
+	resourceMap.try_emplace(file, ResourceManager::Resource());
 
 	return true;
 }
@@ -45,24 +44,18 @@ std::shared_ptr<std::vector<uint8_t>> ResourceManager::GetFile(const std::string
 		return {};
 	}
 
-	raw_file.seekg(it->second.offset);
+	raw_file.clear();
+	raw_file.seekg(static_cast<std::streamoff>(it->second.offset));
 
-	const uint64_t end = it->second.offset + it->second.size;
+	auto file_mem = std::make_shared<std::vector<uint8_t>>(it->second.size);
+	raw_file.read(reinterpret_cast<char*>(file_mem->data()),
+				  static_cast<std::streamsize>(it->second.size));
 
-	auto* file_mem = new std::vector<uint8_t>();
-	int					  c;
-
-	while (!raw_file.eof())
+	if (raw_file.gcount() != static_cast<std::streamsize>(it->second.size))
 	{
-		c = raw_file.get();
-		if (raw_file.eof() || (raw_file.tellg() > static_cast<int64_t>(end)))
-		{
-			break;
-		}
-		file_mem->push_back(static_cast<uint8_t>(c));
+		return {};
 	}
-
-	return std::shared_ptr<std::vector<uint8_t>>(file_mem);
+	return file_mem;
 }
 
 bool ResourceManager::Load(const std::string& file, std::string_view key)
@@ -76,16 +69,16 @@ bool ResourceManager::Load(const std::string& file, std::string_view key)
 	}
 
 	uint32_t num_files = 0;
-	raw_file.read((char*)&num_files, sizeof(uint32_t));
+	raw_file.read(reinterpret_cast<char*>(&num_files), sizeof(uint32_t));
 
 	for (uint32_t i = 0; i < num_files; i++)
 	{
 		MemoryResource m;
-		raw_file.read((char*)&m, sizeof(MemoryResource));
+		raw_file.read(reinterpret_cast<char*>(&m), sizeof(MemoryResource));
 		std::string s(
 			m.name.begin(),
 			m.name.begin() + std::min<size_t>(strlen(m.name.data()), ResourceManager::MAX_FILE_NAME_LENGTH));
-		resourceMap[s] = {m.offset, m.size};
+		resourceMap[s] = {.offset = m.offset, .size = m.size};
 	}
 
 	return true;
@@ -108,8 +101,8 @@ bool ResourceManager::Store(const std::string& file, std::string_view key)
 	}
 
 	/* Write the number of map entries. */
-	uint32_t num_files = static_cast<uint32_t>(resourceMap.size());
-	out.write((char*)&num_files, sizeof(uint32_t));
+	auto num_files = static_cast<uint32_t>(resourceMap.size());
+	out.write(reinterpret_cast<char*>(&num_files), sizeof(uint32_t));
 
 	/* Dummy writes of the offsets, to create the complete header. */
 	for (auto& [k, v] : resourceMap)
@@ -121,14 +114,13 @@ bool ResourceManager::Store(const std::string& file, std::string_view key)
 		m.offset = v.offset;
 		m.size = v.size;
 
-		out.write((char*)&m, sizeof(MemoryResource));
+		out.write(reinterpret_cast<char*>(&m), sizeof(MemoryResource));
 	}
 
 	/* Write the files */
 	for (auto& [k, v] : resourceMap)
 	{
-		std::ifstream tmp_file;
-		tmp_file.open(k, std::ios_base::binary);
+		std::ifstream tmp_file(k, std::ios_base::binary | std::ios_base::ate);
 
 		if (!tmp_file.is_open())
 		{
@@ -136,25 +128,16 @@ bool ResourceManager::Store(const std::string& file, std::string_view key)
 			continue;
 		}
 
-		/* For now, we copy it into memory */
-		std::vector<uint8_t> file_mem;
-		int					 c;
+		const std::streamsize file_size = tmp_file.tellg();
+		tmp_file.seekg(0);
 
-		while (!tmp_file.eof())
-		{
-			c = tmp_file.get();
-			if (tmp_file.eof())
-			{
-				break;
-			}
-			file_mem.push_back(static_cast<uint8_t>(c));
-		}
+		std::vector<uint8_t> file_mem(static_cast<size_t>(file_size));
+		tmp_file.read(reinterpret_cast<char*>(file_mem.data()), file_size);
 
 		v.offset = out.tellp();
 		v.size = file_mem.size();
 
-		out.write((char*)file_mem.data(), file_mem.size());
-		tmp_file.close();
+		out.write(reinterpret_cast<const char*>(file_mem.data()), file_size);
 	}
 
 	/* Write the map again, now with updated offsets. */
@@ -168,7 +151,7 @@ bool ResourceManager::Store(const std::string& file, std::string_view key)
 		m.offset = v.offset;
 		m.size = v.size;
 
-		out.write((char*)&m, sizeof(MemoryResource));
+		out.write(reinterpret_cast<char*>(&m), sizeof(MemoryResource));
 	}
 
 	out.close();

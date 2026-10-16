@@ -4,10 +4,11 @@
 #include "MainMenu.h"
 #include "GravityTest.h"
 #include "Systems/ProximityAnimationSystem.h"
+#include "SpaceInvaderClone/Level.h"
 
 using namespace Mupfel;
 
-HelloWorldLayer::HelloWorldLayer() {}
+HelloWorldLayer::HelloWorldLayer() = default;
 
 void HelloWorldLayer::OnInit()
 {
@@ -29,32 +30,36 @@ void HelloWorldLayer::OnInit()
 	/* Create a Scene */
 	SceneDefinition def;
 	def.name = "MainMenu";
-	mainMenu = Scenes::Create<MainMenu>(def);
+	scenes[AppScene::MAIN_MENU] = Scenes::Create<MainMenu>(def);
 	def.name = "Dungeon";
-	level = Scenes::Create<Level>(def);
+	scenes[AppScene::DUNGEON_LEVEL] = Scenes::Create<Level>(def);
+	def.name = "Space Invaders";
+	scenes[AppScene::SPACE_INVADERS] = Scenes::Create<SpaceInvader::Level>(def);
 	def.name = "GravityTest";
 	def.gravity_x = 0.0f;
 	def.gravity_y = -10.0f;
-	gravityTest = Scenes::Create<GravityTest>(def);
+	scenes[AppScene::GRAV_TEST] = Scenes::Create<GravityTest>(def);
 
-	Scenes::Switch(level);
+	Scenes::Switch(scenes[AppScene::MAIN_MENU]);
+
+	Input::MapKey<SwitchSceneEvent>(Key::KEY_ESCAPE, KeyAction::RELEASED, SwitchSceneEvent(AppScene::MAIN_MENU));
 
 }
 
 void HelloWorldLayer::OnUpdate(double timestep)
 { 
 	/* Check Events. There should not appear multiple of those in a frame. */
-	if (Events::Pending<SwitchToMainMenuEvent>() > 0)
+	if (Events::Pending<SwitchSceneEvent>() > 0)
 	{
-		Scenes::Switch(mainMenu);
-	}
-	if (Events::Pending<SwitchToLevelEvent>() > 0)
-	{
-		Scenes::Switch(level);
-	}
-	if (Events::Pending<SwitchToGravityTestEvent>() > 0)
-	{
-		Scenes::Switch(gravityTest);
+		if (const auto event = Events::Latest<SwitchSceneEvent>())
+		{
+			const auto it = scenes.find(event.value().new_scene);
+
+			if (it != scenes.end())
+			{
+				Scenes::Switch(it->second);
+			}
+		}
 	}
 
 	ProximityAnimationSystem::Update(timestep);

@@ -1,5 +1,7 @@
 #pragma once
 #include "Mupfel.h"
+#include <unordered_map>
+#include "SceneSwitches.h"
 
 class HelloWorldLayer : public Mupfel::Layer
 {
@@ -13,9 +15,7 @@ private:
     void ProcessEvents();
 
 private:
-    Mupfel::SceneHandle level = Mupfel::Scene::INVALID_HANDLE;
-    Mupfel::SceneHandle mainMenu = Mupfel::Scene::INVALID_HANDLE;
-    Mupfel::SceneHandle gravityTest = Mupfel::Scene::INVALID_HANDLE;
+    std::unordered_map<AppScene, Mupfel::SceneHandle> scenes;
 
     std::shared_ptr<Mupfel::ResourceManager> mngr = nullptr;
 
