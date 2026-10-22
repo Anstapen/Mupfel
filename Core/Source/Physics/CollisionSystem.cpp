@@ -106,7 +106,7 @@ void CollisionSystem::SyncTransforms()
 	{
 		const b2BodyMoveEvent& ev = events.moveEvents[i];
 
-		Entity e = Registry::EntityFromIndex(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ev.userData)));
+		const Entity e = Registry::EntityFromData(reinterpret_cast<uint64_t>(ev.userData));
 
 		if (transforms.Has(e))
 		{
@@ -500,12 +500,12 @@ void Mupfel::CollisionSystem::SetBody(Entity e, b2BodyId body)
 
 Entity Mupfel::CollisionSystem::EntityOf(b2ShapeId id)
 {
-	return Registry::EntityFromIndex(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(b2Shape_GetUserData(id))));
+	return Registry::EntityFromData(reinterpret_cast<uint64_t>(b2Shape_GetUserData(id)));
 }
 
 Entity Mupfel::CollisionSystem::EntityOf(b2BodyId id)
 {
-	return Registry::EntityFromIndex(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(b2Body_GetUserData(id))));
+	return Registry::EntityFromData(reinterpret_cast<uint64_t>(b2Body_GetUserData(id)));
 }
 
 b2WorldId Mupfel::CollisionSystem::WorldForScene(SceneHandle scene)

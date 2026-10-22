@@ -1,7 +1,5 @@
 #include "ECS/Entity.h"
 #include "catch_amalgamated.hpp"
-#include <limits>
-#include "Random.h"
 
 TEST_CASE("Basic Entity System Tests", "[entity_basic]")
 {

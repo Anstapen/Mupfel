@@ -1,58 +1,99 @@
 #include "ECS/Entity.h"
 #include <iostream>
+#include <cassert>
 
 using namespace Mupfel;
 
 Entity EntityManager::CreateEntity()
 {
-	uint32_t index;
+    uint32_t index = 0;
+    uint32_t generation = 0;
 
-	if (!freeList.empty())
-	{
-		/*
-			Use recycled indices if available.
-		*/
-		index = freeList.back();
-		freeList.pop_back();
-	}
-	else
-	{
-		/*
-			No recycled indices left, use a new one.
-		*/
-		index = next_entity_index++;
-	}
+    {
+        std::scoped_lock s_lock(lock);
+        if (!freeList.empty())
+        {
+            /* Use recycled indices if available. */
+            index = freeList.back();
+            freeList.pop_back();
 
-	/* Check if the alive vector is large enough. */
-	if (index >= alive.size())
-	{
-		alive.resize((static_cast<size_t>(index) + 1) * 2, false);
-	}
+            /* The recycled index was already in use, it has a valid generation. */
+            assert(generationList.size() > index);
+        }
+        else
+        {
+            /* No recycled indices left, use a new one. */
+            index = next_entity_index++;
+        }
 
-	alive[index] = true;
+        /* Check if the alive vector is large enough. */
+        if (index >= alive.size())
+        {
+            alive.resize((static_cast<size_t>(index) + 1) * 2, false);
+        }
 
-	current_entities++;
+        /* Check if the generation vector is large enough. */
+        if (index >= generationList.size())
+        {
+            generationList.resize((static_cast<size_t>(index) + 1) * 2, 0);
+        }
 
-	return Entity(index);
+        /* We pre-increment to make gen 0 invalid. */
+        generation = ++generationList[index];
+
+        alive[index] = true;
+
+        current_entities++;
+    }
+
+    return Entity(index, generation);
 }
 
-bool Mupfel::EntityManager::IsAlive(Entity e) const { return (e.Index() < alive.size()) && alive[e.Index()]; }
-
-void Mupfel::EntityManager::DestroyEntity(Entity e)
+bool EntityManager::IsAlive(Entity e) const
 {
-	/* Prevent double-destroy. */
-	if (!IsAlive(e))
-	{
-		return;
-	}
-
-	alive[e.Index()] = false;
-
-	/* Add the entity index to the recycled indices. */
-	freeList.push_back(e.Index());
-
-	/* Update the Entities count */
-	current_entities--;
+    std::scoped_lock s_lock(lock);
+    return IsAliveLocked(e);
 }
 
-uint32_t Mupfel::EntityManager::GetCurrentEntities() const { return current_entities; }
+uint32_t EntityManager::GetGen(Entity e) const
+{
+    std::scoped_lock s_lock(lock);
+    if (e.Index() >= generationList.size())
+    {
+        return 0;
+    }
+
+    return generationList[e.Index()];
+}
+
+void EntityManager::DestroyEntity(Entity e)
+{
+    std::scoped_lock s_lock(lock);
+    /* Prevent double-destroy. */
+    if (!IsAliveLocked(e))
+    {
+        return;
+    }
+
+    alive[e.Index()] = false;
+
+    /* Add the entity index to the recycled indices. */
+    freeList.push_back(e.Index());
+
+    /* Update the Entities count */
+    current_entities--;
+}
+
+uint32_t EntityManager::GetCurrentEntities() const
+{
+    std::scoped_lock s_lock(lock);
+    return current_entities;
+}
+
+bool EntityManager::IsAliveLocked(Entity e) const
+{
+    const uint32_t index = e.Index();
+    const bool generationMatch = index < generationList.size() && generationList[index] == e.Gen();
+    const bool isAlive = (index < alive.size()) && alive[index];
+    return generationMatch && isAlive;
+}

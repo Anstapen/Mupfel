@@ -302,7 +302,7 @@ void Application::Run()
 			break;
 		}
 		window.PollEvents();
-		Application::StartFrameTime();
+		StartFrameTime();
 		frame_count++;
 		ProfilingSample main_app("Application::Run()");
 
@@ -347,6 +347,9 @@ void Application::Run()
 			}
 			debug_layer->OnUpdate(timestep);
 		}
+
+		/* Apply ECS operations. */
+		registry.Apply();
 
 		{
 			ProfilingSample prof("Physics Update");

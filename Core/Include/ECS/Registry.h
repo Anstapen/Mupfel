@@ -2,323 +2,514 @@
 #include "Core/EventSystem.h"
 #include "Entity.h"
 #include <algorithm>
-#include <cassert>
 #include <concepts>
-#include <functional>
 #include <future>
 #include <memory>
 #include <typeindex>
 #include <vector>
-
 #include "ComponentArray.h"
 #include "Core/Scene.h"
 #include "Core/ThreadPool.h"
 #include "ECS/Components/ComponentIndex.h"
-#include "ECSEvents.h"
+#include <array>
+#include <mutex>
+#include <atomic>
 
 namespace Mupfel
 {
+    template <typename FirstComponent, typename... Components>
+    class View;
+    class CollisionSystem;
+    class Application;
 
-template <typename FirstComponent, typename... Components> class View;
-class CollisionSystem;
-class Application;
+    /**
+     * A Registry holds a complete ECS context. It provides methods to create / destroy
+     * entities, add / remove components and means to iterate over entities based on a set
+     * of components.
+     *
+     * The registry considers a multi threaded environment, using the following strategy:
+     * The state of the component data is not updated when adding entities or components. Instead,
+     * it nees to be explicitly synced in a single threaded context using the Sync() function.
+     *
+     * That also means that when iterating over sets of components using the View class, the iterators
+     * cannot be invalidated by the user and the loop always processes all entities and compoenents that exist
+     * at the point in time.
+     *
+     * Every registry object has a current scene. Adding a new entity encodes the current scene into the entity.
+     * Subsequent iterations filter out entities that do not belong to the current scene.
+     */
+    class Registry
+    {
+        template <typename FirstComponent, typename... Components>
+        friend class View;
+        friend class CollisionSystem;
 
-/**
- * A Registry holds a complete ECS context. It provides methods to create / destroy
- * entities, add / remove components and means to iterate over entities based on a set
- * of components.
- */
-class Registry
-{
-	template <typename FirstComponent, typename... Components> friend class View;
-	friend class CollisionSystem;
+    public:
+        /**
+         * The registry constructor needs an event system (to issue entity and component events) and
+         * a thread pool (for parallel searches).
+         */
+        Registry(EventSystem& in_evt_sys, ThreadPool& in_pool) : evt_system(in_evt_sys), thread_pool(in_pool)
+        {
+        }
 
-public:
-	/** Helper type for a unique ptr for component arrays. */
-	using SafeComponentArrayPtr = std::unique_ptr<IComponentArray>;
+        /**
+         * Destructor.
+         */
+        ~Registry();
 
-public:
-	/**
-	 * The registry constructor needs an event system (to issue entity and component events) and
-	 * a thread pool (for parallel searches).
-	 */
-	Registry(EventSystem& in_evt_sys, ThreadPool& in_pool) : evt_system(in_evt_sys), thread_pool(in_pool) {}
+        /**
+         * Deleted copy constructor.
+         */
+        Registry(const Registry &other) = delete;
 
-	/** Create an entity. Additonally, an "EntityCreatedEvent" event is fired to notify everyone. */
-	Entity CreateEntity();
+        /**
+         * Deleted copy assignment operator.
+         */
+        Registry& operator=(const Registry &other) = delete;
 
-	/**
-	 * Destroy the entity \a e.
-	 * 
-	 * A call to this function destroys the given entity and all its components.
-	 * Before doing so, an immediate \ref EntityDestroyedEvent is published, to notify
-	 * everyone about the destruction. Additionally, for every component that the entity has,
-	 * a ComponentRemovedEvent (not immediate!) is issued.
-	 * 
-	 * \param e The entity to be destroyed.
-	 */
-	void DestroyEntity(Entity e);
+        /**
+         * Create a new entity.
+         * @note The returned entity has a valid index and generation, and the user can call AddComponent and friends
+         * to attach data to the entity. But the components are not added to the entity until the next Flush().
+         * When Flush() is called, the entity creation is finished and a EntityCreatedEvent is published.
+         * @return The newly created entity.
+         */
+        Entity CreateEntity();
 
-	/** Return the number of current entities in the registry. */
-	uint32_t GetCurrentEntities() const;
+        /**
+         * Destroy an entity.
+         * @note After this function returns, the entity is dead, but components of the entity are not yet destroyed,
+         * to not disturb component iteration. The next time Flush() is called, the components are removed from the
+         * entity and ComponentRemovedEvents are published. After that, the entity is finally removed and an
+         * EntityDestroyedEvent is issued.
+         * \param e The entity to be destroyed.
+         */
+        void DestroyEntity(Entity e);
 
-	/**
-	 * @warning Asserts `index` refers to an entity that was created via `CreateEntity`.
-	 * @return The signature (which components it has) of the entity at `index`.
-	 */
-	Entity::Signature GetSignature(Entity entity) const;
+        /**
+         * Returns the number of alive entities.
+         * @return The number of currently alive entities.
+         */
+        uint32_t GetCurrentEntities() const;
 
-	/**
-	 * @warning Asserts `index` refers to an entity that was created via `CreateEntity`.
-	 * @return The scene mask (which scenes it belongs to) of the entity at `index`.
-	 */
-	Scene::SceneMask GetSceneMask(Entity entity) const;
+        /**
+         * Synchronization point to apply pending entity and component operations.
+         *
+         * @warning This function expects a single threaded context!
+         */
+        void Apply();
 
-	/**
-	 * Sets the scene that `CreateEntity` assigns new entities to and that `view()`/`ParallelForEach`
-	 * filter on. Pushed down by `Application` on every scene switch, so the ECS never has to ask the
-	 * `Application` which scene is current.
-	 */
-	void SetActiveScene(SceneHandle scene);
+        /**
+         * Retrieve the component signature of the given entity.
+         * @param entity The entity for which the component signature shall be returned.
+         * @return The component signature of the given entity.
+         */
+        [[nodiscard]] Entity::Signature GetSignature(Entity entity) const;
 
-	/** The scene `CreateEntity` currently assigns new entities to. */
-	SceneHandle GetActiveScene() const;
+        /**
+         * Retrieve the scene mask of an entity.
+         * @param entity The entity for which to retrieve the scene mask.
+         * @return The scene mask of the given entity.
+         */
+        [[nodiscard]] Scene::SceneMask GetSceneMask(Entity entity) const;
 
-	/** `GetActiveScene()` as a mask, for signature-style comparisons against `GetSceneMask`. */
-	Scene::SceneMask GetActiveSceneMask() const;
+        /**
+         * Set a new active scene.
+         * @param scene The scene that should be active for this registry.
+         */
+        void SetActiveScene(SceneHandle scene);
 
-	/** Returns a `View` iterating every entity that has all of `Components...`. */
-	template <typename... Components> View<Components...> view() { return View<Components...>(*this); }
+        /**
+         * Retrieve the currently active scene in the registry.
+         * @return The currently active scene.
+         */
+        [[nodiscard]] SceneHandle GetActiveScene() const;
 
-	/**
-	 * Runs `function(Entity, Components&...)` over every entity with all of `Components...`, split
-	 * into chunks and dispatched across the registry's thread pool.
-	 */
-	template <typename... Components, typename F>
-		requires std::invocable<F&, Entity, Components&...>
-	void ParallelForEach(F&& function);
+        /**
+         * Retrieves the current scene, encoded as a bitmask.
+         * @note If the current scene has an index of N, the returned bitmask has bit N set.
+         * @return The bitmask identifying the current scene.
+         */
+        [[nodiscard]] Scene::SceneMask GetActiveSceneMask() const;
 
-	/** Constructs a `T` in place from `args` and adds it to `e` (see the `AddComponent(Entity, T)` overload). */
-	template <typename T, typename... Args> void AddComponent(Entity e, Args&&... args);
+        /**
+         * Provide a view over all entities containing the given combination of components.
+         * @tparam Components All component types that the wanted entities need to have.
+         * @return A view object constructed from this registry.
+         */
+        template <typename... Components>
+        View<Components...> view() { return View<Components...>(*this); }
 
-	/**
-	 * Adds `component` to `e`, updates `e`'s signature, and fires `ComponentAddedEvent`.
-	 * @warning `e` must not already have a component of type `T`.
-	 */
-	template <typename T> void AddComponent(Entity e, T component);
+        /**
+         * Execute the given function for all entities which contain components of the specified type.
+         * @tparam Components The component types of the components that should be present.
+         * @tparam F The function signature.
+         * @param function The function to execute on every matching entity´.
+         */
+        template <typename... Components, typename F>
+            requires std::invocable<F&, Entity, Components&...>
+        void ParallelForEach(F&& function);
 
-	/** Fires `ComponentRemovedEvent`, removes `e`'s component of type `T`, and updates `e`'s signature. */
-	template <typename T> void RemoveComponent(Entity e);
+        /**
+         * Add a component to an entity.
+         * @note The component addition is deferred until the next call of Apply().
+         * @note If the given entity already has a component of the specified type, the component data is overwritten.
+         * @note Only if the component is added to the entity (not replaced), an immediate ComponentAddedEvent is
+         * issued.
+         * @tparam T The component type.
+         * @tparam Args The types of the provided constructor arguments.
+         * @param e The entity to which the component should be added.
+         * @param args The constructor arguments to construct an object of type \a T.
+         */
+        template <typename T, typename... Args>
+        void AddComponent(Entity e, Args&&... args);
 
-	/** @warning Undefined unless `HasComponent<T>(e)` is true. */
-	template <typename T> T& GetComponent(Entity e);
+        /**
+         * Add a component to an entity.
+         * @note The component addition is deferred until the next call of Apply().
+         * @note If the given entity already has a component of the specified type, the component data is overwritten.
+         * @note Only if the component is added to the entity (not replaced), an immediate ComponentAddedEvent is
+         * issued.
+         * @tparam T The component type.
+         * @param e The entity to which the component should be added.
+         * @param component The component data.
+         */
+        template <typename T>
+        void AddComponent(Entity e, T component);
 
-	/** @warning Undefined unless `HasComponent<T>(e)` is true. */
-	template <typename T> void SetComponent(Entity e, T comp);
+        /**
+         * Remove a component from an entity.
+         * @note The component removal is deferred until the next call of Apply().
+         * @note If the given entity does not have the specified component, nothing is done.
+         * @note If the component is removed from the entity, an immediate ComponentRemovedEvent is issued.
+         * @tparam T The component type.
+         * @param e The entity from which the component shall be removed.
+         */
+        template <typename T>
+        void RemoveComponent(Entity e);
 
-	/** Whether `e` currently has a component of type `T`. */
-	template <typename T> bool HasComponent(Entity e);
+        /**
+         * Retrieve a reference to the specified component of the given entity.
+         * @warning If the given entity does not have a component of the specified type, this function does an out
+         * of bounds read and throws!
+         * @tparam T The component type.
+         * @param e The entity from which to retrieve the component data.
+         * @return A reference to the component data of the given entity.
+         */
+        template <typename T>
+        T& GetComponent(Entity e);
 
-	/** The combined `Entity::Signature` bit for each of `Components...`, for signature comparisons. */
-	template <typename... Components> static inline Entity::Signature ComponentSignature()
-	{
-		Entity::Signature sig;
-		(sig.set(ComponentIndex::Index<Components>()), ...);
-		return sig;
-	}
+        /**
+         * Write the component data of the given entity.
+         * @warning If the given entity does not have a component of the specified type, this function does an out
+         * of bounds read and throws!
+         * @tparam T The component type.
+         * @param e The entity from which to write the component data.
+         * @param comp The component data to write.
+         */
+        template <typename T>
+        void SetComponent(Entity e, T comp);
 
-	static inline std::bitset<Scene::MAX_SCENES> SceneMask(SceneHandle scene)
-	{
-		std::bitset<Scene::MAX_SCENES> sig;
-		sig.set(scene);
-		return sig;
-	}
+        /**
+         * Check whether or not the given entity has a component of the specified type.
+         * @tparam T The component type.
+         * @param e The entity to check.
+         * @return True if the entity has a component of the specified type, false otherwise.
+         */
+        template <typename T>
+        bool HasComponent(Entity e);
 
-private:
-	/** Returns (creating on first use) the `ComponentArray<T>` for component type `T`. */
-	template <typename T> ComponentArray<T>& GetComponentArray();
+        /**
+         * Construct a bitmask based on the given component types.
+         * @tparam Components The component types to construct the bitmask for.
+         * @return A bitmask matching the given component type combination.
+         */
+        template <typename... Components>
+        static constexpr Entity::Signature ComponentSignature()
+        {
+            Entity::Signature sig;
+            (sig.set(ComponentIndex::Index<Components>()), ...);
+            return sig;
+        }
 
-	/** Grows `component_buffer` if needed so `T`'s slot (`ComponentIndex::Index<T>()`) is valid. */
-	template <typename T> void resizeComponentBuffer();
+        /**
+         * Construct a bitset for the given scene handle.
+         * @param scene The scene handle to construct the bitmask for.
+         * @return A bitmask matching the given scene handle.
+         */
+        static std::bitset<Scene::MAX_SCENES> SceneMask(SceneHandle scene)
+        {
+            std::bitset<Scene::MAX_SCENES> sig;
+            sig.set(scene);
+            return sig;
+        }
 
-	static void* ToUserData(Entity e) {return reinterpret_cast<void*>(static_cast<uintptr_t>(e.Index())); }
+    private:
+        /**
+         * TODO
+         * @tparam T
+         * @return
+         */
+        template <typename T>
+        ComponentArray<T>& GetComponentArray();
 
-	static constexpr Entity EntityFromIndex(uint32_t index) { return Entity{index}; }
+        static_assert(sizeof(void*) == 8);
 
-private:
-	/** Where entity/component lifecycle events are fired. */
-	EventSystem& evt_system;
-	/** Where `ParallelForEach` dispatches its chunks. */
-	ThreadPool& thread_pool;
-	/** Allocates/recycles entity indices. */
-	EntityManager entity_manager;
-	/** Per-entity-index signature, resized alongside entities. */
-	std::vector<Entity::Signature> signatures;
-	/** Per-entity-index scene membership, resized alongside entities. */
-	std::vector<Scene::SceneMask> sceneMask;
-	/** Per-component-type storage, indexed by `ComponentIndex`. */
-	std::vector<SafeComponentArrayPtr> component_buffer;
-	/** Scene new entities are created in and that views filter on; owned here, set by `Application`. */
-	SceneHandle active_scene = 0;
-};
+        /**
+         * TODO
+         * @param e
+         * @return
+         */
+        static void* ToUserData(Entity e);
 
-template <typename... Components, typename F>
-	requires std::invocable<F&, Entity, Components&...>
-inline void Registry::ParallelForEach(F&& function)
-{
-	auto&		   pool = thread_pool;
-	const uint32_t num_threads = std::max<uint32_t>(1u, static_cast<uint32_t>(pool.GetThreadCount()));
+        /**
+         * TODO
+         * @param data
+         * @return
+         */
+        static constexpr Entity EntityFromData(uint64_t data)
+        {
+            const uint32_t generation = data >> 32;
+            const auto index = static_cast<uint32_t>(data & 0xFFFFFFFF);
+            return Entity(index, generation);
+        }
 
-	using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
-	auto&		   array = GetComponentArray<BaseComponent>();
-	const auto&	   dense = array.dense;
-	const uint32_t total = static_cast<uint32_t>(dense.size());
+        /**
+         * TODO
+         * @param e
+         * @param s
+         */
+        void CompleteEntityCreation(const Entity& e, SceneHandle s);
 
-	auto arrays = std::make_tuple(&GetComponentArray<Components>()...);
+        /**
+         * TODO
+         * @param e
+         */
+        void CompleteEntityRemoval(const Entity& e);
 
-	if (total == 0)
-	{
-		return;
-	}
+        /**
+         * TODO
+         */
+        struct EntityOperation
+        {
+            Entity e;
+            SceneHandle scene;
+            bool create;
+        };
 
-	const uint32_t				   chunk = (total + num_threads - 1) / num_threads;
-	std::vector<std::future<void>> jobs;
-	jobs.reserve(num_threads);
+        /**
+         * TODO
+         */
+        enum class EntityState : uint8_t
+        {
+            DEAD,
+            PENDING_CREATE,
+            ALIVE,
+            PENDING_DESTROY
+        };
 
-	const Entity::Signature required = Registry::ComponentSignature<Components...>();
-	const Scene::SceneMask	required_scene = Registry::GetActiveSceneMask();
+        /** Where entity/component lifecycle events are fired. */
+        EventSystem& evt_system;
+        /** Thread pool for the parallel ECS operations. */
+        ThreadPool& thread_pool;
+        /** Allocates/recycles entity indices. */
+        EntityManager entity_manager;
+        /** Per-entity-index signature, resized alongside entities. */
+        std::vector<Entity::Signature> signatures;
+        /** Per-entity-index scene membership, resized alongside entities. */
+        std::vector<Scene::SceneMask> sceneMask;
+        /** Per-component-type storage. */
+        std::array<std::atomic<IComponentArray*>, Entity::MAX_COMPONENTS_TYPES> componentBuffer{};
+        std::mutex componentBufferLock;
+        /** The currently active scene. */
+        SceneHandle active_scene = 0;
+        /** Command buffer of pending entity operations. */
+        std::vector<EntityOperation> pendingEntityOperations;
+        /** Mutex to protect accesses to the entity operation buffer. */
+        std::mutex pendingEntityOperationsLock;
+        /** Per-entity state. */
+        std::vector<EntityState> entityStates;
+        /** Mutex to protect entity states. */
+        std::mutex entityStateLock;
+    };
 
-	for (uint32_t t = 0; t < num_threads; t++)
-	{
-		const uint32_t begin = t * chunk;
-		const uint32_t end = std::min(begin + chunk, total);
+    template <typename... Components, typename F>
+        requires std::invocable<F&, Entity, Components&...>
+    void Registry::ParallelForEach(F&& function)
+    {
+        auto& pool = thread_pool;
+        const uint32_t num_threads = std::max<uint32_t>(1u, static_cast<uint32_t>(pool.GetThreadCount()));
 
-		if (begin >= end)
-		{
-			continue;
-		}
+        using BaseComponent = std::tuple_element_t<0, std::tuple<Components...>>;
+        auto& array = GetComponentArray<BaseComponent>();
+        const auto& dense = array.dense;
+        const auto total = static_cast<uint32_t>(dense.size());
 
-		jobs.push_back(pool.Enqueue(
-			[this, begin, end, function, &dense, required, required_scene, arrays]() mutable -> void
-			{
-				for (size_t i = begin; i < end; ++i)
-				{
-					Entity				   e{dense[i]};
-					const auto&			   sig = GetSignature(e);
-					const Scene::SceneMask scene_mask = GetSceneMask(e);
+        auto arrays = std::make_tuple(&GetComponentArray<Components>()...);
 
-					/* check if the entity has all the needed components */
-					if (((sig & required) != required) || ((scene_mask & required_scene) != required_scene))
-						continue;
+        if (total == 0)
+        {
+            return;
+        }
 
-					/* Call given function on the entity */
-					// bool entity_changed = function(e, GetComponent<Components>(e)...);
+        const uint32_t chunk = (total + num_threads - 1) / num_threads;
+        std::vector<std::future<void>> jobs;
+        jobs.reserve(num_threads);
 
-					std::apply([&](auto*... arr) { function(e, arr->Get(e)...); }, arrays);
-				}
-			}));
-	}
+        const Entity::Signature required = Registry::ComponentSignature<Components...>();
+        const Scene::SceneMask required_scene = GetActiveSceneMask();
 
-	/* Wait for all jobs to finish and collect the entities */
-	std::exception_ptr first;
-	for (auto& job : jobs)
-	{
+        for (uint32_t t = 0; t < num_threads; t++)
+        {
+            const uint32_t begin = t * chunk;
+            const uint32_t end = std::min(begin + chunk, total);
 
-		try
-		{
-			job.get();
-		}
-		catch (...)
-		{
-			/* Save the first exception that was thrown. */
-			if (!first)
-			{
-				first = std::current_exception();
-			}
-		}
-	}
-	/* If user code caused an exception, throw it now. */
-	if (first)
-	{
-		std::rethrow_exception(first);
-	}
-}
+            if (begin >= end)
+            {
+                continue;
+            }
 
-template <typename T, typename... Args> inline void Registry::AddComponent(Entity e, Args&&... args)
-{
-	AddComponent(e, T(std::forward<Args>(args)...));
-}
+            jobs.push_back(pool.Enqueue(
+                [this, begin, end, function, &dense, required, required_scene, arrays]() mutable -> void
+                {
+                    for (size_t i = begin; i < end; ++i)
+                    {
+                        const Entity e = dense[i];
 
-template <typename T> inline void Registry::AddComponent(Entity e, T component)
-{
-	/* Do not add a component to a dead entity! */
-	if (!entity_manager.IsAlive(e))
-	{
-		return;
-	}
+                        const auto& sig = GetSignature(e);
+                        const Scene::SceneMask scene_mask = GetSceneMask(e);
 
-	ComponentArray<T>& storage = GetComponentArray<T>();
-	storage.Insert(e, std::move(component));
+                        /* check if the entity has all the needed components */
+                        if ((sig & required) != required || (scene_mask & required_scene) != required_scene)
+                            continue;
 
-	/* Update the Entity Signature */
-	auto id = static_cast<uint32_t>(ComponentIndex::Index<T>());
-	signatures[e.Index()].set(id);
+                        /* Call given function on the entity */
+                        std::apply([&](auto*... arr) { function(e, arr->Get(e)...); }, arrays);
+                    }
+                }));
+        }
 
-	/* Send a ComponentAdded Event */
-	evt_system.AddImmediateEvent<ComponentAddedEvent>({e, signatures[e.Index()], id});
-}
+        /* Wait for all jobs to finish and collect the entities */
+        std::exception_ptr first;
+        for (auto& job : jobs)
+        {
+            try
+            {
+                job.get();
+            }
+            catch (...)
+            {
+                /* Save the first exception that was thrown. */
+                if (!first)
+                {
+                    first = std::current_exception();
+                }
+            }
+        }
+        /* If user code caused an exception, throw it now. */
+        if (first)
+        {
+            std::rethrow_exception(first);
+        }
+    }
 
-template <typename T> inline void Registry::RemoveComponent(Entity e)
-{
-	/* Check if the entity has the component. */
-	if (!HasComponent<T>(e))
-	{
-		return;
-	}
+    template <typename T, typename... Args>
+    void Registry::AddComponent(Entity e, Args&&... args)
+    {
+        AddComponent(e, T(std::forward<Args>(args)...));
+    }
 
-	ComponentArray<T>& storage = GetComponentArray<T>();
-	size_t			   id = ComponentIndex::Index<T>();
-	/* Send a ComponentRemoved Event */
-	evt_system.AddImmediateEvent<ComponentRemovedEvent>({e, signatures[e.Index()], id});
+    template <typename T>
+    void Registry::AddComponent(Entity e, T component)
+    {
+        /* Only add a component to an alive entity. */
+        if (!entity_manager.IsAlive(e))
+        {
+            return;
+        }
 
-	storage.Remove(e);
+        /* For now, we reject entities that are not alive. */
+        {
+            std::scoped_lock lock(entityStateLock);
+            if (e.Index() >= entityStates.size())
+            {
+                return;
+            }
+            const EntityState state = entityStates[e.Index()];
 
-	/* Update the Entity Signature */
-	signatures[e.Index()].reset(id);
-}
+            if ((state != EntityState::ALIVE) && (state != EntityState::PENDING_CREATE))
+            {
+                return;
+            }
+        }
 
-template <typename T> inline T& Registry::GetComponent(Entity e) { return GetComponentArray<T>().Get(e); }
+        ComponentArray<T>& storage = GetComponentArray<T>();
+        storage.QueueInsertion(e, std::move(component));
+    }
 
-template <typename T> inline void Registry::SetComponent(Entity e, T comp) { GetComponentArray<T>().Set(e, comp); }
+    template <typename T>
+    void Registry::RemoveComponent(Entity e)
+    {
+        /* For now, we reject entities that are not alive. */
+        {
+            std::scoped_lock lock(entityStateLock);
+            if (e.Index() >= entityStates.size())
+            {
+                return;
+            }
+            const EntityState state = entityStates[e.Index()];
 
-template <typename T> inline bool Registry::HasComponent(Entity e) { return GetComponentArray<T>().Has(e); }
+            if ((state != EntityState::ALIVE) && (state != EntityState::PENDING_CREATE))
+            {
+                return;
+            }
+        }
 
-template <typename T> inline ComponentArray<T>& Registry::GetComponentArray()
-{
-	size_t comp_index = ComponentIndex::Index<T>();
+        if (!entity_manager.IsAlive(e))
+        {
+            return;
+        }
 
-	resizeComponentBuffer<T>();
+        ComponentArray<T>& storage = GetComponentArray<T>();
+        storage.QueueRemoval(e);
+    }
 
-	/* Create a new Component Array for the given Type if there is none */
-	if (!component_buffer[comp_index])
-	{
-		SafeComponentArrayPtr new_array = std::make_unique<ComponentArray<T>>(10);
-		component_buffer[comp_index] = std::move(new_array);
-	}
+    template <typename T>
+    T& Registry::GetComponent(Entity e) { return GetComponentArray<T>().Get(e); }
 
-	return *static_cast<ComponentArray<T>*>(component_buffer[comp_index].get());
-}
+    template <typename T>
+    void Registry::SetComponent(Entity e, T comp) { GetComponentArray<T>().Set(e, comp); }
 
-template <typename T> inline void Registry::resizeComponentBuffer()
-{
-	size_t comp_index = ComponentIndex::Index<T>();
+    template <typename T>
+    bool Registry::HasComponent(Entity e)
+    {
+        return GetComponentArray<T>().Has(e);
+    }
 
-	if (comp_index >= component_buffer.size())
-	{
-		component_buffer.resize(comp_index + 1);
-	}
-}
+    template <typename T>
+    ComponentArray<T>& Registry::GetComponentArray()
+    {
+        const size_t comp_index = ComponentIndex::Index<T>();
 
+        /* Fast path: check if the component array already exists. */
+        IComponentArray* arr = componentBuffer[comp_index].load(std::memory_order_acquire);
+
+        if (!arr) [[unlikely]]
+        {
+            /* The buffer does not yet exist, we need to lock the mutex and re-check. */
+            std::scoped_lock lock(componentBufferLock);
+            arr = componentBuffer[comp_index].load(std::memory_order_acquire);
+            if (!arr)
+            {
+                /* Component array does not exist, create it. */
+                arr = new ComponentArray<T>(10);
+                componentBuffer[comp_index].store(arr, std::memory_order_release);
+            }
+        }
+
+        return *static_cast<ComponentArray<T>*>(arr);
+    }
 } // namespace Mupfel
 
 #include "ECS/View.h"
