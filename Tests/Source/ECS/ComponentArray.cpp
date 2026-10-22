@@ -279,5 +279,63 @@ TEST_CASE("ComponentArray Has() function", "[comp_array]")
 
             REQUIRE(has == !removals.contains(id));
         });
+
+        CheckComponentArrayIntegrity(comp_array);
+    }
+}
+
+TEST_CASE("ComponentArray Remove() function", "[comp_array]")
+{
+    SECTION("Normal operation")
+    {
+        auto comp_array = ComponentArray<Comp1>();
+        const Entity e = EntAccess::Create(0, 0);
+        comp_array.Insert(e, {1});
+        REQUIRE(comp_array.Has(e) == true);
+        comp_array.Remove(e);
+        REQUIRE(comp_array.Has(e) == false);
+        REQUIRE(CompAccess::Dense(comp_array).empty());
+        REQUIRE(CompAccess::Components(comp_array).empty());
+        REQUIRE(CompAccess::Sparse(comp_array)[e.Index()] == IComponentArray::invalid_entry);
+    }
+
+    SECTION("Normal operation - swap remove")
+    {
+        auto comp_array = ComponentArray<Comp1>();
+        const Entity e1 = EntAccess::Create(0, 0);
+        const Entity e2 = EntAccess::Create(1, 0);
+        comp_array.Insert(e1, {1});
+        comp_array.Insert(e2, {1});
+        REQUIRE(comp_array.Has(e1) == true);
+        REQUIRE(comp_array.Has(e2) == true);
+
+        size_t dense_location_e1 = CompAccess::Sparse(comp_array)[e1.Index()];
+        comp_array.Remove(e1);
+
+        REQUIRE(CompAccess::Sparse(comp_array)[e2.Index()] == dense_location_e1);
+    }
+}
+
+TEST_CASE("ComponentArray QueueInsertion() function", "[comp_array]")
+{
+    SECTION("Normal operation")
+    {
+        auto comp_array = ComponentArray<Comp1>();
+        REQUIRE(CompAccess::PendingOperations(comp_array).empty());
+        const Entity e1 = EntAccess::Create(0, 0);
+        comp_array.QueueInsertion(e1, {0});
+        REQUIRE(CompAccess::PendingOperations(comp_array).size() == 1);
+    }
+}
+
+TEST_CASE("ComponentArray QueueRemoval() function", "[comp_array]")
+{
+    SECTION("Normal operation")
+    {
+        auto comp_array = ComponentArray<Comp1>();
+        REQUIRE(CompAccess::PendingOperations(comp_array).empty());
+        const Entity e1 = EntAccess::Create(0, 0);
+        comp_array.QueueRemoval(e1);
+        REQUIRE(CompAccess::PendingOperations(comp_array).size() == 1);
     }
 }

@@ -202,7 +202,7 @@ namespace Mupfel
     void ComponentArray<T>::QueueRemoval(Entity e)
     {
         std::scoped_lock s_lock(lock);
-        pendingOperations.push_back({.e = e});
+        pendingOperations.push_back({.e = e, .component = std::nullopt});
     }
 
     template <ComponentType T>

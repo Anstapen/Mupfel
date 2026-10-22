@@ -270,7 +270,7 @@ namespace Mupfel
          */
         static constexpr Entity EntityFromData(uint64_t data)
         {
-            const uint32_t generation = data >> 32;
+            const auto generation = static_cast<uint32_t>(data >> 32);
             const auto index = static_cast<uint32_t>(data & 0xFFFFFFFF);
             return Entity(index, generation);
         }
