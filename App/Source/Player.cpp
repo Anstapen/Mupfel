@@ -144,7 +144,7 @@ void Player::UpdateMovement(double timestep)
 	Application::SetMovement(e, vel_x * movement_speed, vel_y * movement_speed, 0.0f);
 }
 
-void Player::CheckPlayerCollisions(void)
+void Player::CheckPlayerCollisions()
 {
 	/* Lets check hit events first. */
 	for (auto& event : Events::Get<CollisionHitEvent>())

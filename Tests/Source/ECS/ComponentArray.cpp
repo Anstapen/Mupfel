@@ -16,11 +16,6 @@ namespace
     {
         uint32_t a;
     };
-
-    struct Comp2
-    {
-        float a;
-    };
 }
 
 using namespace Mupfel;

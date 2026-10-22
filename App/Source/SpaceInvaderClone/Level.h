@@ -1,5 +1,7 @@
 #pragma once
 #include "Mupfel.h"
+#include "SpatialGrid.h"
+#include "InvaderSystem.h"
 
 namespace SpaceInvader
 {
@@ -10,5 +12,8 @@ namespace SpaceInvader
         void OnInit() final;
         void OnUpdate(double timestep) final;
         void OnRender() final;
+    private:
+        SpatialGrid grid;
+        InvaderSystem invaderSystem;
     };
 }
