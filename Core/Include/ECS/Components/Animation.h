@@ -22,7 +22,7 @@ struct Animation
 		bool	 in_repeating = true,
 		bool	 auto_start = false)
 		: firstFrame(in_first_frame), frameCount(in_frame_count), fps(in_fps), repeating(in_repeating),
-		  elapsed(elapsed_time), finished(!auto_start)
+		  elapsed(elapsed_time), currentFrame(in_first_frame), finished(!auto_start)
 	{
 	}
 

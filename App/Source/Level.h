@@ -7,7 +7,7 @@ class Level : public Mupfel::Scene
 {
 public:
 	Level(Mupfel::SceneHandle in_handle, const Mupfel::SceneDefinition &def)
-		: Mupfel::Scene(in_handle, def), player(Mupfel::Application::GetCurrentRegistry())
+		: Mupfel::Scene(in_handle, def)
 	{
 	}
 

@@ -18,6 +18,7 @@ void InvaderSystem::Update(double timestep, const SpatialGrid &grid)
         grid.AdvancePosition(i.pos);
         t.pos_x = i.pos.x;
         t.pos_y = i.pos.y;
+        Application::SetTransform(e,t);
     }
 }
 
