@@ -166,15 +166,15 @@ void CollisionSystem::DispatchEvents()
 
     for (int i = 0; i < endCount; ++i)
     {
-        const b2ContactEndTouchEvent& ev = endEvents[i];
+        const auto& [shapeIdA, shapeIdB] = endEvents[i];
 
-        if (!b2Shape_IsValid(ev.shapeIdA) || !b2Shape_IsValid(ev.shapeIdB))
+        if (!b2Shape_IsValid(shapeIdA) || !b2Shape_IsValid(shapeIdB))
         {
             continue;
         }
 
-        Entity a = EntityOf(ev.shapeIdA);
-        Entity b = EntityOf(ev.shapeIdB);
+        Entity a = EntityOf(shapeIdA);
+        Entity b = EntityOf(shapeIdB);
         SetEventForEntity(a);
         SetEventForEntity(b);
 
@@ -193,30 +193,30 @@ void CollisionSystem::DispatchEvents()
         evt_system.AddEvent<CollisionHitEvent>({a, b});
     }
 
-    b2SensorEvents sensors = b2World_GetSensorEvents(current_world);
-    for (int i = 0; i < sensors.beginCount; ++i)
+    b2SensorEvents sensorEvents = b2World_GetSensorEvents(current_world);
+    for (int i = 0; i < sensorEvents.beginCount; ++i)
     {
-        const b2SensorBeginTouchEvent& ev = sensors.beginEvents[i];
+        const auto& [sensorShapeId, visitorShapeId] = sensorEvents.beginEvents[i];
 
-        Entity sensor = EntityOf(ev.sensorShapeId);
-        Entity visitor = EntityOf(ev.visitorShapeId);
+        Entity sensor = EntityOf(sensorShapeId);
+        Entity visitor = EntityOf(visitorShapeId);
         SetEventForEntity(sensor);
         SetEventForEntity(visitor);
 
         evt_system.AddEvent<SensorEnteredEvent>({sensor, visitor});
     }
 
-    for (int i = 0; i < sensors.endCount; ++i)
+    for (int i = 0; i < sensorEvents.endCount; ++i)
     {
-        const b2SensorEndTouchEvent& ev = sensors.endEvents[i];
+        const auto& [sensorShapeId, visitorShapeId] = sensorEvents.endEvents[i];
 
-        if (!b2Shape_IsValid(ev.sensorShapeId) || !b2Shape_IsValid(ev.visitorShapeId))
+        if (!b2Shape_IsValid(sensorShapeId) || !b2Shape_IsValid(visitorShapeId))
         {
             continue;
         }
 
-        Entity sensor = EntityOf(ev.sensorShapeId);
-        Entity visitor = EntityOf(ev.visitorShapeId);
+        Entity sensor = EntityOf(sensorShapeId);
+        Entity visitor = EntityOf(visitorShapeId);
         SetEventForEntity(sensor);
         SetEventForEntity(visitor);
 
@@ -226,9 +226,9 @@ void CollisionSystem::DispatchEvents()
 
 void CollisionSystem::DeInit() const
 {
-    for (auto& id : worlds)
+    for (const auto& val : worlds | std::views::values)
     {
-        b2DestroyWorld(id.second);
+        b2DestroyWorld(val);
     }
 }
 
