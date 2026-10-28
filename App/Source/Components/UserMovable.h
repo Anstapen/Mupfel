@@ -1,6 +1,6 @@
 #pragma once
 #include <functional>
-#include "MovementEvent.h"
+#include "Events/UserInputEvent.h"
 #include "ECS/Entity.h"
 
 struct UserMovable
