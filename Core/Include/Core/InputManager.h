@@ -6,7 +6,6 @@
 #include <cstdint>
 
 struct GLFWwindow;
-typedef struct GLFWwindow GLFWwindow;
 
 namespace Mupfel
 {

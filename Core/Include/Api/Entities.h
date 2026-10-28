@@ -30,13 +30,21 @@ inline void Destroy(Entity e) { Application::GetCurrentRegistry().DestroyEntity(
  *
  * \note If \a e already has a component of type T, the component is overwritten.
  */
-template <typename T> inline void AddComponent(Entity e, T component)
+template <typename T>
+void AddComponent(Entity e, T component)
 {
 	Application::GetCurrentRegistry().AddComponent(e, std::move(component));
 }
 
+template <typename T>
+T* TryGetComponent(Entity e)
+{
+	return Application::GetCurrentRegistry().TryGetComponent<T>(e);
+}
+
 /** Adds a \a component to \a e by constructing it from the given arguments. */
-template <typename T, typename... Args> inline void EmplaceComponent(Entity e, Args&&... args)
+template <typename T, typename... Args>
+void EmplaceComponent(Entity e, Args&&... args)
 {
 	Application::GetCurrentRegistry().AddComponent(e, T(std::forward<Args>(args)...));
 }
@@ -78,7 +86,7 @@ template <typename T> [[nodiscard]] inline bool HasComponent(Entity e)
  */
 template <typename... Components> [[nodiscard]] inline View<Components...> Each()
 {
-	return Application::GetCurrentRegistry().view<Components...>();
+	return Application::GetCurrentRegistry().Each<Components...>();
 }
 
 /**

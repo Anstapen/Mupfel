@@ -4,7 +4,9 @@
 #include "MainMenu.h"
 #include "GravityTest.h"
 #include "Systems/ProximityAnimationSystem.h"
+#include "Systems/UserMovableSystem.h"
 #include "SpaceInvaderClone/Level.h"
+#include "Events/UserInputEvent.h"
 
 using namespace Mupfel;
 
@@ -26,7 +28,6 @@ void HelloWorldLayer::OnInit()
 		Application::SetGlobalResourceManager(mngr);
 	}
 
-
 	/* Create a Scene */
 	SceneDefinition def;
 	def.name = "MainMenu";
@@ -42,7 +43,19 @@ void HelloWorldLayer::OnInit()
 
 	Scenes::Switch(scenes[AppScene::MAIN_MENU]);
 
-	Input::MapKey<SwitchSceneEvent>(Key::KEY_ESCAPE, KeyAction::RELEASED, SwitchSceneEvent(AppScene::MAIN_MENU));
+	Input::MapKey<SwitchSceneEvent>(Key::KEY_ESCAPE, RELEASED, SwitchSceneEvent(AppScene::MAIN_MENU));
+
+	Input::MapKey<MovementEvent>(Key::KEY_W, PRESSED, MovementEvent{MovementEvent::Direction::FORWARD, true});
+	Input::MapKey<MovementEvent>(Key::KEY_W, RELEASED, MovementEvent{MovementEvent::Direction::FORWARD, false});
+
+	Input::MapKey<MovementEvent>(Key::KEY_A, PRESSED, MovementEvent{MovementEvent::Direction::LEFT, true});
+	Input::MapKey<MovementEvent>(Key::KEY_A, RELEASED, MovementEvent{MovementEvent::Direction::LEFT, false});
+
+	Input::MapKey<MovementEvent>(Key::KEY_S, PRESSED, MovementEvent{MovementEvent::Direction::BACKWARD, true});
+	Input::MapKey<MovementEvent>(Key::KEY_S, RELEASED, MovementEvent{MovementEvent::Direction::BACKWARD, false});
+
+	Input::MapKey<MovementEvent>(Key::KEY_D, PRESSED, MovementEvent{MovementEvent::Direction::RIGHT, true});
+	Input::MapKey<MovementEvent>(Key::KEY_D, RELEASED, MovementEvent{MovementEvent::Direction::RIGHT, false});
 
 }
 
@@ -63,6 +76,7 @@ void HelloWorldLayer::OnUpdate(double timestep)
 	}
 
 	ProximityAnimationSystem::Update(timestep);
+	UserMovableSystem::Update();
 }
 
 void HelloWorldLayer::OnRender() {}

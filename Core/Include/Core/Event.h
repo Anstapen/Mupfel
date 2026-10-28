@@ -25,7 +25,7 @@ namespace Mupfel {
 		 * @brief Returns the event timestamp.
 		 * @return event timestamp.
 		 */
-		double GetTimeStamp() const;
+		[[nodiscard]] double GetTimeStamp() const;
 	protected:
 		/**
 		 * @brief Timestamp of the Event.

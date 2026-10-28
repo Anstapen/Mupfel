@@ -22,7 +22,6 @@ void Level::OnInit()
 void Level::OnUpdate(double timestep)
 {
 	UpdateUserInputs();
-	player.UpdateMovement(timestep);
 }
 
 void Level::OnRender()

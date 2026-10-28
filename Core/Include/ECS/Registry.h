@@ -139,7 +139,7 @@ namespace Mupfel
          * @return A view object constructed from this registry.
          */
         template <typename... Components>
-        View<Components...> view() { return View<Components...>(*this); }
+        View<Components...> Each() { return View<Components...>(*this); }
 
         /**
          * Execute the given function for all entities which contain components of the specified type.
@@ -197,8 +197,11 @@ namespace Mupfel
          * @param e The entity from which to retrieve the component data.
          * @return A reference to the component data of the given entity.
          */
-        template <typename T>
+        template <ComponentType T>
         T& GetComponent(Entity e);
+
+        template <ComponentType T>
+        T* TryGetComponent(Entity e);
 
         /**
          * Write the component data of the given entity.
@@ -475,8 +478,19 @@ namespace Mupfel
         storage.QueueRemoval(e);
     }
 
-    template <typename T>
+    template <ComponentType T>
     T& Registry::GetComponent(Entity e) { return GetComponentArray<T>().Get(e); }
+
+    template <ComponentType T>
+    T* Registry::TryGetComponent(Entity e)
+    {
+        if (HasComponent<T>(e))
+        {
+            return &GetComponent<T>(e);
+        }
+
+        return nullptr;
+    }
 
     template <typename T>
     void Registry::SetComponent(Entity e, T comp) { GetComponentArray<T>().Set(e, comp); }

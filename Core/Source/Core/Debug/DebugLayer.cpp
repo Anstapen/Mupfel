@@ -99,7 +99,7 @@ void Mupfel::DebugLayer::DrawCameraControls()
 void Mupfel::DebugLayer::DrawEntityColliders()
 {
 	/* Draw all existing colliders in red. */
-	for (auto [e, t, c, b] : Application::GetCurrentRegistry().view<Transform, Collider, Body>())
+	for (auto [e, t, c, b] : Application::GetCurrentRegistry().Each<Transform, Collider, Body>())
 	{
 
 		switch (c.shape)
@@ -117,7 +117,7 @@ void Mupfel::DebugLayer::DrawEntityColliders()
 	}
 
 	/* Draw all existing sensors in light blue. */
-	for (auto [e, t, s, b] : Application::GetCurrentRegistry().view<Transform, Sensor, Body>())
+	for (auto [e, t, s, b] : Application::GetCurrentRegistry().Each<Transform, Sensor, Body>())
 	{
 		switch (s.shape)
 		{

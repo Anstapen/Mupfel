@@ -9,20 +9,20 @@ namespace Mupfel
     {
         Sensor() = default;
 
-        inline void SetCircle(float radius)
+        void SetCircle(float radius)
         {
             shape = ColliderShape::Circle;
             data.circle.radius = radius;
         }
 
-        inline void SetBox(float width, float height)
+        void SetBox(float width, float height)
         {
             shape = ColliderShape::Box;
             data.box.half_width = width / 2.0f;
             data.box.half_height = height / 2.0f;
         }
 
-        inline void SetCapsule(float center1_x, float center1_y, float center2_x, float center2_y, float radius)
+        void SetCapsule(float center1_x, float center1_y, float center2_x, float center2_y, float radius)
         {
             shape = ColliderShape::Capsule;
             data.capsule.radius = radius;

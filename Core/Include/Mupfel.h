@@ -1,15 +1,9 @@
 /**
  * \file   Mupfel.h
- * \brief  The public entry point to the Mupfel engine.
+ * \brief  The public Mupfel API.
  *
- * Including this header gives an application everything it needs to define layers and scenes,
- * drive the ECS, and draw immediate-mode UI. It is the only header a game is expected to
- * include; the individual headers below remain includable on their own if a translation unit
- * wants a narrower (and cheaper to compile) surface.
- *
- * Anything not reachable from this file is engine-internal and lives under `Core/Source`,
- * which is deliberately absent from the application's include path — see `Core/Build-Core.lua`.
  */
+
 #pragma once
 
 /* Easy-to-use functions */
@@ -22,6 +16,7 @@
 
 /* Events and input */
 #include "Core/Event.h"
+#include "Core/CoreEvents.h"
 #include "Core/EventSystem.h"
 #include "Core/Input.h"
 #include "Core/InputManager.h"
@@ -39,6 +34,7 @@
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/Sensor.h"
 #include "ECS/Components/Body.h"
+#include "ECS/Components/Timer.h"
 
 /* Rendering and UI */
 #include "Core/UI.h"

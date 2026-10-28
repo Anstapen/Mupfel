@@ -26,26 +26,25 @@ public:
 	void SceneSwitched(SceneHandle new_scene, float grav_x, float grav_y);
 	void SyncTransforms();
 	void DispatchEvents();
-	void DeInit();
+	void DeInit() const;
 
-	void SetTransform(Entity e, Transform t);
-	void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang);
+	void SetTransform(Entity e, Transform t) const;
+	void SetMovement(Entity e, float vel_x, float vel_y, float vel_ang) const;
 	bool HasEvents(Entity e);
 
 private:
-	bool	  HasBody(Entity e) const;
+	[[nodiscard]] bool	  HasBody(Entity e) const;
 	void	  HandlePendingEvents();
 	void	  CreateBody(Entity e);
 	void	  CreateCollider(Entity e);
 	void	  CreateSensor(Entity e);
 	b2BodyId  TakeBody(Entity e);
 	void	  SetBody(Entity e, b2BodyId body);
-	Entity	  EntityOf(b2ShapeId id);
-	Entity	  EntityOf(b2BodyId id);
+	static Entity	  EntityOf(b2ShapeId id);
+	static Entity	  EntityOf(b2BodyId id);
 	b2WorldId WorldForScene(SceneHandle scene);
 	void	  SetEventForEntity(Entity e);
 
-private:
 	Registry&								   registry;
 	EventSystem&							   evt_system;
 	Logger::SafeLoggerPtr					   logger;
@@ -54,9 +53,13 @@ private:
 	std::queue<Entity>						   pending_collider_create;
 	std::queue<Entity>						   pending_sensor_create;
 	std::queue<b2BodyId>					   pending_destroy;
+	std::queue<Entity>						   pending_collider_remove;
+	std::queue<Entity>						   pending_sensor_remove;
 	std::mutex								   pending_mutex;
 	std::unordered_map<SceneHandle, b2WorldId> worlds;
 	std::vector<b2BodyId>					   bodies;
+	std::vector<b2ShapeId>					   colliders;
+	std::vector<b2ShapeId>					   sensors;
 	/**
 	 * @brief This vector is indexed by the entity ID and holds the number of events
 	 * that are available for that entity this frame.

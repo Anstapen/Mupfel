@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <chrono>
 #include <utility>
+#include "TimerSystem.h"
 
 #include "GLFW/glfw3.h"
 
@@ -360,7 +361,7 @@ void Application::Run()
 		{
 			ProfilingSample prof("Animation Update");
 			/* Update the Collision System */
-			animationSystem->Update(timestep);
+			AnimationSystem::Update(timestep);
 		}
 
 		{
@@ -398,13 +399,14 @@ void Application::Run()
 
 		{
 			ProfilingSample prof("Event System Update");
+			TimerSystem::Update(timestep);
 			/* Update the EventSystem */
 			evt_system.Update();
 		}
 
 		Profiler::Clear();
 
-		Application::EndFrameTime();
+		EndFrameTime();
 	}
 
 	/* Exited Main Loop, clean everything up */

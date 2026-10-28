@@ -9,21 +9,21 @@ void Animation::BuildFromJSON(const nlohmann::json& source)
 
     if (it != source.end())
     {
-        firstFrame = it->get<uint32_t>();
+        clips[idleClip].firstFrame = it->get<uint32_t>();
     }
 
     it = source.find("frame_count");
 
     if (it != source.end())
     {
-        frameCount = it->get<uint32_t>();
+        clips[idleClip].frameCount = it->get<uint32_t>();
     }
 
     it = source.find("fps");
 
     if (it != source.end())
     {
-        fps = it->get<float>();
+        clips[idleClip].fps = it->get<float>();
     }
 
     it = source.find("elapsed_time");
@@ -37,7 +37,7 @@ void Animation::BuildFromJSON(const nlohmann::json& source)
 
     if (it != source.end())
     {
-        repeating = it->get<bool>();
+        clips[idleClip].repeating = it->get<bool>();
     }
 
     it = source.find("auto_start");

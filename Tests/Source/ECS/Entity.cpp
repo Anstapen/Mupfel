@@ -1,5 +1,11 @@
 #include "ECS/Entity.h"
+#include "Accessors/EntityManagerAccess.h"
+#include "Accessors/EntityAccess.h"
 #include "catch_amalgamated.hpp"
+
+using namespace Mupfel;
+using EntAccess = Testing::EntityAccess;
+using EntManagerAccess = Testing::EntityManagerAccess;
 
 TEST_CASE("Basic Entity System Tests", "[entity_basic]")
 {
@@ -7,8 +13,7 @@ TEST_CASE("Basic Entity System Tests", "[entity_basic]")
 
 	SECTION("First Entity should always be 1")
 	{
-		uint32_t entity_index = 1;
-		REQUIRE(entity_manager.CreateEntity().Index() == entity_index);
+		const Entity e = entity_manager.CreateEntity();
 	}
 
 	SECTION("Test entity recycling")

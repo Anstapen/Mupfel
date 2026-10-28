@@ -1,6 +1,7 @@
 #include "AnimationSystem.h"
-#include "Core/Application.h"
 #include "ECS/Components/Animation.h"
+#include "Api/Events.h"
+#include "Core/CoreEvents.h"
 #include <algorithm>
 #include <cstdint>
 
@@ -8,8 +9,8 @@ bool Mupfel::AnimationSystem::Init() { return true; }
 
 void Mupfel::AnimationSystem::Update(double timestep)
 {
-    Mupfel::Registry& registry = Mupfel::Application::GetCurrentRegistry();
-    for (auto [e, animation] : registry.view<Animation>())
+    Registry& registry = Application::GetCurrentRegistry();
+    for (auto [e, animation] : registry.Each<Animation>())
     {
         if (animation.IsFinished())
         {
@@ -18,29 +19,36 @@ void Mupfel::AnimationSystem::Update(double timestep)
 
         animation.elapsed += static_cast<float>(timestep);
 
-        if (!animation.repeating)
+        if (!IsAnimationFinished(animation) || animation.GetCurrentClip().repeating)
         {
-            /*
-             * Check if the animation already went through.
-             * (elapsed * fps) / frameCount calculates how many percent of the animation already
-             * occured (with 1.0f being 100%).
-             */
-            if (((animation.elapsed * animation.fps) / static_cast<float>(animation.frameCount)) > 1.0f)
-            {
-                /* Animation went through, just set the last frame */
-                animation.currentFrame =
-                    animation.frameCount == 0 ? animation.firstFrame : animation.firstFrame + animation.frameCount - 1;
-                animation.finished = true;
-                continue;
-            }
+            animation.SetNextFrame();
+            continue;
         }
 
-        const uint32_t step = static_cast<uint32_t>(animation.elapsed * animation.fps) % std::max<uint32_t>(
-            animation.frameCount, 1);
-        animation.currentFrame = animation.firstFrame + step;
+        /* The animation is finshed this frame */
+        /* Publish an event. */
+        Events::PostNow<AnimationEndedEvent>({e});
+
+        /* If the animation has another clip queued, we just consume it and move on. */
+        if (animation.HasClipQueued())
+        {
+            animation.StartClip(animation.nextQueuedClip);
+            animation.nextQueuedClip = -1;
+            continue;
+        }
+
+        /* The animation is done and has nothing queued, finish it. */
+        animation.Finish();
+
     }
 }
 
 void Mupfel::AnimationSystem::Shutdown()
 {
+}
+
+bool Mupfel::AnimationSystem::IsAnimationFinished(const Animation& animation)
+{
+    const auto& currentClip = animation.GetCurrentClip();
+    return (animation.elapsed * currentClip.fps) / static_cast<float>(currentClip.frameCount) > 1.0f;
 }

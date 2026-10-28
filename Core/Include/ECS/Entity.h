@@ -17,6 +17,7 @@ namespace Mupfel
     namespace Testing
     {
         struct EntityAccess;
+        struct EntityManagerAccess;
     }
 
     /**
@@ -32,6 +33,7 @@ namespace Mupfel
         template <typename FirstComponent, typename... Components>
         friend class View;
 
+        /** struct defined by the testing framework to have private member access. */
         friend struct Testing::EntityAccess;
 
         /* TODO: i do not want that! This is only because of the parallel view... */
@@ -92,6 +94,10 @@ namespace Mupfel
     class EntityManager
     {
     public:
+
+        /** struct defined by the testing framework to have private member access. */
+        friend struct Testing::EntityManagerAccess;
+
         /**
          * Default constructor of the entity manager. It reserves space for 100 entities.
          */

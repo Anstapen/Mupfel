@@ -297,7 +297,7 @@ void Mupfel::ECSRenderer::SyncRenderableObjects()
 
 	TextureInstance instance;
 
-	for (auto [e, texture, transform] : registry.view<Mupfel::Texture, Mupfel::Transform>())
+	for (auto [e, texture, transform] : registry.Each<Mupfel::Texture, Mupfel::Transform>())
 	{
 
 		instance.index = texture.index;
@@ -332,7 +332,7 @@ void Mupfel::ECSRenderer::SyncLights()
 
 	LightInstance instance;
 
-	for (auto [e, light, transform] : registry.view<Mupfel::Light, Mupfel::Transform>())
+	for (const auto& [e, light, transform] : registry.Each<Mupfel::Light, Mupfel::Transform>())
 	{
 		/* Populate the LightInstance object for the fragment shader */
 		instance.ambientStrength = light.ambientStrength;
