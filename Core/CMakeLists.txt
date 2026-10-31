@@ -22,10 +22,10 @@ target_link_libraries(Core
     PUBLIC  spdlog
             Mupfel::nlohmann
             Mupfel::glm
+            imgui
     PRIVATE nvrhi_vk
             nvrhi
             vk-bootstrap
-            imgui
             box2d
             Mupfel::Vulkan
             Mupfel::GLFW

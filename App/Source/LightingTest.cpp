@@ -1,6 +1,8 @@
 #include "LightingTest.h"
 #include "Events/UserInputEvent.h"
 
+#include "imgui.h"
+
 using namespace Mupfel;
 
 void LightingTest::OnInit()
@@ -33,6 +35,12 @@ void LightingTest::OnUpdate(double timestep)
 
 void LightingTest::OnRender()
 {
+    if (ImGui::Begin("My Tools"))
+    {
+        static float speed = 0.0f;
+        ImGui::SliderFloat("Speed", &speed, 0.0f, 10.0f);
+    }
+    ImGui::End();
 }
 
 void LightingTest::UpdateUserInputs()
