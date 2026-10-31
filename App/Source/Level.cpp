@@ -26,12 +26,6 @@ void Level::OnUpdate(double timestep)
 
 void Level::OnRender()
 {
-	/* Draw a Button */
-	if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png") == 3)
-	{
-		logger->info("Switching to the Main Menu...");
-		Events::Post<SwitchSceneEvent>(SwitchSceneEvent(AppScene::MAIN_MENU));
-	}
 }
 
 void Level::UpdateUserInputs()
@@ -44,7 +38,7 @@ void Level::UpdateUserInputs()
 	/* First, check mouse movement */
 	for (auto& event : Events::Get<UserInputEvent>())
 	{
-		if (event.input == UserInput::RIGHT_MOUSE_CLICK && event.action == KeyAction::PRESSED)
+		if (event.input == UserInput::RIGHT_MOUSE_CLICK && event.action == PRESSED)
 		{
 			/* Mouse button has been pressed this frame */
 			movable_camera = true;
@@ -52,7 +46,7 @@ void Level::UpdateUserInputs()
 			last_cursor_on_screen.y = Input::CursorY();
 		}
 
-		if (event.input == UserInput::RIGHT_MOUSE_CLICK && event.action == KeyAction::RELEASED)
+		if (event.input == UserInput::RIGHT_MOUSE_CLICK && event.action == RELEASED)
 		{
 			movable_camera = false;
 			/* Mouse button has been pressed this frame */

@@ -8,7 +8,8 @@ enum class AppScene : uint8_t
     MAIN_MENU,
     DUNGEON_LEVEL,
     SPACE_INVADERS,
-    GRAV_TEST
+    GRAV_TEST,
+    LIGHTING_TEST
 };
 
 class SwitchSceneEvent : public Mupfel::Event

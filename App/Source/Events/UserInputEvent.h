@@ -19,3 +19,16 @@ struct MovementEvent : Mupfel::Event
     Direction dir;
     bool started;
 };
+
+struct UserAction : Mupfel::Event
+{
+    enum class Action : uint8_t
+    {
+        NONE,
+        GENERATE_ENTITY
+    };
+
+    UserAction(Action in_action) : action(in_action) {}
+
+    Action action;
+};

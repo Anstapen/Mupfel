@@ -46,6 +46,7 @@
 /* Utilities */
 #include "Core/Error.h"
 #include "Core/Profiler.h"
+#include "Core/PRNG.h"
 
 /* Resource Management */
 #include "Core/ResourceManager.h"

@@ -3,6 +3,7 @@
 #include "Level.h"
 #include "MainMenu.h"
 #include "GravityTest.h"
+#include "LightingTest.h"
 #include "Systems/ProximityAnimationSystem.h"
 #include "Systems/UserMovableSystem.h"
 #include "SpaceInvaderClone/Level.h"
@@ -36,6 +37,8 @@ void HelloWorldLayer::OnInit()
 	scenes[AppScene::DUNGEON_LEVEL] = Scenes::Create<Level>(def);
 	def.name = "Space Invaders";
 	scenes[AppScene::SPACE_INVADERS] = Scenes::Create<SpaceInvader::Level>(def);
+	def.name = "Lighting Test";
+	scenes[AppScene::LIGHTING_TEST] = Scenes::Create<LightingTest>(def);
 	def.name = "GravityTest";
 	def.gravity_x = 0.0f;
 	def.gravity_y = -10.0f;

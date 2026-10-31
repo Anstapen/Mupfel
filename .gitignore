@@ -45,3 +45,5 @@ cmake-build-*/
 
 # Resource Data
 App/Resources/
+
+Scripts/

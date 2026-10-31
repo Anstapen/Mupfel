@@ -76,10 +76,4 @@ void GravityTest::OnUpdate(double timestep)
 
 void GravityTest::OnRender()
 {
-    /* Draw a Button */
-    if (UI::Button(50.0f, 50.0f, 150.0f, 50.0f, "Images/buttons/main_menu.png") == 3)
-    {
-        logger->info("Switching to the Main Menu...");
-        Events::Post<SwitchSceneEvent>(SwitchSceneEvent(AppScene::MAIN_MENU));
-    }
 }

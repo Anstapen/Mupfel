@@ -31,4 +31,10 @@ void MainMenu::OnRender()
         logger->info("Switching to Space Invader Demo...");
         Mupfel::Events::Post<SwitchSceneEvent>(SwitchSceneEvent(AppScene::SPACE_INVADERS));
     }
+
+    if (Mupfel::UI::Button(650.0f, 50.0f, 214.0f, 50.0f, "Images/buttons/lighting_test.png") == 3)
+    {
+        logger->info("Switching to Lighting Test...");
+        Mupfel::Events::Post<SwitchSceneEvent>(SwitchSceneEvent(AppScene::LIGHTING_TEST));
+    }
 }
