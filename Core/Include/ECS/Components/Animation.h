@@ -35,6 +35,16 @@ namespace Mupfel
         {
         }
 
+        Animation& SetClip(uint32_t index, const Clip& clip)
+        {
+            if (index < clips.size())
+            {
+                clips[index] = clip;
+            }
+
+            return *this;
+        }
+
         void StartClip(uint32_t id, float elapsedTime = 0.0f)
         {
             elapsed = elapsedTime;

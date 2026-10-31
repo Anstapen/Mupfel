@@ -25,6 +25,7 @@
 #include "ECS/Entity.h"
 #include "ECS/Registry.h"
 #include "ECS/View.h"
+#include "ECS/Prefab.h"
 
 /* Components */
 #include "ECS/Components/Animation.h"

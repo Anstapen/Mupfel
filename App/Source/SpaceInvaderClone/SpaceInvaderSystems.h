@@ -5,6 +5,7 @@ class SpaceInvaderSystems
 {
 public:
     static void Update(double elapsedTime);
+    static void Init();
 private:
     static void UpdateHits();
     static void UpdateDeaths();

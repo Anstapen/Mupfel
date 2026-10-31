@@ -15,7 +15,6 @@ namespace Mupfel
     public:
         using ComponentLoader = std::function<void(Entity, const nlohmann::json&)>;
 
-    public:
         Handle Load(const std::filesystem::path& file, ResourceManager* mngr) final;
         void Store(const Handle& handle) final;
         virtual bool RegisterComponentLoader(const std::string& loader_name, ComponentLoader loader);
@@ -29,8 +28,7 @@ namespace Mupfel
         static void LoadLight(Entity e, const nlohmann::json &source);
         static void LoadAnimation(Entity e, const nlohmann::json &source);
 
-    private:
         std::unordered_map<std::string, ComponentLoader> loaders;
-        static Mupfel::Logger::SafeLoggerPtr logger;
+        static Logger::SafeLoggerPtr logger;
     };
 }

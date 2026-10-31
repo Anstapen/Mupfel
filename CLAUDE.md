@@ -93,12 +93,12 @@ Three consequences when adding code:
 
 ### Vendor visibility
 
-`App/CMakeLists.txt` names `"Source"` and `Core`, nothing else. `Core/Include`, spdlog and nlohmann json
-arrive as `Core`'s PUBLIC usage requirements; NVRHI, vk-bootstrap, the Vulkan SDK, GLFW, ImGui, Box2D and
-glm are **fully hidden** because `Core` links them `PRIVATE`. This is enforced by the build graph rather
+`App/CMakeLists.txt` names `"Source"` and `Core`, nothing else. `Core/Include`, spdlog, nlohmann json and
+glm arrive as `Core`'s PUBLIC usage requirements; NVRHI, vk-bootstrap, the Vulkan SDK, GLFW, ImGui and
+Box2D are **fully hidden** because `Core` links them `PRIVATE`. This is enforced by the build graph rather
 than by keeping a list correct.
 
-spdlog and nlohmann json are *deliberately published*, not leaked — they are considered useful to the
+spdlog, nlohmann json and glm are *deliberately published*, not leaked — they are considered useful to the
 application author:
 
 - `Core/Include/Core/Logger.h` is Mupfel's own logging header (`Logger::SafeLoggerPtr` =
@@ -106,8 +106,12 @@ application author:
   `Logger/Logger.h` that used to come from `Ping`, which is what previously forced Ping's include
   path onto `App`. It is unaffected by the NVRHI migration.
 - `FS/EntityFileManager.h` names `nlohmann::json` in its public `ComponentLoader` signature.
+- `ECS/Components/Light.h` uses glm types. `GLM_FORCE_DEPTH_ZERO_TO_ONE` is an `INTERFACE` define on
+  `Mupfel::glm`, so every TU that sees glm gets it: glm bakes the clip-space depth range into inline
+  functions, so a TU without it is an ODR violation, and Vulkan needs `[0,1]` or the scene fails the
+  depth test and renders black.
 
-Both entries are load-bearing: removing either breaks a public header. Don't "clean them up".
+All three entries are load-bearing: removing any breaks a public header. Don't "clean them up".
 
 The techniques that got the rest hidden, and the rules that keep them working:
 

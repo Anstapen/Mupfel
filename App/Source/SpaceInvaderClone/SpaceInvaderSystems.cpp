@@ -19,6 +19,10 @@ void SpaceInvaderSystems::Update(double elapsedTime)
     UpdateDeaths();
 }
 
+void SpaceInvaderSystems::Init()
+{
+}
+
 void SpaceInvaderSystems::UpdateHits()
 {
     for (const auto& event : Events::Get<SensorEnteredEvent>())

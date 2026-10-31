@@ -9,10 +9,17 @@ namespace Mupfel
     {
         Sensor() = default;
 
-        void SetCircle(float radius)
+        Sensor& SetCircle(float radius)
         {
             shape = ColliderShape::Circle;
             data.circle.radius = radius;
+            return *this;
+        }
+
+        Sensor& SetReportEvents(bool value)
+        {
+            report_events = value;
+            return *this;
         }
 
         void SetBox(float width, float height)

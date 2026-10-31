@@ -14,12 +14,15 @@
 #include "Shaders/ecs_fragment.h"
 #include "Shaders/ecs_vertex.h"
 
-struct UniformBuffer
+namespace
 {
-	glm::mat4 view;
-	glm::mat4 proj;
-	glm::vec4 cameraPos;
-};
+	struct UniformBuffer
+	{
+		glm::mat4 view;
+		glm::mat4 proj;
+		glm::vec4 cameraPos;
+	};
+}
 
 bool Mupfel::ECSRenderer::Init(
 	nvrhi::DeviceHandle			  device,
@@ -213,8 +216,8 @@ void Mupfel::ECSRenderer::PostUser(
 
 void Mupfel::ECSRenderer::UpdateMVP(nvrhi::CommandListHandle current_command_list)
 {
-	const float	  width = static_cast<float>(Application::GetCurrentRenderWidth());
-	const float	  height = static_cast<float>(Application::GetCurrentRenderHeight());
+	const auto	  width = static_cast<float>(Application::GetCurrentRenderWidth());
+	const auto	  height = static_cast<float>(Application::GetCurrentRenderHeight());
 	const Camera& cam = Application::GetCurrentSceneCamera();
 
 	UniformBuffer ubo{};
@@ -309,9 +312,9 @@ void Mupfel::ECSRenderer::SyncRenderableObjects()
 		instance.rotation = transform.rotation;
 
 		/* TODO: check if GetSignature might be more performant! */
-		instance.emitsLight = registry.HasComponent<Mupfel::Light>(e) ? 1 : 0;
+		instance.emitsLight = registry.HasComponent<Light>(e) ? 1 : 0;
 
-		if (registry.HasComponent<Mupfel::Animation>(e))
+		if (registry.HasComponent<Animation>(e))
 		{
 			instance.frame = registry.GetComponent<Mupfel::Animation>(e).currentFrame;
 		}

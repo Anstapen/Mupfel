@@ -1,7 +1,3 @@
-# App/CMakeLists.txt
-#
-# Builds the "App" executable: game/editor-specific layers (see App/Source)
-
 file(GLOB_RECURSE app_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.h")
@@ -17,5 +13,4 @@ if(WIN32)
     target_compile_definitions(App PRIVATE WINDOWS)
 endif()
 
-# Run from App/, so relative asset and log paths resolve the same way in the IDE.
 set_property(TARGET App PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
